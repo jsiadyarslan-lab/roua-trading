@@ -190,18 +190,18 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   boxShadow: `0 0 10px ${activeTab.accent}66`,
                 }}
               />
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                 {tr('decisionCenter')}
               </div>
             </div>
-            <div style={{ marginTop: 2, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
+            <div style={{ marginTop: 2, fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
               {headline}
             </div>
           </div>
           <div style={{ display: 'grid', gap: 3, justifyItems: 'end' }}>
             <div
               style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 color: activeTab.accent,
                 background: `${activeTab.accent}12`,
                 border: `1px solid ${activeTab.accent}25`,
@@ -214,7 +214,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             >
               {activeTab.label}
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
               {selectedSymbol}
             </div>
           </div>
@@ -305,7 +305,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   borderRadius: 'var(--radius-2xl)',
                   background: alertColor,
                   color: '#000',
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   fontWeight: 900,
                   fontFamily: "var(--font-mono)",
                   display: 'flex',
@@ -320,7 +320,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               )}
 
               <Icon size={8} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: isActive ? 800 : 600, lineHeight: 1, color: isActive ? '#F0F2F5' : hasAlert ? alertColor : '#AEC0D6', whiteSpace: 'nowrap' }}>{t.label}</span>
+              <span style={{ fontSize: 11, fontWeight: isActive ? 800 : 600, lineHeight: 1, color: isActive ? '#F0F2F5' : hasAlert ? alertColor : '#AEC0D6', whiteSpace: 'nowrap' }}>{t.label}</span>
             </button>
           )
         })}

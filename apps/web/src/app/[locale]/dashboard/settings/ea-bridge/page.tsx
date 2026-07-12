@@ -179,10 +179,10 @@ export default function EABridgePage() {
               <Cpu size={18} color="#fff" />
             </div>
             <div>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
                 ربط MetaTrader 5 مع رؤى
               </h3>
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
                 EA يتلقى توصيات المجلس الذكي وينفذها مباشرة — بدون MetaAPI
               </p>
             </div>
@@ -197,9 +197,9 @@ export default function EABridgePage() {
             ].map(item => (
               <div key={item.text} style={{
                 background: 'var(--bg-input)', borderRadius: 'var(--radius-lg)', padding: '10px 12px',
-                display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-xs)', fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600,
               }}>
-                <span style={{ fontSize: 'var(--text-md)' }}>{item.icon}</span>
+                <span style={{ fontSize: 17 }}>{item.icon}</span>
                 {item.text}
               </div>
             ))}
@@ -211,14 +211,14 @@ export default function EABridgePage() {
           background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', padding: 24,
           border: '1px solid var(--border)',
         }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Key size={16} style={{ color: 'var(--accent)' }} />
             إنشاء توكن جديد
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
                 اسم التعريف
               </label>
               <input
@@ -228,14 +228,14 @@ export default function EABridgePage() {
                 style={{
                   width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                   background: 'var(--bg-input)', border: '1px solid var(--border)',
-                  color: 'var(--text-main)', fontSize: 'var(--text-sm)', outline: 'none',
+                  color: 'var(--text-main)', fontSize: 13, outline: 'none',
                   fontFamily: 'inherit',
                 }}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
                 رقم حساب MT5 (اختياري)
               </label>
               <input
@@ -245,14 +245,14 @@ export default function EABridgePage() {
                 style={{
                   width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                   background: 'var(--bg-input)', border: '1px solid var(--border)',
-                  color: 'var(--text-main)', fontSize: 'var(--text-sm)', outline: 'none',
+                  color: 'var(--text-main)', fontSize: 13, outline: 'none',
                   fontFamily: 'inherit',
                 }}
               />
             </div>
 
             {error && (
-              <div style={{ fontSize: 'var(--text-sm)', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <AlertTriangle size={14} />
                 {error}
               </div>
@@ -266,7 +266,7 @@ export default function EABridgePage() {
                 background: generating ? 'var(--bg-input)' : 'linear-gradient(135deg, #10b981, #06b6d4)',
                 color: generating ? 'var(--text-muted)' : '#fff',
                 border: 'none', cursor: generating ? 'not-allowed' : 'pointer',
-                fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'inherit',
+                fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
@@ -282,7 +282,7 @@ export default function EABridgePage() {
           border: '1px solid var(--border)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Shield size={16} style={{ color: 'var(--accent)' }} />
               التوكنات النشطة
             </h3>
@@ -291,7 +291,7 @@ export default function EABridgePage() {
               style={{
                 padding: '6px 12px', borderRadius: 'var(--radius-md)',
                 background: 'var(--bg-input)', border: '1px solid var(--border)',
-                color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-xs)',
+                color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11,
                 display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit',
               }}
             >
@@ -303,13 +303,13 @@ export default function EABridgePage() {
           {loading ? (
             <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)' }}>
               <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 10px' }} />
-              <div style={{ fontSize: 'var(--text-sm)' }}>جاري التحميل...</div>
+              <div style={{ fontSize: 13 }}>جاري التحميل...</div>
             </div>
           ) : tokens.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)' }}>
               <Key size={32} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>لا توجد توكنات بعد</div>
-              <div style={{ fontSize: 'var(--text-xs)', marginTop: 4 }}>أنشئ توكن أعلاه لربط MT5 مع رؤى</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>لا توجد توكنات بعد</div>
+              <div style={{ fontSize: 11, marginTop: 4 }}>أنشئ توكن أعلاه لربط MT5 مع رؤى</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -329,23 +329,23 @@ export default function EABridgePage() {
                         {isOnline ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Wifi size={14} color={'#10b981'} />
-                            <span style={{ fontSize: 'var(--text-xs)', color: '#10b981', fontWeight: 700 }}>متصل</span>
+                            <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>متصل</span>
                           </div>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <WifiOff size={14} color="var(--text-muted)" />
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600 }}>غير متصل</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>غير متصل</span>
                           </div>
                         )}
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>|</span>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{token.label}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>|</span>
+                        <span style={{ fontSize: 13, fontWeight: 700 }}>{token.label}</span>
                       </div>
                       <button
                         onClick={() => revokeToken(token.id)}
                         style={{
                           padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                           background: 'rgba(239,68,68,0.1)', border: 'none',
-                          color: '#ef4444', cursor: 'pointer', fontSize: 'var(--text-xs)',
+                          color: '#ef4444', cursor: 'pointer', fontSize: 11,
                           fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4,
                           fontFamily: 'inherit',
                         }}
@@ -363,7 +363,7 @@ export default function EABridgePage() {
                     }}>
                       <Key size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                       <code style={{
-                        fontSize: 'var(--text-xs)', flex: 1, overflow: 'hidden',
+                        fontSize: 11, flex: 1, overflow: 'hidden',
                         textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         direction: 'ltr', textAlign: 'left',
                         color: isRevealed ? 'var(--text-main)' : 'var(--text-muted)',
@@ -396,22 +396,22 @@ export default function EABridgePage() {
                     {/* التفاصيل */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                       {token.mt5AccountNumber && (
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Activity size={10} />
                           حساب: {token.mt5AccountNumber}
                         </div>
                       )}
                       {status?.lastHeartbeat?.balance != null && (
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                           رصيد: ${status.lastHeartbeat.balance.toLocaleString()}
                         </div>
                       )}
                       {status?.lastHeartbeat?.openPositions != null && (
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                           مراكز: {status.lastHeartbeat.openPositions}
                         </div>
                       )}
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Clock size={10} />
                         أُنشئ: {formatDate(token.createdAt)}
                       </div>
@@ -428,7 +428,7 @@ export default function EABridgePage() {
           background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', padding: 24,
           border: '1px solid var(--border)',
         }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ExternalLink size={16} style={{ color: 'var(--accent)' }} />
             خطوات الإعداد في MT5
           </h3>
@@ -468,13 +468,13 @@ export default function EABridgePage() {
                   width: 28, height: 28, borderRadius: 'var(--radius-md)', flexShrink: 0,
                   background: 'linear-gradient(135deg, #10b981, #06b6d4)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 'var(--text-sm)', fontWeight: 800, color: '#fff',
+                  fontSize: 13, fontWeight: 800, color: '#fff',
                 }}>
                   {item.step}
                 </div>
                 <div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{item.title}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>{item.desc}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{item.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.desc}</div>
                 </div>
               </div>
             ))}

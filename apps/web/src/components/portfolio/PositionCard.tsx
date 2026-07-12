@@ -165,7 +165,7 @@ export function PositionCard({
       <div style={{ minWidth: 0, flexShrink: 0, width: 72 }}>
         <div
           style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             fontWeight: 800,
             color: '#F0F2F5',
             fontFamily: "var(--font-mono)",
@@ -178,7 +178,7 @@ export function PositionCard({
         </div>
         <div
           style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             fontWeight: 700,
             color: sideColor,
             fontFamily: "var(--font-ar)",
@@ -201,7 +201,7 @@ export function PositionCard({
         <div style={{ minWidth: 0 }}>
           <div
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: '#6B7280',
               fontFamily: "var(--font-ar)",
             }}
@@ -210,7 +210,7 @@ export function PositionCard({
           </div>
           <div
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: '#9CA3B5',
               fontFamily: "var(--font-mono)",
             }}
@@ -221,7 +221,7 @@ export function PositionCard({
         <div style={{ minWidth: 0 }}>
           <div
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: '#6B7280',
               fontFamily: "var(--font-ar)",
             }}
@@ -230,7 +230,7 @@ export function PositionCard({
           </div>
           <div
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: '#F0F2F5',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
@@ -254,7 +254,7 @@ export function PositionCard({
         <div style={{ textAlign: 'right' }}>
           <div
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               color: pnlColor,
               fontFamily: "var(--font-mono)",
@@ -264,7 +264,7 @@ export function PositionCard({
           </div>
           <div
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 700,
               color: pnlColor,
               fontFamily: "var(--font-mono)",
@@ -300,7 +300,7 @@ export function PositionCard({
               style={{
                 width: 48,
                 height: 18,
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 padding: '0 3px',
                 borderRadius: 'var(--radius-xs)',
                 border: '1px solid rgba(255,71,87,0.3)',
@@ -329,7 +329,7 @@ export function PositionCard({
                 : '1px dashed rgba(255,71,87,0.2)',
               background: effectiveSl ? 'rgba(255,71,87,0.08)' : 'transparent',
               color: effectiveSl ? '#FF4757' : 'rgba(255,71,87,0.5)',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
               cursor: 'pointer',
@@ -365,7 +365,7 @@ export function PositionCard({
               style={{
                 width: 48,
                 height: 18,
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 padding: '0 3px',
                 borderRadius: 'var(--radius-xs)',
                 border: '1px solid rgba(0,255,163,0.3)',
@@ -394,7 +394,7 @@ export function PositionCard({
                 : '1px dashed rgba(0,255,163,0.2)',
               background: effectiveTp ? 'rgba(0,255,163,0.08)' : 'transparent',
               color: effectiveTp ? '#00FFA3' : 'rgba(0,255,163,0.5)',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
               cursor: 'pointer',
@@ -433,7 +433,7 @@ export function PositionCard({
                   border: '1px solid rgba(255,71,87,0.4)',
                   background: 'rgba(255,71,87,0.15)',
                   color: '#FF4757',
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   fontWeight: 800,
                   cursor: closing || loading ? 'not-allowed' : 'pointer',
                   fontFamily: "var(--font-ar)",
@@ -456,7 +456,7 @@ export function PositionCard({
                   border: '1px solid rgba(255,255,255,0.08)',
                   background: 'transparent',
                   color: '#6B7280',
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   cursor: closing || loading ? 'not-allowed' : 'pointer',
                   opacity: closing || loading ? 0.5 : 1,
                 }}

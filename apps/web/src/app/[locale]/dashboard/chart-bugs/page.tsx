@@ -111,10 +111,10 @@ export default function ChartBugsPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, margin: 0, color: '#00D4FF' }}>
+            <h1 style={{ fontSize: 27, fontWeight: 800, margin: 0, color: '#00D4FF' }}>
               🐛 سجل أخطاء الشارت
             </h1>
-            <p style={{ fontSize: 'var(--text-base)', color: '#9CA3B5', margin: '4px 0 0' }}>
+            <p style={{ fontSize: 15, color: '#9CA3B5', margin: '4px 0 0' }}>
               نظام منع الانتكاس الدائم — {data?.summary.total || 0} خطأ مسجَّل
             </p>
           </div>
@@ -124,7 +124,7 @@ export default function ChartBugsPage() {
               style={{
                 padding: '8px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(0,212,255,0.3)',
                 background: verbose ? 'rgba(0,212,255,0.15)' : 'transparent',
-                color: verbose ? '#00D4FF' : '#9CA3B5', cursor: 'pointer', fontSize: 'var(--text-sm)',
+                color: verbose ? '#00D4FF' : '#9CA3B5', cursor: 'pointer', fontSize: 13,
               }}
             >
               {verbose ? '✓ تفصيلي' : 'تفصيلي'}
@@ -136,7 +136,7 @@ export default function ChartBugsPage() {
                 padding: '8px 20px', borderRadius: 'var(--radius-md)', border: 'none',
                 background: loading ? '#333' : 'linear-gradient(135deg, #00d4ff, #00ffa3)',
                 color: loading ? '#888' : '#0B0E14', cursor: loading ? 'wait' : 'pointer',
-                fontWeight: 700, fontSize: 'var(--text-base)',
+                fontWeight: 700, fontSize: 15,
               }}
             >
               {loading ? '⏳ جارٍ الفحص...' : '🔄 إعادة الفحص'}
@@ -162,7 +162,7 @@ export default function ChartBugsPage() {
 
       {/* Last run timestamp */}
       {lastRun && (
-        <div style={{ padding: '0 32px 8px', fontSize: 'var(--text-sm)', color: '#6B7280' }}>
+        <div style={{ padding: '0 32px 8px', fontSize: 13, color: '#6B7280' }}>
           آخر فحص: {lastRun}
         </div>
       )}
@@ -193,7 +193,7 @@ export default function ChartBugsPage() {
               padding: '6px 14px', borderRadius: 'var(--radius-2xl)', border: '1px solid rgba(255,255,255,0.1)',
               background: filter === tab.key ? 'rgba(0,212,255,0.15)' : 'transparent',
               color: filter === tab.key ? '#00D4FF' : '#9CA3B5',
-              cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600,
+              cursor: 'pointer', fontSize: 13, fontWeight: 600,
             }}
           >
             {tab.label} ({tab.count})
@@ -205,7 +205,7 @@ export default function ChartBugsPage() {
       <div style={{ padding: '0 32px 32px' }}>
         {loading && !data ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#6B7280' }}>
-            <div style={{ fontSize: 'var(--text-3xl)', marginBottom: 16 }}>⏳</div>
+            <div style={{ fontSize: 35, marginBottom: 16 }}>⏳</div>
             <div>جارٍ فحص {`>`} 865 ملف و {data?.summary.total || 20} خطأ...</div>
           </div>
         ) : (
@@ -231,25 +231,25 @@ export default function ChartBugsPage() {
                       alignItems: 'center', gap: 12,
                     }}
                   >
-                    <span style={{ fontSize: 'var(--text-lg)' }}>{cfg.emoji}</span>
+                    <span style={{ fontSize: 19 }}>{cfg.emoji}</span>
                     <span style={{
-                      fontWeight: 800, fontSize: 'var(--text-sm)', color: '#6B7280',
+                      fontWeight: 800, fontSize: 13, color: '#6B7280',
                       minWidth: 70, fontFamily: 'monospace',
                     }}>{bug.id}</span>
                     <span style={{
-                      padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
+                      padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700,
                       background: sevColor + '22', color: sevColor, minWidth: 70, textAlign: 'center',
                     }}>{bug.severity}</span>
-                    <span style={{ flex: 1, fontSize: 'var(--text-base)', fontWeight: 600 }}>{bug.title}</span>
+                    <span style={{ flex: 1, fontSize: 15, fontWeight: 600 }}>{bug.title}</span>
                     <span style={{
-                      padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
+                      padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700,
                       background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}33`,
                     }}>{cfg.label}</span>
-                    <span style={{ color: '#6B7280', fontSize: 'var(--text-sm)' }}>{isExpanded ? '▲' : '▼'}</span>
+                    <span style={{ color: '#6B7280', fontSize: 13 }}>{isExpanded ? '▲' : '▼'}</span>
                   </div>
 
                   {isExpanded && (
-                    <div style={{ padding: '0 16px 16px', fontSize: 'var(--text-sm)', color: '#a8b0c0' }}>
+                    <div style={{ padding: '0 16px 16px', fontSize: 13, color: '#a8b0c0' }}>
                       <DetailRow label="الملف" value={bug.file} mono />
                       <DetailRow label="التفاصيل" value={bug.detail} />
                       {bug.description && <DetailRow label="الوصف" value={bug.description} />}
@@ -270,7 +270,7 @@ export default function ChartBugsPage() {
       {/* Tests section */}
       {data && data.tests.length > 0 && (
         <div style={{ padding: '0 32px 48px' }}>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: '0 0 16px', color: '#00D4FF' }}>
+          <h2 style={{ fontSize: 19, fontWeight: 700, margin: '0 0 16px', color: '#00D4FF' }}>
             🧪 اختبارات الانحدار ({data.summary.testsPassed}/{data.summary.testsTotal} ناجح)
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -286,11 +286,11 @@ export default function ChartBugsPage() {
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <span style={{ fontSize: 'var(--text-md)' }}>{cfg.emoji}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-sm)', flex: 1 }}>{test.name}</span>
-                  <span style={{ color: cfg.color, fontSize: 'var(--text-sm)', fontWeight: 700 }}>{test.status}</span>
+                  <span style={{ fontSize: 17 }}>{cfg.emoji}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: 13, flex: 1 }}>{test.name}</span>
+                  <span style={{ color: cfg.color, fontSize: 13, fontWeight: 700 }}>{test.status}</span>
                   {test.error && (
-                    <span style={{ color: '#FF4757', fontSize: 'var(--text-xs)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ color: '#FF4757', fontSize: 11, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {test.error}
                     </span>
                   )}
@@ -304,7 +304,7 @@ export default function ChartBugsPage() {
       {/* Footer */}
       <div style={{
         padding: '16px 32px', borderTop: '1px solid rgba(255,255,255,0.05)',
-        fontSize: 'var(--text-sm)', color: '#6B7280', textAlign: 'center',
+        fontSize: 13, color: '#6B7280', textAlign: 'center',
       }}>
         البيانات من <code style={{ color: '#9CA3B5' }}>BUGS.md</code> + فحص مباشر للكود —{' '}
         <a href="https://github.com/jsiadyarslan-lab/roua-trading/blob/main/BUGS.md" target="_blank" rel="noopener" style={{ color: '#00D4FF' }}>
@@ -325,9 +325,9 @@ function SummaryCard({ label, value, color, emoji, highlight }: {
       border: highlight ? `1px solid ${color}66` : '1px solid rgba(255,255,255,0.08)',
       textAlign: 'center',
     }}>
-      <div style={{ fontSize: 'var(--text-2xl)', marginBottom: 4 }}>{emoji}</div>
-      <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 27, marginBottom: 4 }}>{emoji}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#9CA3B5', marginTop: 2 }}>{label}</div>
     </div>
   );
 }
@@ -335,9 +335,9 @@ function SummaryCard({ label, value, color, emoji, highlight }: {
 function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div style={{ display: 'flex', gap: 12, marginBottom: 6, alignItems: 'flex-start' }}>
-      <span style={{ minWidth: 90, color: '#6B7280', fontSize: 'var(--text-sm)', fontWeight: 600 }}>{label}:</span>
+      <span style={{ minWidth: 90, color: '#6B7280', fontSize: 13, fontWeight: 600 }}>{label}:</span>
       <span style={{
-        flex: 1, fontSize: 'var(--text-sm)',
+        flex: 1, fontSize: 13,
         fontFamily: mono ? 'monospace' : 'inherit',
         whiteSpace: mono ? 'pre-wrap' : 'normal',
         wordBreak: 'break-word',

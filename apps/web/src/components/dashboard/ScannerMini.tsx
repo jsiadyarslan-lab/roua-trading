@@ -164,25 +164,25 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Activity size={10} color="var(--accent)" className={scanning ? 'animate-pulse' : ''} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--accent)', fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)', fontFamily: "var(--font-ar)" }}>
             {ts('title')}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', background: 'rgba(255,184,0,0.10)', border: '0.5px solid rgba(255,184,0,0.20)', color: 'var(--amber)', padding: '0.5px 4px', borderRadius: 'var(--radius-xs)', fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 11, background: 'rgba(255,184,0,0.10)', border: '0.5px solid rgba(255,184,0,0.20)', color: 'var(--amber)', padding: '0.5px 4px', borderRadius: 'var(--radius-xs)', fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {signals.length > 0 ? `${signals.length} ${ts("pair")}` : ''}
           </span>
           {lastScan && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>
               · {lastScan}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>{countdown}s</span>
+          <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>{countdown}s</span>
           <button
             onClick={doScan}
             disabled={scanning}
             style={{
-              minHeight: 16, fontSize: 'var(--text-xs)', padding: '2px 5px', borderRadius: 'var(--radius-xs)',
+              minHeight: 16, fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)',
               cursor: scanning ? 'not-allowed' : 'pointer', lineHeight: 1,
               display: 'flex', alignItems: 'center', gap: 2,
               background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)',
@@ -213,11 +213,11 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             gap: 4,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--foreground)', fontFamily: "var(--font-ar)" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--foreground)', fontFamily: "var(--font-ar)" }}>
                 {spotlight.pair === activeSymbol ? ts('selectedUnderMicroscope') : ts('topOpportunity')}
               </span>
               <span style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 padding: '1.5px 6px',
                 borderRadius: 'var(--radius-2xl)',
                 background: spotlight.dir === 'buy' ? 'rgba(0,200,83,0.15)' : spotlight.dir === 'sell' ? 'rgba(255,59,48,0.15)' : 'rgba(255,184,0,0.15)',
@@ -228,12 +228,12 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                 {spotlight.dir === 'buy' ? tc('buy') : spotlight.dir === 'sell' ? tc('sell') : ts('watch')}
               </span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text2)', lineHeight: 1.6, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.6, fontFamily: "var(--font-ar)" }}>
               {Array.isArray(spotlight.reasons) && spotlight.reasons.length > 0
                 ? ts('appearedBecause', { symbol: spotlight.pair, reasons: spotlight.reasons.slice(0, 2).join(' · ') })
                 : ts('scannerWatching', { symbol: spotlight.pair })}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>
               <span>{spotlight.source || ts('awaitingConnection')}</span>
               <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp, tc) : (lastScan || tc('justNow'))}</span>
             </div>
@@ -253,8 +253,8 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
           </div>
         ) : signals.length === 0 ? (
           <div style={{ padding: compact ? 15 : 30, textAlign: 'center', opacity: 0.4 }}>
-             <span style={{ fontSize: 'var(--text-lg)' }}>📡</span>
-             <div style={{ fontSize: 'var(--text-xs)', marginTop: 6 }}>{ts('noSignals')}</div>
+             <span style={{ fontSize: 19 }}>📡</span>
+             <div style={{ fontSize: 11, marginTop: 6 }}>{ts('noSignals')}</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -304,21 +304,21 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                   {/* Row 1: Pair + Direction badge + Strength */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#fff', fontFamily: "var(--font-mono)" }}>{sig.pair}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', fontFamily: "var(--font-mono)" }}>{sig.pair}</span>
                       <span style={{
-                        fontSize: 'var(--text-xs)', fontWeight: 800, color: dirColor, background: dirBg,
+                        fontSize: 11, fontWeight: 800, color: dirColor, background: dirBg,
                         padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                         fontFamily: "var(--font-ar)",
                       }}>
                         {isBuy ? tc('buy') : isSell ? tc('sell') : ts('watch')}
                       </span>
                       {isActiveSig && (
-                        <span style={{ fontSize: 'var(--text-xs)', background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', color: 'var(--accent)', fontFamily: "var(--font-ar)", fontWeight: 700 }}>{ts('selected')}</span>
+                        <span style={{ fontSize: 11, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', color: 'var(--accent)', fontFamily: "var(--font-ar)", fontWeight: 700 }}>{ts('selected')}</span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: dirColor, fontFamily: "var(--font-mono)" }}>{sig.strength}</span>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text3)' }}>%</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: dirColor, fontFamily: "var(--font-mono)" }}>{sig.strength}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)' }}>%</span>
                     </div>
                   </div>
 
@@ -336,10 +336,10 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                   {/* Meta row */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                      {sig.rsi != null && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>RSI {sig.rsi}</span>}
-                      {sig.macdSignal != null && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>MACD {sig.macdSignal}</span>}
+                      {sig.rsi != null && <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>RSI {sig.rsi}</span>}
+                      {sig.macdSignal != null && <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>MACD {sig.macdSignal}</span>}
                     </div>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>{sig.timestamp ? formatFreshness(sig.timestamp, tc) : (lastScan || tc('justNow'))}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>{sig.timestamp ? formatFreshness(sig.timestamp, tc) : (lastScan || tc('justNow'))}</span>
                   </div>
                 </div>
               )
@@ -372,11 +372,11 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 12px ${isBuy ? 'rgba(0,230,118,0.06)' : isSell ? 'rgba(255,82,82,0.06)' : 'rgba(255,184,0,0.06)'}`,
             backdropFilter: 'blur(12px)',
           }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: dirColor, fontFamily: "var(--font-ar)", marginBottom: reasons ? 3 : 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: dirColor, fontFamily: "var(--font-ar)", marginBottom: reasons ? 3 : 0 }}>
               {sig.pair} — {explanation}
             </div>
             {reasons && (
-              <div style={{ fontSize: 'var(--text-xs)', color: '#90A0B8', fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11, color: '#90A0B8', fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>
                 {reasons}
               </div>
             )}

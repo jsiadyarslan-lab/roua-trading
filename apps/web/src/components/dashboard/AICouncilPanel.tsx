@@ -334,7 +334,7 @@ export function AICouncilPanel() {
                 boxShadow: `0 0 5px ${'#B388FF'}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 'var(--text-xs)', color: '#B388FF', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 11, color: '#B388FF', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                 {tai('monitoringTrends')}: {currentTrendSymbol}
               </span>
             </div>
@@ -357,7 +357,7 @@ export function AICouncilPanel() {
             border: `1px solid ${keepAliveStatus?.nestJSUp ? 'rgba(0,255,163,0.25)' : 'rgba(255,184,0,0.2)'}`,
           }} title={`Keep-alive: NestJS ${keepAliveStatus?.nestJSUp ? 'UP' : 'DOWN'} | Last ping: ${keepAliveStatus?.lastPingAt || 'never'}`}>
             <Heart size={7} color={keepAliveStatus?.nestJSUp ? '#00FFA3' : '#FFB800'} className={keepAliveStatus?.nestJSUp ? '' : 'animate-pulse'} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: keepAliveStatus?.nestJSUp ? '#00FFA3' : '#FFB800', fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: keepAliveStatus?.nestJSUp ? '#00FFA3' : '#FFB800', fontFamily: "var(--font-mono)" }}>
               {keepAliveStatus?.nestJSUp ? tai('up') : tai('ping')}
             </span>
           </div>
@@ -369,12 +369,12 @@ export function AICouncilPanel() {
             border: `1px solid ${isRealAI ? 'rgba(179,136,255,0.3)' : 'rgba(255,184,0,0.2)'}`,
           }}>
             {isRealAI ? <Cpu size={8} color={'#B388FF'} /> : <WifiOff size={8} color={'#FFB800'} />}
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isPartialAI ? '#059669' : isRealAI ? '#B388FF' : '#FFB800', fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: isPartialAI ? '#059669' : isRealAI ? '#B388FF' : '#FFB800', fontFamily: "var(--font-mono)" }}>
               {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : isRealAI ? `${data?.meta?.modelsResponded || 7}/${data?.meta?.modelsExpected || 7} AI` : dataSource === 'scanner-rules' ? tai('technicalAnalysis') : 'FB'}
             </span>
           </div>
           {/* Countdown */}
-          <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)", minWidth: 24, textAlign: 'center' }}>
+          <span style={{ fontSize: 11, color: '#9CA3B5', fontFamily: "var(--font-mono)", minWidth: 24, textAlign: 'center' }}>
             {formatCountdown}
           </span>
           <button
@@ -408,7 +408,7 @@ export function AICouncilPanel() {
                       key={m + '-' + i} 
                       className="transition-all duration-500" 
                       style={{ 
-                        fontSize: 'var(--text-xs)', padding: '2px 5px', borderRadius: 'var(--radius-xs)', 
+                        fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)', 
                         background: isActive ? 'rgba(179,136,255,0.4)' : 'rgba(179,136,255,0.1)', 
                         color: isActive ? '#fff' : '#B388FF', 
                         fontFamily: "var(--font-mono)",
@@ -462,10 +462,10 @@ export function AICouncilPanel() {
                   {isCachedAI ? tai('cachedAnalysis') : tai('realAnalysisFrom', { ms: data.meta?.processingTimeMs || 0 })}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: '#059669', fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
+                  <span style={{ fontSize: 11, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: '#059669', fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
                 )}
                 {connectionLayer === 'nestjs' && (
-                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(179,136,255,0.15)', color: '#B388FF', fontFamily: "var(--font-mono)", fontWeight: 700 }}>NestJS</span>
+                  <span style={{ fontSize: 11, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(179,136,255,0.15)', color: '#B388FF', fontFamily: "var(--font-mono)", fontWeight: 700 }}>NestJS</span>
                 )}
               </div>
             )}
@@ -476,7 +476,7 @@ export function AICouncilPanel() {
                   {tai('partialAnalysis', { count: data.meta?.modelsResponded || '?' })}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: '#059669', fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
+                  <span style={{ fontSize: 11, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: '#059669', fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
                 )}
               </div>
             )}
@@ -493,7 +493,7 @@ export function AICouncilPanel() {
                     <span
                       key={model}
                       style={{
-                        fontSize: 'var(--text-xs)',
+                        fontSize: 11,
                         padding: '1px 5px',
                         borderRadius: 'var(--radius-xs)',
                         background: `${color}20`,
@@ -512,7 +512,7 @@ export function AICouncilPanel() {
                   <span
                     key={`missing-${i}`}
                     style={{
-                      fontSize: 'var(--text-xs)',
+                      fontSize: 11,
                       padding: '1px 5px',
                       borderRadius: 'var(--radius-xs)',
                       background: 'rgba(255,255,255,0.03)',

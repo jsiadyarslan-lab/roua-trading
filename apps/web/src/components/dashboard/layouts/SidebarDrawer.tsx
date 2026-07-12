@@ -123,7 +123,7 @@ export function SidebarDrawer({
             />
             <span
               style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: 800,
                 color: '#F0F2F5',
                 fontFamily: "var(--font-ar)",

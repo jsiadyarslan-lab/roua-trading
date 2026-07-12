@@ -105,7 +105,7 @@ export function CrosshairOverlay({
             border: '1px solid rgba(255,255,255,0.06)',
           }}>
             <span style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: COLORS.textMuted,
               fontFamily: "var(--font-mono)",
               display: 'flex',
@@ -118,7 +118,7 @@ export function CrosshairOverlay({
               <span>C <b style={{ color: isBull ? 'rgba(63,185,80,0.75)' : 'rgba(248,81,73,0.75)' }}>{crosshairData.close.toFixed(decimals)}</b></span>
             </span>
             <span style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontFamily: "var(--font-mono)",
               color: changeColor,
               fontWeight: 700,
@@ -129,7 +129,7 @@ export function CrosshairOverlay({
               {crosshairData.changePercent >= 0 ? '+' : ''}{crosshairData.changePercent.toFixed(2)}%
             </span>
             <span style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: COLORS.textMuted,
               fontFamily: "var(--font-mono)",
             }}>
@@ -141,7 +141,7 @@ export function CrosshairOverlay({
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {crosshairData && (
             <span style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: COLORS.cyan,
               fontFamily: "var(--font-mono)",
               background: 'rgba(11,14,20,0.85)',
@@ -154,7 +154,7 @@ export function CrosshairOverlay({
             </span>
           )}
           {feedState === 'fallback' && (
-            <span style={{ fontSize: 'var(--text-xs)', color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('fallbackData')}</span>
+            <span style={{ fontSize: 11, color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('fallbackData')}</span>
           )}
         </div>
       </div>
@@ -205,7 +205,7 @@ export function CrosshairOverlay({
         {/* OHLC */}
         {displayData && !compact && (
           <span style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             color: COLORS.textMuted,
             fontFamily: "var(--font-mono)",
             display: 'flex',
@@ -222,7 +222,7 @@ export function CrosshairOverlay({
         {/* Change % */}
         {displayData && (
           <span style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             fontFamily: "var(--font-mono)",
             color: changeColor,
             fontWeight: 700,
@@ -237,7 +237,7 @@ export function CrosshairOverlay({
         {/* Volume */}
         {displayData && !compact && (
           <span style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             color: COLORS.textMuted,
             fontFamily: "var(--font-mono)",
           }}>
@@ -251,7 +251,7 @@ export function CrosshairOverlay({
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        fontSize: 'var(--text-xs)',
+        fontSize: 11,
         fontFamily: "var(--font-mono)",
         color: COLORS.textSecondary,
       }}>

@@ -196,7 +196,7 @@ export function SmartExecutorPanel() {
             boxShadow: isActive ? `0 0 10px ${'#00FFA3'}, 0 0 20px rgba(0,255,163,0.4)` : 'none',
             animation: isActive ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
           }} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5' }}>{t('title')}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5' }}>{t('title')}</span>
 
           {/* Monitoring Heartbeat */}
           {isActive && (
@@ -210,14 +210,14 @@ export function SmartExecutorPanel() {
                 boxShadow: `0 0 5px ${'#00FFA3'}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 11, color: '#00FFA3', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                 {t('monitoring')} {currentMonitoredSymbol}
               </span>
             </div>
           )}
 
           <span style={{
-            fontSize: 'var(--text-xs)', padding: '1px 5px', borderRadius: 'var(--radius-sm)',
+            fontSize: 11, padding: '1px 5px', borderRadius: 'var(--radius-sm)',
             background: isActive ? 'rgba(0,255,163,0.15)' : 'rgba(255,255,255,0.06)',
             color: isActive ? '#00FFA3' : '#6B7280', fontWeight: 700, fontFamily: "var(--font-mono)",
           }}>
@@ -227,7 +227,7 @@ export function SmartExecutorPanel() {
         <div style={{ display: 'flex', gap: 4 }}>
           {!isActive ? (
             <button onClick={enableExecutor} disabled={loading} style={{
-              fontSize: 'var(--text-xs)', minHeight: 20, padding: '2px 8px',
+              fontSize: 11, minHeight: 20, padding: '2px 8px',
               borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
               background: 'rgba(0,255,163,0.15)', color: '#00FFA3', fontWeight: 800,
             }}>
@@ -235,7 +235,7 @@ export function SmartExecutorPanel() {
             </button>
           ) : (
             <button onClick={disableExecutor} disabled={loading} style={{
-              fontSize: 'var(--text-xs)', minHeight: 20, padding: '2px 8px',
+              fontSize: 11, minHeight: 20, padding: '2px 8px',
               borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,71,87,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
               background: 'rgba(255,71,87,0.15)', color: '#FF4757', fontWeight: 700,
             }}>
@@ -261,7 +261,7 @@ export function SmartExecutorPanel() {
       {/* V135: Active Account Banner — shows live/testnet/paper mode */}
       <div style={{
         padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
-        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 'var(--text-xs)',
+        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 11,
         background: isActive ? 'rgba(0,255,163,0.04)' : 'transparent',
       }}>
         <span style={{ color: '#6B7280' }}>{t('account')}:</span>
@@ -301,7 +301,7 @@ export function SmartExecutorPanel() {
             {t('chooseAccount')}
           </span>
         ) : (
-          <span style={{ color: '#6B7280', fontSize: 'var(--text-xs)' }}>
+          <span style={{ color: '#6B7280', fontSize: 11 }}>
             {t('activateAndChoose')}
           </span>
         )}
@@ -316,14 +316,14 @@ export function SmartExecutorPanel() {
       {/* Backend Offline Banner */}
       {backendOffline && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: '#FFB800' }}>{t('serverUnavailableBanner')}</span>
+          <span style={{ fontSize: 11, color: '#FFB800' }}>{t('serverUnavailableBanner')}</span>
         </div>
       )}
 
       {/* Error */}
       {error && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,71,87,0.1)', borderBottom: '1px solid rgba(255,71,87,0.2)' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: '#FF4757' }}>{error}</span>
+          <span style={{ fontSize: 11, color: '#FF4757' }}>{error}</span>
         </div>
       )}
 
@@ -335,27 +335,27 @@ export function SmartExecutorPanel() {
         {positions.length === 0 ? (
           <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {isActive && status?.activeBriefs === 0 && (
-              <div style={{ fontSize: 'var(--text-xs)', color: '#FFB800', textAlign: 'center', opacity: 0.8 }}>
+              <div style={{ fontSize: 11, color: '#FFB800', textAlign: 'center', opacity: 0.8 }}>
                 {t('awaitingBriefs')}
               </div>
             )}
             {isActive && (status?.activeBriefs ?? 0) > 0 && (
-              <div style={{ fontSize: 'var(--text-xs)', color: '#00D4FF', textAlign: 'center', opacity: 0.8 }}>
+              <div style={{ fontSize: 11, color: '#00D4FF', textAlign: 'center', opacity: 0.8 }}>
                 {t('activeBriefScanning', { count: status?.activeBriefs ?? 0 })}
               </div>
             )}
             {isActive && status?.lastError && (
-              <div style={{ fontSize: 'var(--text-xs)', color: '#FF4757', textAlign: 'center', padding: '2px 4px', background: 'rgba(255,71,87,0.08)', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ fontSize: 11, color: '#FF4757', textAlign: 'center', padding: '2px 4px', background: 'rgba(255,71,87,0.08)', borderRadius: 'var(--radius-sm)' }}>
                 ⚠ {status.lastError}
               </div>
             )}
             {!isActive && (
-              <div style={{ padding: 12, textAlign: 'center', opacity: 0.4, fontSize: 'var(--text-xs)' }}>
+              <div style={{ padding: 12, textAlign: 'center', opacity: 0.4, fontSize: 11 }}>
                 {t('activateToStart')}
               </div>
             )}
             {isActive && !status?.lastError && (status?.activeBriefs ?? 0) === 0 && (
-              <div style={{ padding: 6, textAlign: 'center', opacity: 0.3, fontSize: 'var(--text-xs)' }}>
+              <div style={{ padding: 6, textAlign: 'center', opacity: 0.3, fontSize: 11 }}>
                 {t('noOpenPositions')}
               </div>
             )}
@@ -369,7 +369,7 @@ export function SmartExecutorPanel() {
               <div key={pos.id} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '5px 6px', borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255,255,255,0.02)', fontSize: 'var(--text-xs)',
+                background: 'rgba(255,255,255,0.02)', fontSize: 11,
               }}>
                 <span style={{ color: pos.side === 'BUY' ? '#00FFA3' : '#FF4757', fontWeight: 800, minWidth: 22 }}>
                   {pos.side === 'BUY' ? tc('buy') : tc('sell')}
@@ -397,8 +397,8 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
       padding: 5, textAlign: 'center', minHeight: 30,
       background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)',
     }}>
-      <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{label}</div>
-      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#6B7280' }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color }}>{value}</div>
     </div>
   )
 }

@@ -154,7 +154,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         alignItems: 'center',
         gap: 8,
         fontFamily: "var(--font-mono)",
-        fontSize: 'var(--text-xs)',
+        fontSize: 11,
         color: '#d4af37',
       }}
     >
@@ -168,7 +168,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         <span style={{ color: 'rgba(212,175,55,0.6)' }}>...</span>
       )}
       {error && (
-        <span style={{ color: '#FF4757', fontSize: 'var(--text-xs)' }}>{error}</span>
+        <span style={{ color: '#FF4757', fontSize: 11 }}>{error}</span>
       )}
       {currentPrice !== null && !loading && !error && (
         <span style={{ color: '#d4af37', fontWeight: 600 }}>
@@ -194,7 +194,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           lineHeight: 1,
           padding: 0,
           transition: 'background 0.15s ease',

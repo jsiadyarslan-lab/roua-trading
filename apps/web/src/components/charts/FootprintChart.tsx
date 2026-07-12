@@ -338,10 +338,10 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: C.cyan, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 11, color: C.cyan, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             👣 {t('footprint')}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 11, color: C.textMuted, fontFamily: "var(--font-mono)" }}>
             {symbol}
           </span>
         </div>
@@ -356,7 +356,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
                 background: mode === m ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${mode === m ? 'rgba(0,212,255,0.3)' : C.border}`,
                 borderRadius: 'var(--radius-sm)', color: mode === m ? C.cyan : C.textDim,
-                fontSize: 'var(--text-xs)', fontWeight: mode === m ? 700 : 400,
+                fontSize: 11, fontWeight: mode === m ? 700 : 400,
                 padding: '2px 6px', cursor: 'pointer',
                 fontFamily: "var(--font-mono)",
                 transition: 'all 0.15s ease',
@@ -377,7 +377,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
                 background: tf === t.value ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${tf === t.value ? 'rgba(0,212,255,0.3)' : C.border}`,
                 borderRadius: 'var(--radius-sm)', color: tf === t.value ? C.cyan : C.textDim,
-                fontSize: 'var(--text-xs)', fontWeight: tf === t.value ? 700 : 400,
+                fontSize: 11, fontWeight: tf === t.value ? 700 : 400,
                 padding: '2px 5px', cursor: 'pointer',
                 fontFamily: "var(--font-mono)",
                 transition: 'all 0.15s ease',
@@ -396,7 +396,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
               background: imbalances ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.03)',
               border: `1px solid ${imbalances ? 'rgba(251,191,36,0.3)' : C.border}`,
               borderRadius: 'var(--radius-sm)', color: imbalances ? C.warning : C.textDim,
-              fontSize: 'var(--text-xs)', fontWeight: 700,
+              fontSize: 11, fontWeight: 700,
               padding: '2px 6px', cursor: 'pointer',
               fontFamily: "var(--font-mono)",
             }}
@@ -411,7 +411,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
                 background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-xs)',
                 color: C.textMuted, width: 18, height: 18, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 'var(--text-xs)', padding: 0,
+                fontSize: 11, padding: 0,
               }}
             >
               ✕

@@ -103,8 +103,8 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
 
   const StatItem = ({ label, value, color }: { label: string; value: string; color?: string }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
-      <span style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-ar)" }}>{label}</span>
-      <span style={{ fontSize: 'var(--text-xs)', color: color || C.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{value}</span>
+      <span style={{ fontSize: 11, color: C.textMuted, fontFamily: "var(--font-ar)" }}>{label}</span>
+      <span style={{ fontSize: 11, color: color || C.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{value}</span>
     </div>
   );
 
@@ -128,8 +128,8 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 'var(--text-xs)' }}>⏱️</span>
-          <span style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 11 }}>⏱️</span>
+          <span style={{ fontSize: 11, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {tc('sessionStats')}
           </span>
         </div>
@@ -141,7 +141,7 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
               background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-xs)',
               color: C.textMuted, width: 16, height: 16, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 'var(--text-xs)', padding: 0,
+              fontSize: 11, padding: 0,
             }}
           >
             🔄
@@ -153,7 +153,7 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
                 background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-xs)',
                 color: C.textMuted, width: 16, height: 16, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 'var(--text-xs)', padding: 0,
+                fontSize: 11, padding: 0,
               }}
             >
               ✕
@@ -167,7 +167,7 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
         textAlign: 'center', padding: '4px 0 6px',
       }}>
         <span style={{
-          fontSize: 'var(--text-lg)', fontWeight: 900, color: pnlColor,
+          fontSize: 19, fontWeight: 900, color: pnlColor,
           fontFamily: "var(--font-mono)",
           textShadow: `0 0 12px ${stats.pnl >= 0 ? 'rgba(0,255,163,0.3)' : 'rgba(255,71,87,0.3)'}`,
         }}>

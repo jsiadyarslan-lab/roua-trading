@@ -49,7 +49,7 @@ export function QuickActionsBar({ onAction }: QuickActionsBarProps) {
               transition: 'all 0.2s ease',
               color: action.accent,
               fontFamily: "var(--font-ar)",
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               minWidth: 0,
             }}

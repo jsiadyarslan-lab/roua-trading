@@ -399,17 +399,17 @@ export default function NewsPage() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{t('News Room', 'غرفة الأخبار', 'Salle de presse', 'Haber Odası', newsLang)}</h1>
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>{t('News Room', 'غرفة الأخبار', 'Salle de presse', 'Haber Odası', newsLang)}</h1>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   padding: '3px 10px', borderRadius: 'var(--radius-2xl)',
                   background: `${'#FF4757'}14`, border: `0.5px solid ${'#FF4757'}33`,
                 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF4757', animation: 'live-dot 1.8s ease-in-out infinite' }} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#FF4757', fontFamily: FONT_MONO, fontWeight: 800 }}>LIVE</span>
+                  <span style={{ fontSize: 11, color: '#FF4757', fontFamily: FONT_MONO, fontWeight: 800 }}>LIVE</span>
                 </div>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: 'var(--text-sm)', color: '#6B7280' }}>
+              <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6B7280' }}>
                 {t("Financial news & analysis from Ru'aa", 'أخبار وتحليلات مالية من رؤى', "Actualités et analyses financières de Ru'aa", "Ru'aa'dan finansal haberler ve analizler", newsLang)} — {stats.total} {t('articles', 'خبر', 'articles', 'makale', newsLang)}
               </p>
             </div>
@@ -417,7 +417,7 @@ export default function NewsPage() {
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 'var(--radius-lg)',
               border: `1px solid ${'#2A313C'}`, background: '#151A22',
-              color: '#9CA3B5', cursor: 'pointer', fontSize: 'var(--text-sm)',
+              color: '#9CA3B5', cursor: 'pointer', fontSize: 13,
               fontFamily: FONT_AR, fontWeight: 700,
             }}>
               <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
@@ -431,7 +431,7 @@ export default function NewsPage() {
               <button
                 onClick={() => setNewsLang('ar')}
                 style={{
-                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
+                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none',
                   background: newsLang === 'ar' ? `${'#00D4FF'}18` : '#151A22',
@@ -444,7 +444,7 @@ export default function NewsPage() {
               <button
                 onClick={() => setNewsLang('en')}
                 style={{
-                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
+                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none', borderInlineStart: `1px solid ${'#2A313C'}`,
                   background: newsLang === 'en' ? `${'#00D4FF'}18` : '#151A22',
@@ -457,7 +457,7 @@ export default function NewsPage() {
               <button
                 onClick={() => setNewsLang('fr')}
                 style={{
-                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
+                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none', borderInlineStart: `1px solid ${'#2A313C'}`,
                   background: newsLang === 'fr' ? `${'#00D4FF'}18` : '#151A22',
@@ -470,7 +470,7 @@ export default function NewsPage() {
               <button
                 onClick={() => setNewsLang('tr')}
                 style={{
-                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
+                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none', borderInlineStart: `1px solid ${'#2A313C'}`,
                   background: newsLang === 'tr' ? `${'#00D4FF'}18` : '#151A22',
@@ -501,7 +501,7 @@ export default function NewsPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
                 padding: '12px 22px',
-                fontFamily: FONT_AR, fontSize: 'var(--text-sm)',
+                fontFamily: FONT_AR, fontSize: 13,
                 fontWeight: activeTab === tab.id ? 800 : 500,
                 color: activeTab === tab.id ? tab.color : '#9CA3B5',
                 background: 'transparent', border: 'none',
@@ -547,7 +547,7 @@ export default function NewsPage() {
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
                   background: 'transparent', border: 'none', outline: 'none',
-                  color: '#F0F2F5', fontSize: 'var(--text-sm)', width: '100%', fontFamily: FONT_AR,
+                  color: '#F0F2F5', fontSize: 13, width: '100%', fontFamily: FONT_AR,
                 }}
               />
             </div>
@@ -572,14 +572,14 @@ export default function NewsPage() {
                       border: `1px solid ${isActive ? cat.color : '#2A313C'}`,
                       background: isActive ? `${cat.color}14` : '#151A22',
                       color: isActive ? cat.color : '#9CA3B5',
-                      fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
+                      fontSize: 13, fontWeight: isActive ? 800 : 600,
                       fontFamily: FONT_AR, whiteSpace: 'nowrap',
                       flexShrink: 0,
                     }}
                   >
                     <span>{cat.icon}</span>
                     {cat.label}
-                    <span style={{ fontSize: 'var(--text-xs)', opacity: 0.7 }}>({count})</span>
+                    <span style={{ fontSize: 11, opacity: 0.7 }}>({count})</span>
                   </button>
                 )
               })}
@@ -593,7 +593,7 @@ export default function NewsPage() {
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
                 <AlertTriangle size={14} style={{ color: '#FF4757', flexShrink: 0 }} />
-                <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#FF4757', flex: 1 }}>{fetchError}</span>
+                <span style={{ fontFamily: FONT_AR, fontSize: 11, color: '#FF4757', flex: 1 }}>{fetchError}</span>
               </div>
             )}
 
@@ -604,7 +604,7 @@ export default function NewsPage() {
                 borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: '#9CA3B5',
               }}>
                 <RefreshCw size={28} color={'#00D4FF'} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t("Loading news from Ru'aa...", 'جارٍ تحميل الأخبار من رؤى...', "Chargement des actualités de Ru'aa...", "Ru'aa'dan haberler yükleniyor...", newsLang)}</p>
+                <p style={{ fontSize: 15, fontFamily: FONT_AR }}>{t("Loading news from Ru'aa...", 'جارٍ تحميل الأخبار من رؤى...', "Chargement des actualités de Ru'aa...", "Ru'aa'dan haberler yükleniyor...", newsLang)}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div style={{
@@ -612,8 +612,8 @@ export default function NewsPage() {
                 borderRadius: 'var(--radius-2xl)', padding: '40px 32px', textAlign: 'center',
               }}>
                 <Newspaper size={34} color={'#00D4FF'} style={{ marginBottom: 14 }} />
-                <h2 style={{ color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No matching news', 'لا توجد أخبار مطابقة', 'Aucune actualité correspondante', 'Eşleşen haber yok', newsLang)}</h2>
-                <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: 0 }}>{t('Change the category or search', 'غيّر التصنيف أو البحث', 'Changez la catégorie ou la recherche', 'Kategoriyi veya aramayı değiştirin', newsLang)}</p>
+                <h2 style={{ color: '#F0F2F5', fontSize: 19, fontWeight: 800, margin: '0 0 8px' }}>{t('No matching news', 'لا توجد أخبار مطابقة', 'Aucune actualité correspondante', 'Eşleşen haber yok', newsLang)}</h2>
+                <p style={{ color: '#9CA3B5', fontSize: 13, margin: 0 }}>{t('Change the category or search', 'غيّر التصنيف أو البحث', 'Changez la catégorie ou la recherche', 'Kategoriyi veya aramayı değiştirin', newsLang)}</p>
               </div>
             ) : (
               /* News Grid */
@@ -681,24 +681,24 @@ function HeroSlider({
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           {(localizedCategory(item, newsLang)) && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${'#00D4FF'}22`, color: '#00D4FF', fontWeight: 800, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${'#00D4FF'}22`, color: '#00D4FF', fontWeight: 800, fontFamily: FONT_AR }}>
               {localizedCategory(item, newsLang)}
             </span>
           )}
-          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-md)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, fontFamily: FONT_AR }}>
             {sentiment.text}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
             <Clock size={10} /> {timeAgo(item.publishedAt, newsLang)}
           </span>
         </div>
 
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#FFF', lineHeight: 1.5, margin: '0 0 8px', fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <h2 style={{ fontSize: 19, fontWeight: 900, color: '#FFF', lineHeight: 1.5, margin: '0 0 8px', fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {displayTitle}
         </h2>
 
         {item.summary && (
-          <p style={{ fontSize: 'var(--text-sm)', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {item.summary}
           </p>
         )}
@@ -786,26 +786,26 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
           {(localizedCategory(item, newsLang)) && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}12`, color: '#00D4FF', fontWeight: 800, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}12`, color: '#00D4FF', fontWeight: 800, fontFamily: FONT_AR }}>
               {localizedCategory(item, newsLang)}
             </span>
           )}
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT_AR }}>
             <SentimentIcon size={9} /> {sentiment.text}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(item.publishedAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
-        <h3 style={{ color: '#F0F2F5', fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <h3 style={{ color: '#F0F2F5', fontSize: 15, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {displayTitle}
         </h3>
 
         {/* Summary */}
         {item.summary && (
-          <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ color: '#9CA3B5', fontSize: 13, margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {item.summary}
           </p>
         )}
@@ -814,16 +814,16 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         {Array.isArray(item.keyTakeaways) && item.keyTakeaways.length > 0 && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
             <Zap size={10} color={'#00FFA3'} style={{ flexShrink: 0, marginTop: 2 }} />
-            <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {t('key points', 'نقاط رئيسية', 'points clés', 'anahtar noktalar', newsLang)}</span>
+            <span style={{ fontSize: 11, color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {t('key points', 'نقاط رئيسية', 'points clés', 'anahtar noktalar', newsLang)}</span>
           </div>
         )}
 
         {/* Source */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Globe size={11} color={'#6B7280'} />
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>{item.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberleri", newsLang))}</span>
+          <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR }}>{item.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberleri", newsLang))}</span>
           {item.fullContent && item.fullContent.length > 10 && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}10`, color: '#00D4FF', fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{t('Full Analysis', 'تحليل كامل', 'Analyse complète', 'Tam Analiz', newsLang)}</span>
+            <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}10`, color: '#00D4FF', fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{t('Full Analysis', 'تحليل كامل', 'Analyse complète', 'Tam Analiz', newsLang)}</span>
           )}
         </div>
       </div>
@@ -841,7 +841,7 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
     return (
       <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: '#9CA3B5' }}>
         <RefreshCw size={28} color={'#FFB800'} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-        <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t('Loading reports...', 'جارٍ تحميل التقارير...', 'Chargement des rapports...', 'Raporlar yükleniyor...', newsLang)}</p>
+        <p style={{ fontSize: 15, fontFamily: FONT_AR }}>{t('Loading reports...', 'جارٍ تحميل التقارير...', 'Chargement des rapports...', 'Raporlar yükleniyor...', newsLang)}</p>
       </div>
     )
   }
@@ -850,8 +850,8 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
     return (
       <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '40px 32px', textAlign: 'center' }}>
         <BarChart2 size={34} color={'#FFB800'} style={{ marginBottom: 14 }} />
-        <h2 style={{ color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No reports available', 'لا توجد تقارير حالياً', 'Aucun rapport disponible', 'Rapor mevcut değil', newsLang)}</h2>
-        <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: 0 }}>{t('Analyzed reports will appear here when available', 'ستظهر التقارير المحللة هنا عند توفرها', 'Les rapports analysés apparaîtront ici', 'Analiz edilen raporlar mevcut olduğunda burada görünecek', newsLang)}</p>
+        <h2 style={{ color: '#F0F2F5', fontSize: 19, fontWeight: 800, margin: '0 0 8px' }}>{t('No reports available', 'لا توجد تقارير حالياً', 'Aucun rapport disponible', 'Rapor mevcut değil', newsLang)}</h2>
+        <p style={{ color: '#9CA3B5', fontSize: 13, margin: 0 }}>{t('Analyzed reports will appear here when available', 'ستظهر التقارير المحللة هنا عند توفرها', 'Les rapports analysés apparaîtront ici', 'Analiz edilen raporlar mevcut olduğunda burada görünecek', newsLang)}</p>
       </div>
     )
   }
@@ -869,8 +869,8 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
             <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${'#FFB800'}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileText size={16} color={'#FFB800'} />
             </div>
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('Strategic Economic Reports', 'تقارير اقتصادية استراتيجية', 'Rapports économiques stratégiques', 'Stratejik Ekonomik Raporlar', newsLang)}</h2>
-            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>({economicReports.length})</span>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('Strategic Economic Reports', 'تقارير اقتصادية استراتيجية', 'Rapports économiques stratégiques', 'Stratejik Ekonomik Raporlar', newsLang)}</h2>
+            <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR }}>({economicReports.length})</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {economicReports.map((report, i) => (
@@ -887,8 +887,8 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
             <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${'#00D4FF'}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BarChart2 size={16} color={'#00D4FF'} />
             </div>
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('Market Analysis', 'تحليلات السوق', 'Analyse du marché', 'Piyasa Analizi', newsLang)}</h2>
-            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>({analysisReports.length})</span>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('Market Analysis', 'تحليلات السوق', 'Analyse du marché', 'Piyasa Analizi', newsLang)}</h2>
+            <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR }}>({analysisReports.length})</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
             {analysisReports.map((report, i) => (
@@ -952,27 +952,27 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
       <div style={{ padding: '16px 18px' }}>
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
             {cat.icon} {cat.label}
           </span>
           {report.confidenceScore != null && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${'#00FFA3'}12`, color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${'#00FFA3'}12`, color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>
               {t('Confidence', 'ثقة', 'Confiance', 'Güven', newsLang)} {report.confidenceScore}%
             </span>
           )}
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${risk.color}10`, color: risk.color, fontWeight: 700, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${risk.color}10`, color: risk.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {risk.label}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {sentimentConf.label}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(report.publishedAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
-        <h3 style={{ color: '#F0F2F5', fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
+        <h3 style={{ color: '#F0F2F5', fontSize: 15, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
           {report.titleAr || (t('Report', 'تقرير', 'Rapport', 'Rapor', newsLang))}
         </h3>
 
@@ -980,17 +980,17 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
         {Array.isArray(report.sectors) && report.sectors.length > 0 && !expanded && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {report.sectors.slice(0, 4).map((s, i) => (
-              <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#0F1117', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR }}>
+              <span key={i} style={{ fontSize: 11, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#0F1117', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR }}>
                 {safeStr(s)}
               </span>
             ))}
-            {report.sectors.length > 4 && <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>+{report.sectors.length - 4}</span>}
+            {report.sectors.length > 4 && <span style={{ fontSize: 11, color: '#6B7280' }}>+{report.sectors.length - 4}</span>}
           </div>
         )}
 
         {/* Expand indicator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {expanded ? t('Close', 'إغلاق', 'Fermer', 'Kapat', newsLang) : t('View Details', 'عرض التفاصيل', 'Voir les détails', 'Detayları Gör', newsLang)}
           </span>
@@ -1005,18 +1005,18 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
             <div style={{ padding: 14, background: `${'#00D4FF'}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${'#00D4FF'}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Brain size={12} color={'#00D4FF'} />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00D4FF', fontFamily: FONT_AR }}>{t('Key Indicators', 'المؤشرات الرئيسية', 'Indicateurs clés', 'Temel Göstergeler', newsLang)}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#00D4FF', fontFamily: FONT_AR }}>{t('Key Indicators', 'المؤشرات الرئيسية', 'Indicateurs clés', 'Temel Göstergeler', newsLang)}</span>
               </div>
               {report.keyIndicators.topic && (
-                <p style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
+                <p style={{ fontSize: 13, color: '#9CA3B5', lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
               )}
               {report.keyIndicators.region && (
-                <p style={{ fontSize: 'var(--text-xs)', color: '#6B7280', margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Region:', 'المنطقة:', 'Région:', 'Bölge:', newsLang)} {report.keyIndicators.region}</p>
+                <p style={{ fontSize: 11, color: '#6B7280', margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Region:', 'المنطقة:', 'Région:', 'Bölge:', newsLang)} {report.keyIndicators.region}</p>
               )}
               {Array.isArray(report.keyIndicators.scenarios) && report.keyIndicators.scenarios.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                   {report.keyIndicators.scenarios.map((s, i) => (
-                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#FFB800'}10`, color: '#FFB800', fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(s)}</span>
+                    <span key={i} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#FFB800'}10`, color: '#FFB800', fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(s)}</span>
                   ))}
                 </div>
               )}
@@ -1028,20 +1028,20 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
             <div style={{ padding: 14, background: `${'#00FFA3'}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${'#00FFA3'}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <TrendingUp size={12} color={'#00FFA3'} />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00FFA3', fontFamily: FONT_AR }}>{t('Price Target', 'السعر المستهدف', 'Objectif de prix', 'Fiyat Hedefi', newsLang)}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#00FFA3', fontFamily: FONT_AR }}>{t('Price Target', 'السعر المستهدف', 'Objectif de prix', 'Fiyat Hedefi', newsLang)}</span>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {report.priceTarget.symbol && (
-                  <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: '#F0F2F5', fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: '#F0F2F5', fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
                 )}
                 {(report.priceTarget.current ?? 0) > 0 && (
-                  <span style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>{t('Current:', 'الحالي:', 'Actuel:', 'Mevcut:', newsLang)} <strong style={{ color: '#F0F2F5' }}>{report.priceTarget.current}</strong></span>
+                  <span style={{ fontSize: 13, color: '#9CA3B5' }}>{t('Current:', 'الحالي:', 'Actuel:', 'Mevcut:', newsLang)} <strong style={{ color: '#F0F2F5' }}>{report.priceTarget.current}</strong></span>
                 )}
                 {report.priceTarget.target != null && (
-                  <span style={{ fontSize: 'var(--text-sm)', color: '#00FFA3' }}>{t('Target:', 'المستهدف:', 'Objectif:', 'Hedef:', newsLang)} <strong>{report.priceTarget.target}</strong></span>
+                  <span style={{ fontSize: 13, color: '#00FFA3' }}>{t('Target:', 'المستهدف:', 'Objectif:', 'Hedef:', newsLang)} <strong>{report.priceTarget.target}</strong></span>
                 )}
                 {report.priceTarget.stopLoss != null && (
-                  <span style={{ fontSize: 'var(--text-sm)', color: '#FF4757' }}>{t('Stop Loss:', 'وقف الخسارة:', 'Stop Loss:', 'Zarar Durdurma:', newsLang)} <strong>{report.priceTarget.stopLoss}</strong></span>
+                  <span style={{ fontSize: 13, color: '#FF4757' }}>{t('Stop Loss:', 'وقف الخسارة:', 'Stop Loss:', 'Zarar Durdurma:', newsLang)} <strong>{report.priceTarget.stopLoss}</strong></span>
                 )}
               </div>
             </div>
@@ -1051,12 +1051,12 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {(report.scope || (Array.isArray(report.countries) && report.countries.length > 0)) && (
             <div style={{ padding: 14, background: `${'#FFB800'}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${'#FFB800'}15`, marginBottom: 12 }}>
               {report.scope && (
-                <p style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Scope:', 'النطاق:', 'Portée:', 'Kapsam:', newsLang)} <strong style={{ color: '#F0F2F5' }}>{report.scope === 'arabic' ? (t('Arab World', 'العالم العربي', 'Monde arabe', 'Arap Dünyası', newsLang)) : report.scope === 'regional' ? (t('Regional', 'إقليمي', 'Régional', 'Bölgesel', newsLang)) : report.scope === 'global' ? (t('Global', 'عالمي', 'Mondial', 'Küresel', newsLang)) : report.scope}</strong></p>
+                <p style={{ fontSize: 13, color: '#9CA3B5', margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Scope:', 'النطاق:', 'Portée:', 'Kapsam:', newsLang)} <strong style={{ color: '#F0F2F5' }}>{report.scope === 'arabic' ? (t('Arab World', 'العالم العربي', 'Monde arabe', 'Arap Dünyası', newsLang)) : report.scope === 'regional' ? (t('Regional', 'إقليمي', 'Régional', 'Bölgesel', newsLang)) : report.scope === 'global' ? (t('Global', 'عالمي', 'Mondial', 'Küresel', newsLang)) : report.scope}</strong></p>
               )}
               {Array.isArray(report.countries) && report.countries.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {report.countries.map((c, i) => (
-                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#0F1117', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(c)}</span>
+                    <span key={i} style={{ fontSize: 11, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#0F1117', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(c)}</span>
                   ))}
                 </div>
               )}
@@ -1067,7 +1067,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {Array.isArray(report.sectors) && report.sectors.length > 0 && (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
               {report.sectors.map((s, i) => (
-                <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: `${cat.color}10`, color: cat.color, fontWeight: 700, fontFamily: FONT_AR }}>{safeStr(s)}</span>
+                <span key={i} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: `${cat.color}10`, color: cat.color, fontWeight: 700, fontFamily: FONT_AR }}>{safeStr(s)}</span>
               ))}
             </div>
           )}
@@ -1076,8 +1076,8 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {report.confidenceScore != null && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>{t('Confidence Level', 'مستوى الثقة', 'Niveau de confiance', 'Güven Seviyesi', newsLang)}</span>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00FFA3', fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
+                <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR }}>{t('Confidence Level', 'مستوى الثقة', 'Niveau de confiance', 'Güven Seviyesi', newsLang)}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#00FFA3', fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
               </div>
               <div style={{ height: 4, borderRadius: 'var(--radius-xs)', background: '#0F1117', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${report.confidenceScore}%`, borderRadius: 'var(--radius-xs)', background: `linear-gradient(90deg, ${'#00FFA3'}60, ${'#00FFA3'})`, transition: 'width 0.5s' }} />
@@ -1088,14 +1088,14 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {/* Market Impact */}
           {report.marketImpact && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>{t('Market Impact:', 'تأثير السوق:', 'Impact marché:', 'Piyasa Etkisi:', newsLang)}</span>
-              <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang) : report.marketImpact === 'bullish' ? t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang) : report.marketImpact === 'bearish' ? t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang) : report.marketImpact}</span>
+              <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR }}>{t('Market Impact:', 'تأثير السوق:', 'Impact marché:', 'Piyasa Etkisi:', newsLang)}</span>
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang) : report.marketImpact === 'bullish' ? t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang) : report.marketImpact === 'bearish' ? t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang) : report.marketImpact}</span>
             </div>
           )}
 
           {/* Link to news site */}
           {report.siteUrl && (
-            <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', fontWeight: 700, color: '#00D4FF', fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 'var(--radius-lg)', background: `${'#00D4FF'}08`, border: `0.5px solid ${'#00D4FF'}18` }}>
+            <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: '#00D4FF', fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 'var(--radius-lg)', background: `${'#00D4FF'}08`, border: `0.5px solid ${'#00D4FF'}18` }}>
               {t('Read Full Report', 'قراءة التقرير الكامل', 'Lire le rapport complet', 'Tam Raporu Oku', newsLang)} <ExternalLink size={12} />
             </a>
           )}
@@ -1136,7 +1136,7 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
     return (
       <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: '#9CA3B5' }}>
         <RefreshCw size={28} color={'#00FFA3'} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-        <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t('Loading technical analysis...', 'جارٍ تحميل التحليلات الفنية...', 'Chargement des analyses techniques...', 'Teknik analizler yükleniyor...', newsLang)}</p>
+        <p style={{ fontSize: 15, fontFamily: FONT_AR }}>{t('Loading technical analysis...', 'جارٍ تحميل التحليلات الفنية...', 'Chargement des analyses techniques...', 'Teknik analizler yükleniyor...', newsLang)}</p>
       </div>
     )
   }
@@ -1145,8 +1145,8 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
     return (
       <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '48px 32px', textAlign: 'center' }}>
         <LineChart size={40} color={'#00FFA3'} style={{ marginBottom: 16, opacity: 0.5 }} />
-        <h2 style={{ color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No technical analysis available', 'لا توجد تحليلات فنية حالياً', 'Aucune analyse technique disponible', 'Teknik analiz mevcut değil', newsLang)}</h2>
-        <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.8 }}>{t('Technical analysis will appear here when generated by the content agent', 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى', 'Les analyses techniques apparaîtront ici', 'İçerik aracısı tarafından üretildiğinde teknik analizler burada görünecek', newsLang)}</p>
+        <h2 style={{ color: '#F0F2F5', fontSize: 19, fontWeight: 800, margin: '0 0 8px' }}>{t('No technical analysis available', 'لا توجد تحليلات فنية حالياً', 'Aucune analyse technique disponible', 'Teknik analiz mevcut değil', newsLang)}</h2>
+        <p style={{ color: '#9CA3B5', fontSize: 13, margin: 0, lineHeight: 1.8 }}>{t('Technical analysis will appear here when generated by the content agent', 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى', 'Les analyses techniques apparaîtront ici', 'İçerik aracısı tarafından üretildiğinde teknik analizler burada görünecek', newsLang)}</p>
       </div>
     )
   }
@@ -1156,7 +1156,7 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
       {/* Category Filter Chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button onClick={() => setFilterCat('')} style={{
-          padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-xs)', fontWeight: filterCat ? 600 : 800,
+          padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 11, fontWeight: filterCat ? 600 : 800,
           fontFamily: FONT_AR, border: `1px solid ${filterCat ? '#2A313C' : '#00FFA3'}`,
           background: filterCat ? '#151A22' : `${'#00FFA3'}14`, color: filterCat ? '#9CA3B5' : '#00FFA3', cursor: 'pointer',
         }}>
@@ -1167,7 +1167,7 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
           if (count === 0) return null
           return (
             <button key={key} onClick={() => setFilterCat(filterCat === key ? '' : key)} style={{
-              padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-xs)', fontWeight: filterCat === key ? 800 : 600,
+              padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 11, fontWeight: filterCat === key ? 800 : 600,
               fontFamily: FONT_AR, border: `1px solid ${filterCat === key ? val.color : '#2A313C'}`,
               background: filterCat === key ? `${val.color}14` : '#151A22', color: filterCat === key ? val.color : '#9CA3B5', cursor: 'pointer',
             }}>
@@ -1288,28 +1288,28 @@ function AnalysisContentCard({
       <div style={{ padding: '22px 22px 0' }}>
         {/* Top Row: Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${cat.color}18`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, border: `0.5px solid ${cat.color}25` }}>
+          <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${cat.color}18`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, border: `0.5px solid ${cat.color}25` }}>
             {cat.label}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${typ.color}12`, color: typ.color, fontWeight: 700, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${typ.color}12`, color: typ.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {typ.label}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
             {sentimentConf.icon} {sentimentConf.label}
           </span>
           {article.impactLevel && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${impactConf.color}10`, color: impactConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${impactConf.color}10`, color: impactConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
               {impactConf.label}
             </span>
           )}
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 11, color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(article.publishedAt || article.createdAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
         <h3 style={{
-          color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 900, margin: '0 0 14px', lineHeight: 1.7, fontFamily: FONT_AR,
+          color: '#F0F2F5', fontSize: 19, fontWeight: 900, margin: '0 0 14px', lineHeight: 1.7, fontFamily: FONT_AR,
           background: 'linear-gradient(180deg, #F0F2F5 0%, #C8CCD4 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
         }}>
@@ -1321,7 +1321,7 @@ function AnalysisContentCard({
           <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
             {symbols.slice(0, 6).map((sym, i) => (
               <span key={i} style={{
-                fontSize: 'var(--text-xs)', padding: '4px 12px', borderRadius: 'var(--radius-md)',
+                fontSize: 11, padding: '4px 12px', borderRadius: 'var(--radius-md)',
                 background: `linear-gradient(135deg, ${'#00D4FF'}10, ${'#00D4FF'}06)`,
                 color: '#00D4FF', fontWeight: 800,
                 fontFamily: FONT_MONO, border: `1px solid ${'#00D4FF'}18`,
@@ -1329,13 +1329,13 @@ function AnalysisContentCard({
                 {sym}
               </span>
             ))}
-            {symbols.length > 6 && <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', padding: '4px 8px' }}>+{symbols.length - 6}</span>}
+            {symbols.length > 6 && <span style={{ fontSize: 11, color: '#6B7280', padding: '4px 8px' }}>+{symbols.length - 6}</span>}
           </div>
         )}
 
         {/* Summary */}
         {summaryText && !expanded && (
-          <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: '0 0 14px', lineHeight: 1.9, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ color: '#9CA3B5', fontSize: 13, margin: '0 0 14px', lineHeight: 1.9, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {summaryText}
           </p>
         )}
@@ -1344,14 +1344,14 @@ function AnalysisContentCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Target size={12} color={qualityScore >= 70 ? '#00FFA3' : '#FFB800'} />
-            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, fontWeight: 600 }}>{t('Analysis Quality', 'جودة التحليل', 'Qualité analytique', 'Analiz Kalitesi', newsLang)}</span>
+            <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR, fontWeight: 600 }}>{t('Analysis Quality', 'جودة التحليل', 'Qualité analytique', 'Analiz Kalitesi', newsLang)}</span>
             <div style={{ flex: 1, height: 4, borderRadius: 'var(--radius-xs)', background: '#0F1117', overflow: 'hidden', maxWidth: 120 }}>
               <div style={{ height: '100%', width: `${Math.min(qualityScore, 100)}%`, borderRadius: 'var(--radius-xs)', background: qualityScore >= 70 ? `linear-gradient(90deg, ${'#00FFA3'}60, ${'#00FFA3'})` : `linear-gradient(90deg, ${'#FFB800'}60, ${'#FFB800'})`, transition: 'width 0.5s' }} />
             </div>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: qualityScore >= 70 ? '#00FFA3' : '#FFB800', fontFamily: FONT_MONO }}>{qualityScore}%</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: qualityScore >= 70 ? '#00FFA3' : '#FFB800', fontFamily: FONT_MONO }}>{qualityScore}%</span>
           </div>
           {article.readingTimeMinutes > 0 && (
-            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
               <BookOpen size={9} /> {article.readingTimeMinutes} {t('min read', 'دقائق قراءة', 'min de lecture', 'dk okuma', newsLang)}
             </span>
           )}
@@ -1370,7 +1370,7 @@ function AnalysisContentCard({
         }}
       >
         <span style={{
-          fontSize: 'var(--text-sm)', color: expanded ? cat.color : '#9CA3B5', fontWeight: 700,
+          fontSize: 13, color: expanded ? cat.color : '#9CA3B5', fontWeight: 700,
           fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 6,
           padding: '6px 18px', borderRadius: 'var(--radius-md)',
           background: expanded ? `${cat.color}10` : 'rgba(255,255,255,0.04)',
@@ -1396,7 +1396,7 @@ function AnalysisContentCard({
               <Tag size={11} color={'#6B7280'} style={{ flexShrink: 0, marginTop: 2 }} />
               {tags.slice(0, 8).map((tag, i) => (
                 <span key={i} style={{
-                  fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-sm)',
+                  fontSize: 11, padding: '3px 9px', borderRadius: 'var(--radius-sm)',
                   background: 'rgba(255,255,255,0.04)', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR,
                   border: '1px solid rgba(255,255,255,0.06)',
                 }}>
@@ -1409,16 +1409,16 @@ function AnalysisContentCard({
           {/* Meta Footer */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px', borderTop: `1px solid ${'#2A313C'}`, flexWrap: 'wrap', background: `${'#0F1117'}40` }}>
             {article.views > 0 && (
-              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Eye size={10} /> {article.views} {t('views', 'مشاهدة', 'vues', 'görüntülenme', newsLang)}
               </span>
             )}
             {article.generationSource && (
-              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 11, color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Sparkles size={9} /> {article.generationSource === 'GLM' ? 'GLM AI' : article.generationSource}
               </span>
             )}
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00FFA3'}10`, color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00FFA3'}10`, color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>
               {t('Published', 'منشور', 'Publié', 'Yayınlandı', newsLang)}
             </span>
           </div>
@@ -1659,7 +1659,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 7px 7px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-base)', fontWeight: 800, color: '#9CA3B5',
+                fontSize: 15, fontWeight: 800, color: '#9CA3B5',
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1678,7 +1678,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 8px 8px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-base)', fontWeight: 900, color: '#F0F2F5',
+                fontSize: 15, fontWeight: 900, color: '#F0F2F5',
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1697,7 +1697,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 10px 10px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-md)', fontWeight: 900, color: '#F0F2F5',
+                fontSize: 17, fontWeight: 900, color: '#F0F2F5',
                 fontFamily: FONT_AR, lineHeight: 1.5,
               }}>
                 {renderInline(block.text)}
@@ -1716,7 +1716,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 6px 6px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5',
+                fontSize: 15, fontWeight: 800, color: '#F0F2F5',
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1742,7 +1742,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
                 marginTop: 9, flexShrink: 0,
               }} />
               <span style={{
-                color: '#9CA3B5', fontSize: 'var(--text-sm)', lineHeight: 2,
+                color: '#9CA3B5', fontSize: 13, lineHeight: 2,
                 fontFamily: FONT_AR,
               }}>
                 {renderInline(block.text)}
@@ -1772,13 +1772,13 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               </div>
               <div style={{ flex: 1 }}>
                 <span style={{
-                  color: '#FFB800', fontSize: 'var(--text-sm)', fontWeight: 800,
+                  color: '#FFB800', fontSize: 13, fontWeight: 800,
                   fontFamily: FONT_AR, display: 'block', marginBottom: 4,
                 }}>
                   {block.text.replace(/^#{1,6}\s*/, '')}
                 </span>
                 <span style={{
-                  color: 'rgba(255,184,0,0.7)', fontSize: 'var(--text-xs)', fontWeight: 500,
+                  color: 'rgba(255,184,0,0.7)', fontSize: 11, fontWeight: 500,
                   fontFamily: FONT_AR, lineHeight: 1.7,
                 }}>
                   {t('Content is for educational and analytical purposes only, not financial advice', 'المحتوى لأغراض تعليمية وتحليلية فقط وليس نصيحة مالية', 'Contenu à des fins éducatives et analytiques uniquement, non un conseil financier', 'İçerik yalnızca eğitim ve analiz amaçlıdır, finansal tavsiye değildir', newsLang)}
@@ -1793,7 +1793,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
         const cleanParagraph = block.text.replace(/^#{1,6}\s*/, '')
         return (
           <p key={i} style={{
-            color: '#9CA3B5', fontSize: 'var(--text-sm)', lineHeight: 2.1,
+            color: '#9CA3B5', fontSize: 13, lineHeight: 2.1,
             margin: '0 0 12px', fontFamily: FONT_AR,
           }}>
             {renderInline(cleanParagraph)}

@@ -104,15 +104,15 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
           <div style={{
             width: 24, height: 24, borderRadius: 'var(--radius-sm)',
             background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
           }}>
             🔔
           </div>
           <div>
-            <div style={{ fontSize: 'var(--text-sm)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 13, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               {tc('alerts')}
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 11, color: C.textDim, fontFamily: "var(--font-mono)" }}>
               {symbol} • {alerts.filter(a => a.active).length} {tc('active')}
             </div>
           </div>
@@ -120,7 +120,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
         <button onClick={onClose} style={{
           background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-sm)',
           color: C.textMuted, width: 22, height: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', padding: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, padding: 0,
         }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </button>
@@ -136,7 +136,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
               background: 'rgba(0,212,255,0.1)',
               border: '1px solid rgba(0,212,255,0.25)',
               borderRadius: 'var(--radius-md)', color: C.cyan,
-              fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+              fontSize: 11, fontWeight: 700, cursor: 'pointer',
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
               transition: 'all 0.15s ease',
@@ -162,7 +162,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                     background: newType === t ? `${TYPE_COLORS[t]}18` : 'rgba(255,255,255,0.03)',
                     border: `1px solid ${newType === t ? `${TYPE_COLORS[t]}40` : C.border}`,
                     borderRadius: 'var(--radius-sm)', color: newType === t ? TYPE_COLORS[t] : C.textDim,
-                    fontSize: 'var(--text-xs)', padding: '3px 6px', cursor: 'pointer',
+                    fontSize: 11, padding: '3px 6px', cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                   }}
                 >
@@ -181,7 +181,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                     background: newDirection === d ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
                     border: `1px solid ${newDirection === d ? 'rgba(0,212,255,0.25)' : C.border}`,
                     borderRadius: 'var(--radius-sm)', color: newDirection === d ? C.cyan : C.textDim,
-                    fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: "var(--font-ar)",
+                    fontSize: 11, cursor: 'pointer', fontFamily: "var(--font-ar)",
                   }}>
                     {label}
                   </button>
@@ -199,7 +199,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                 width: '100%', padding: '6px 8px',
                 background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
                 borderRadius: 'var(--radius-sm)', color: C.text,
-                fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                fontSize: 11, fontFamily: "var(--font-mono)",
                 outline: 'none', direction: 'ltr',
               }}
             />
@@ -213,7 +213,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                   background: 'rgba(0,255,163,0.15)',
                   border: '1px solid rgba(0,255,163,0.3)',
                   borderRadius: 'var(--radius-sm)', color: C.success,
-                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                 }}
               >
@@ -226,7 +226,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                   background: 'rgba(255,255,255,0.03)',
                   border: `1px solid ${C.border}`,
                   borderRadius: 'var(--radius-sm)', color: C.textDim,
-                  fontSize: 'var(--text-xs)', cursor: 'pointer',
+                  fontSize: 11, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                 }}
               >
@@ -256,15 +256,15 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                     width: 22, height: 22, borderRadius: 'var(--radius-sm)',
                     background: `${typeColor}12`, border: `1px solid ${typeColor}25`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 'var(--text-xs)', flexShrink: 0,
+                    fontSize: 11, flexShrink: 0,
                   }}>
                     {ALERT_TYPE_ICONS[alert.type]}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
+                    <div style={{ fontSize: 11, color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                       {alert.labelAr}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-mono)", marginTop: 1 }}>
+                    <div style={{ fontSize: 11, color: C.textMuted, fontFamily: "var(--font-mono)", marginTop: 1 }}>
                       {formatTime(alert.createdAt)} • {tc(ALERT_TYPE_LABELS[alert.type])}
                     </div>
                   </div>
@@ -275,7 +275,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                         width: 18, height: 18, borderRadius: 'var(--radius-xs)',
                         background: alert.active ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.1)',
                         border: 'none', color: alert.active ? C.success : C.danger,
-                        fontSize: 'var(--text-xs)', cursor: 'pointer', display: 'flex',
+                        fontSize: 11, cursor: 'pointer', display: 'flex',
                         alignItems: 'center', justifyContent: 'center', padding: 0,
                       }}
                     >
@@ -286,7 +286,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                       style={{
                         width: 18, height: 18, borderRadius: 'var(--radius-xs)',
                         background: 'rgba(255,71,87,0.08)', border: 'none',
-                        color: C.textMuted, fontSize: 'var(--text-xs)', cursor: 'pointer',
+                        color: C.textMuted, fontSize: 11, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
                       }}
                       onMouseEnter={e => { e.currentTarget.style.color = C.danger; }}
@@ -301,7 +301,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
           </div>
         ) : (
           <div style={{
-            textAlign: 'center', color: C.textMuted, fontSize: 'var(--text-xs)',
+            textAlign: 'center', color: C.textMuted, fontSize: 11,
             padding: '24px 0', fontFamily: "var(--font-ar)",
           }}>
             {tc('noAlerts')}

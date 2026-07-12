@@ -40,7 +40,7 @@ const TF_KEYS = [
 function TfRow({ tf, data, weight, t }: { tf: typeof TF_KEYS[number]; data: TfData | undefined; weight: number; t: any }) {
   if (!data) return (
     <div style={{ padding: '10px 14px', borderBottom: `1px solid ${'#2A313C'}`, opacity: 0.4 }}>
-      <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{t('multiTf.noData')}</div>
+      <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>{t('multiTf.noData')}</div>
     </div>
   )
   const scorePct = Math.min(Math.max((data.technicalScore + 100) / 200 * 100, 2), 100)
@@ -50,10 +50,10 @@ function TfRow({ tf, data, weight, t }: { tf: typeof TF_KEYS[number]; data: TfDa
     <div style={{ padding: '10px 14px', borderBottom: `1px solid ${'#2A313C'}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t(tf.labelKey)}</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t(tf.labelKey)}</span>
           <DirectionTag direction={data.direction} signalClass={data.signalClass} size="sm" />
         </div>
-        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)" }}>
           {weight.toFixed(1)}x
         </span>
       </div>
@@ -62,7 +62,7 @@ function TfRow({ tf, data, weight, t }: { tf: typeof TF_KEYS[number]; data: TfDa
         <div style={{ flex: 1, height: 6, borderRadius: 'var(--radius-xs)', background: '#151A22', overflow: 'hidden' }}>
           <div style={{ width: `${scorePct}%`, height: '100%', borderRadius: 'var(--radius-xs)', background: `linear-gradient(90deg, ${scoreColor}60, ${scoreColor})`, transition: 'width 0.5s ease' }} />
         </div>
-        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: scoreColor, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'left' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: scoreColor, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'left' }}>
           {data.technicalScore > 0 ? '+' : ''}{data.technicalScore}
         </span>
       </div>
@@ -71,7 +71,7 @@ function TfRow({ tf, data, weight, t }: { tf: typeof TF_KEYS[number]; data: TfDa
         <IndicatorBadge label={t('indicators.rsi')} value={data.rsi !== null ? data.rsi.toFixed(0) : '—'} status={data.rsi !== null ? (data.rsi <= 30 ? 'oversold' : data.rsi >= 70 ? 'overbought' : data.rsi < 50 ? 'bearish' : 'bullish') : 'neutral'} />
         <IndicatorBadge label={t('indicators.macd')} value={data.macdSignal === 'NONE' ? t('indicators.none') : (data.macdSignal ?? '—')} status={data.macdSignal?.includes('BUY') ? 'bullish' : data.macdSignal?.includes('SELL') ? 'bearish' : 'neutral'} />
         <IndicatorBadge label={t('indicators.adx')} value={data.adx !== null ? data.adx.toFixed(0) : '—'} status={(data.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
-        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', fontFamily: "var(--font-ar)", marginInlineEnd: 4 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', fontFamily: "var(--font-ar)", marginInlineEnd: 4 }}>
           {t('multiTf.confidence')} {data.confidence.toFixed(0)}%
         </span>
       </div>
@@ -150,14 +150,14 @@ export function MultiTfPanel() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Clock size={18} color={'#FFB800'} />
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t('multiTf.title')}</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t('multiTf.title')}</span>
             </div>
-            <p style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", margin: 0 }}>
+            <p style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", margin: 0 }}>
               {t('multiTf.subtitle')}
             </p>
           </div>
           <select value={effectiveSymbol} onChange={e => setLocalSymbol(e.target.value)}
-            style={{ background: '#151A22', color: '#F0F2F5', border: `0.5px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)", cursor: 'pointer', direction: 'ltr' }}>
+            style={{ background: '#151A22', color: '#F0F2F5', border: `0.5px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)", cursor: 'pointer', direction: 'ltr' }}>
             {SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
@@ -182,24 +182,24 @@ export function MultiTfPanel() {
               <div style={{ borderRadius: 'var(--radius-md)', border: `0.5px solid ${alignConf.color}30`, background: `${alignConf.color}06`, padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: alignConf.color, fontFamily: "var(--font-ar)" }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: alignConf.color, fontFamily: "var(--font-ar)" }}>
                       {t(alignConf.labelKey)}
                     </span>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", marginTop: 2 }}>
                       {locale === 'ar' ? data.executionHintAr : (data.executionHint || data.executionHintAr)}
                     </div>
                   </div>
-                  <span style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: alignConf.color, fontFamily: "var(--font-mono)" }}>
+                  <span style={{ fontSize: 27, fontWeight: 900, color: alignConf.color, fontFamily: "var(--font-mono)" }}>
                     {data.weightedScore > 0 ? '+' : ''}{data.weightedScore.toFixed(0)}
                   </span>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                   {t('multiTf.strategy')} <span style={{ color: alignConf.color }}>{getStrategy(data.alignment)}</span>
                 </div>
                 <ConfluenceMeter timeframes={data.timeframes} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                   {TF_KEYS.map(tf => (
-                    <span key={tf.key} style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{t(tf.labelKey)}</span>
+                    <span key={tf.key} style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>{t(tf.labelKey)}</span>
                   ))}
                 </div>
               </div>

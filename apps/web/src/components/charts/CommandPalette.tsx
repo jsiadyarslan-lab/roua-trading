@@ -169,7 +169,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
           borderBottom: `1px solid ${C.border}`,
           gap: 10,
         }}>
-          <span style={{ color: C.textDim, fontSize: 'var(--text-base)' }}>🔍</span>
+          <span style={{ color: C.textDim, fontSize: 15 }}>🔍</span>
           <input
             ref={inputRef}
             type="text"
@@ -182,13 +182,13 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
               border: 'none',
               outline: 'none',
               color: C.text,
-              fontSize: 'var(--text-base)',
+              fontSize: 15,
               fontFamily: 'inherit',
             }}
           />
           <span style={{
             color: C.textMuted,
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             background: C.card,
             padding: '2px 8px',
             borderRadius: 'var(--radius-sm)',
@@ -199,7 +199,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
         {/* Results */}
         <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
           {filteredCommands.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 24, color: C.textMuted, fontSize: 'var(--text-sm)' }}>
+            <div style={{ textAlign: 'center', padding: 24, color: C.textMuted, fontSize: 13 }}>
               {isAr ? 'لا توجد نتائج' : 'No results found'}
             </div>
           )}
@@ -209,7 +209,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
               <div style={{
                 padding: '6px 16px 4px',
                 color: C.textMuted,
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: 0.5,
                 textTransform: 'uppercase',
@@ -235,18 +235,18 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
                       transition: 'background 0.1s',
                     }}
                   >
-                    <span style={{ fontSize: 'var(--text-base)', width: 20, textAlign: 'center' }}>
+                    <span style={{ fontSize: 15, width: 20, textAlign: 'center' }}>
                       {cmd.icon || '◦'}
                     </span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ color: isSelected ? C.cyan : C.text, fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                      <div style={{ color: isSelected ? C.cyan : C.text, fontSize: 13, fontWeight: 600 }}>
                         {isAr && cmd.labelAr ? cmd.labelAr : cmd.label}
                       </div>
                     </div>
                     {cmd.shortcut && (
                       <span style={{
                         color: C.textMuted,
-                        fontSize: 'var(--text-xs)',
+                        fontSize: 11,
                         background: C.card,
                         padding: '1px 6px',
                         borderRadius: 'var(--radius-xs)',
@@ -270,7 +270,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
           padding: '8px 16px',
           borderTop: `1px solid ${C.border}`,
           color: C.textMuted,
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
         }}>
           <span>↑↓ {isAr ? 'تنقل' : 'Navigate'}</span>
           <span>↵ {isAr ? 'تنفيذ' : 'Execute'}</span>

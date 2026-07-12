@@ -93,7 +93,7 @@ export function HeatmapGrid() {
         {CATS.map(c => (
           <button key={c.key} onClick={() => setCatFilter(c.key)}
             style={{
-              padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
+              padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: catFilter === c.key ? `${'#00D4FF'}20` : '#151A22',
               color: catFilter === c.key ? '#00D4FF' : '#6B7280',
@@ -106,7 +106,7 @@ export function HeatmapGrid() {
         {SORTS.map(s => (
           <button key={s.key} onClick={() => setSortMode(s.key)}
             style={{
-              padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
+              padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: sortMode === s.key ? `${'#00D4FF'}20` : '#151A22',
               color: sortMode === s.key ? '#00D4FF' : '#6B7280',
@@ -153,7 +153,7 @@ export function HeatmapGrid() {
                   {cell.symbol}
                 </div>
                 <div style={{
-                  fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600,
+                  fontSize: 11, color: '#6B7280', fontWeight: 600,
                   fontFamily: "var(--font-ar)", marginTop: 2,
                 }}>
                   {getLocalizedAssetName(cell.symbol, safeStr(cell.name), t, locale)}
@@ -168,7 +168,7 @@ export function HeatmapGrid() {
                     {cell.changePercent >= 0 ? '+' : ''}{cell.changePercent.toFixed(2)}%
                   </div>
                   <div style={{
-                    fontSize: 'var(--text-xs)', color: '#9CA3B5',
+                    fontSize: 11, color: '#9CA3B5',
                     fontFamily: "var(--font-mono)",
                   }}>
                     ${cell.price.toLocaleString()}

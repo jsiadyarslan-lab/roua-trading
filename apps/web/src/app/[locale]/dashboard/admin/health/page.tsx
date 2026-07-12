@@ -146,8 +146,8 @@ export default function AdminHealthPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>صحة النظام</h1>
-          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
+          <h1 style={{ fontSize: 19, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>صحة النظام</h1>
+          <p style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
             مراقبة جميع نقاط النهاية في الوقت الفعلي
             {lastRefresh && ` • آخر تحديث: ${lastRefresh}`}
           </p>
@@ -161,7 +161,7 @@ export default function AdminHealthPage() {
               border: `1px solid ${autoRefresh ? COLORS.success + '25' : COLORS.border}`,
               background: autoRefresh ? `${COLORS.success}08` : 'rgba(255,255,255,0.03)',
               color: autoRefresh ? COLORS.success : COLORS.muted,
-              fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", cursor: 'pointer',
+              fontSize: 11, fontFamily: "var(--font-ar)", cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
@@ -174,7 +174,7 @@ export default function AdminHealthPage() {
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 'var(--radius-md)',
               border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-              color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
+              color: COLORS.accent, fontSize: 13, fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -204,8 +204,8 @@ export default function AdminHealthPage() {
                 <CardIcon size={16} color={card.color} />
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
+                <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
               </div>
             </div>
           )
@@ -220,13 +220,13 @@ export default function AdminHealthPage() {
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <Activity size={14} color={COLORS.accent} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نقاط النهاية المراقبة</span>
-          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)", marginRight: 8 }}>10 endpoints</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نقاط النهاية المراقبة</span>
+          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)", marginRight: 8 }}>10 endpoints</span>
         </div>
 
         <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {loading && endpoints.every(e => e.status === 'checking') ? (
-            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
               جارٍ فحص جميع نقاط النهاية...
             </div>
           ) : (
@@ -247,7 +247,7 @@ export default function AdminHealthPage() {
 
                 {/* Path + Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)", color: COLORS.text, marginBottom: 4 }} dir="ltr">
+                  <div style={{ fontSize: 13, fontFamily: "var(--font-mono)", color: COLORS.text, marginBottom: 4 }} dir="ltr">
                     {ep.path}
                   </div>
                   {/* Performance History Bar Chart */}
@@ -274,19 +274,19 @@ export default function AdminHealthPage() {
                   {ep.status !== 'checking' && (
                     <>
                       <div style={{
-                        fontSize: 'var(--text-sm)', fontWeight: 700,
+                        fontSize: 13, fontWeight: 700,
                         fontFamily: "var(--font-mono)",
                         color: ep.responseTime < 500 ? COLORS.success : ep.responseTime < 2000 ? COLORS.amber : COLORS.danger,
                       }}>
                         {ep.responseTime}ms
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                         {ep.status === 'healthy' ? 'سليم' : ep.status === 'warning' ? 'بطيء' : ep.status === 'error' ? 'خطأ' : 'فحص...'}
                       </div>
                     </>
                   )}
                   {ep.status === 'checking' && (
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>جارٍ الفحص...</div>
+                    <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>جارٍ الفحص...</div>
                   )}
                 </div>
 

@@ -219,7 +219,7 @@ export function SidebarIconRail({
                     borderRadius: 'var(--radius-2xl)',
                     background: tab.accent,
                     color: '#000',
-                    fontSize: 'var(--text-xs)',
+                    fontSize: 11,
                     fontWeight: 900,
                     fontFamily: FONT_MONO,
                     display: 'flex',
@@ -271,7 +271,7 @@ export function SidebarIconRail({
                 >
                   <span
                     style={{
-                      fontSize: 'var(--text-xs)',
+                      fontSize: 11,
                       fontWeight: 800,
                       color: tab.accent,
                       fontFamily: "var(--font-ar)",

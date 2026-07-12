@@ -180,20 +180,20 @@ export default function CouncilPage() {
             </div>
             <div>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <h1 style={{ fontSize: 'var(--text-md)', fontWeight:600, letterSpacing:'-0.015em', color:COLORS.textPrimary, margin:0, lineHeight:1 }}>{t('navLabel')}</h1>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council, padding:'2px 6px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.3)}` }}>v1</span>
+                <h1 style={{ fontSize: 17, fontWeight:600, letterSpacing:'-0.015em', color:COLORS.textPrimary, margin:0, lineHeight:1 }}>{t('navLabel')}</h1>
+                <span style={{ fontSize: 11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council, padding:'2px 6px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.3)}` }}>v1</span>
               </div>
-              <div style={{ fontSize: 'var(--text-xs)', color:COLORS.textMuted, marginTop:3 }}>
+              <div style={{ fontSize: 11, color:COLORS.textMuted, marginTop:3 }}>
                 {activeBriefs.length} {t('activeBriefs')}{lastSession ? ` · ${t('lastSession')} ${relativeTime(lastSession.timestamp, loc)}` : ''}{sessionRunning ? ` · ${t('conveningCouncil')}` : ''}
               </div>
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-            <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'8px 12px', borderRadius: 'var(--radius-lg)', background:sessionRunning?hexToRgba(COLORS.buy,0.08):'rgba(255,255,255,0.04)', border:`1px solid ${sessionRunning?hexToRgba(COLORS.buy,0.3):COLORS.border}`, fontSize: 'var(--text-xs)', fontWeight:600, color:sessionRunning?COLORS.buy:COLORS.textMuted }}>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'8px 12px', borderRadius: 'var(--radius-lg)', background:sessionRunning?hexToRgba(COLORS.buy,0.08):'rgba(255,255,255,0.04)', border:`1px solid ${sessionRunning?hexToRgba(COLORS.buy,0.3):COLORS.border}`, fontSize: 11, fontWeight:600, color:sessionRunning?COLORS.buy:COLORS.textMuted }}>
               <LiveDot color={sessionRunning?COLORS.buy:COLORS.textDim} size={7} label={sessionRunning?t('running'):t('idle')} />
             </div>
             <motion.button whileTap={{ scale:0.97 }} onClick={trigger} disabled={triggerLoading||sessionRunning}
-              style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius: 'var(--radius-lg)', border:'none', cursor:triggerLoading||sessionRunning?'not-allowed':'pointer', background:triggerLoading||sessionRunning?'rgba(168,85,247,0.3)':COLORS.gradientCouncil, color:'#0B0E14', fontSize: 'var(--text-sm)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', boxShadow:`0 8px 24px -8px ${hexToRgba(COLORS.council,0.6)}` }}>
+              style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius: 'var(--radius-lg)', border:'none', cursor:triggerLoading||sessionRunning?'not-allowed':'pointer', background:triggerLoading||sessionRunning?'rgba(168,85,247,0.3)':COLORS.gradientCouncil, color:'#0B0E14', fontSize: 13, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', boxShadow:`0 8px 24px -8px ${hexToRgba(COLORS.council,0.6)}` }}>
               {triggerLoading||sessionRunning ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} strokeWidth={2.75} />}
               {sessionRunning ? t('inProgress') : t('triggerSession')}
             </motion.button>
@@ -204,7 +204,7 @@ export default function CouncilPage() {
           <GlassCard style={{ padding:'12px 16px', borderColor:hexToRgba(COLORS.hold,0.3) }}>
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <AlertTriangle size={16} style={{ color:COLORS.hold }} />
-              <span style={{ fontSize: 'var(--text-sm)', color:COLORS.hold }}>{t('serverUnavailable')}</span>
+              <span style={{ fontSize: 13, color:COLORS.hold }}>{t('serverUnavailable')}</span>
             </div>
           </GlassCard>
         )}
@@ -215,12 +215,12 @@ export default function CouncilPage() {
             {/* Eyebrow */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 24px', borderBottom:`1px solid ${COLORS.border}`, flexWrap:'wrap', gap:12 }}>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.18em', color:COLORS.council, padding:'4px 9px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}` }}>01 / VERDICT</div>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight:500, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('verdictEyebrow')} · {selectedSymbol}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight:600, letterSpacing:'0.18em', color:COLORS.council, padding:'4px 9px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}` }}>01 / VERDICT</div>
+                <div style={{ fontSize: 11, fontWeight:500, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('verdictEyebrow')} · {selectedSymbol}</div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 {councilResult?.isFallback && (
-                  <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius: 'var(--radius-2xl)', background:hexToRgba(COLORS.hold,0.1), border:`1px solid ${hexToRgba(COLORS.hold,0.35)}`, color:COLORS.hold, fontSize: 'var(--text-xs)', fontWeight:600 }}>
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius: 'var(--radius-2xl)', background:hexToRgba(COLORS.hold,0.1), border:`1px solid ${hexToRgba(COLORS.hold,0.35)}`, color:COLORS.hold, fontSize: 11, fontWeight:600 }}>
                     <AlertTriangle size={12} /> {t('fallbackMode')}
                   </div>
                 )}
@@ -235,10 +235,10 @@ export default function CouncilPage() {
                 style={{
                   display:'inline-flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--radius-md)',
                   background: hexToRgba(COLORS.council,0.08), border:`1px solid ${hexToRgba(COLORS.council,0.3)}`,
-                  color: COLORS.council, fontSize: 'var(--text-sm)', fontWeight:600, cursor:'pointer', fontFamily: "var(--font-mono)",
+                  color: COLORS.council, fontSize: 13, fontWeight:600, cursor:'pointer', fontFamily: "var(--font-mono)",
                 }}
               >
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:COLORS.textMuted }}>Symbol:</span>
+                <span style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:COLORS.textMuted }}>Symbol:</span>
                 {selectedSymbol}
                 <ChevronDown size={14} strokeWidth={2.5} style={{ transition:'transform 200ms', transform: symbolDropdownOpen?'rotate(180deg)':'none' }} />
               </button>
@@ -253,11 +253,11 @@ export default function CouncilPage() {
                   }}>
                     {Object.entries(SYMBOL_CATEGORIES).map(([cat, syms]) => (
                       <div key={cat} style={{ marginBottom:8 }}>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, padding:'6px 10px 4px' }}>{cat}</div>
+                        <div style={{ fontSize: 11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, padding:'6px 10px 4px' }}>{cat}</div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:4 }}>
                           {syms.map(sym => (
                             <button key={sym} onClick={()=>{ setSelectedSymbol(sym); setCouncilResult(null); setSymbolDropdownOpen(false) }} style={{
-                              padding:'7px 12px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight:600, fontFamily: "var(--font-mono)", textAlign:'start',
+                              padding:'7px 12px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight:600, fontFamily: "var(--font-mono)", textAlign:'start',
                               background: selectedSymbol===sym ? hexToRgba(COLORS.council,0.15) : 'transparent',
                               border:`1px solid ${selectedSymbol===sym ? hexToRgba(COLORS.council,0.4) : 'transparent'}`,
                               color: selectedSymbol===sym ? COLORS.council : COLORS.textSecondary, cursor:'pointer', transition:'all 150ms ease',
@@ -277,29 +277,29 @@ export default function CouncilPage() {
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'32px 24px', borderInlineEnd:`1px solid ${COLORS.border}`, gap:12 }}>
                 {councilResult ? (
                   <CircularProgress value={councilResult.consensusScore} size={148} strokeWidth={10} color={directionColor(councilResult.recommendation)}>
-                    <div style={{ fontSize: 'var(--text-3xl)', fontWeight:600, letterSpacing:'-0.04em', color:COLORS.textPrimary, fontFamily: "var(--font-mono)", lineHeight:1 }}>{councilResult.consensusScore}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.textMuted, marginTop:4 }}>/ 100</div>
+                    <div style={{ fontSize: 35, fontWeight:600, letterSpacing:'-0.04em', color:COLORS.textPrimary, fontFamily: "var(--font-mono)", lineHeight:1 }}>{councilResult.consensusScore}</div>
+                    <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.textMuted, marginTop:4 }}>/ 100</div>
                   </CircularProgress>
                 ) : (
                   <CircularProgress value={0} size={148} strokeWidth={10} color={COLORS.textDim}>
-                    <div style={{ fontSize: 'var(--text-sm)', color:COLORS.textMuted, textAlign:'center', maxWidth:110 }}>{councilLoading ? t('conveningCouncil') : t('analyze')}</div>
+                    <div style={{ fontSize: 13, color:COLORS.textMuted, textAlign:'center', maxWidth:110 }}>{councilLoading ? t('conveningCouncil') : t('analyze')}</div>
                   </CircularProgress>
                 )}
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, textAlign:'center' }}>{t('consensus')}</div>
+                <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, textAlign:'center' }}>{t('consensus')}</div>
               </div>
 
               {/* Recommendation */}
               <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', padding:'32px 28px', borderInlineEnd:`1px solid ${COLORS.border}`, position:'relative', overflow:'hidden' }}>
                 <div aria-hidden style={{ position:'absolute', inset:0, background:`radial-gradient(ellipse 60% 80% at 30% 50%, ${hexToRgba(councilResult?directionColor(councilResult.recommendation):COLORS.council,0.18)} 0%, transparent 70%)`, pointerEvents:'none' }} />
                 <div style={{ position:'relative', zIndex:1 }}>
-                  <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:14 }}>{t('recommendation')}</div>
+                  <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:14 }}>{t('recommendation')}</div>
                   {councilResult ? (
                     <motion.div key={councilResult.recommendation} initial={{ opacity:0, scale:0.94, y:6 }} animate={{ opacity:1, scale:1, y:0 }} transition={{ duration:0.5 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
                         <div style={{ width:52, height:52, borderRadius: 'var(--radius-lg)', background:councilResult.recommendation==='BUY'?COLORS.gradientBuy:councilResult.recommendation==='SELL'?COLORS.gradientSell:'linear-gradient(135deg,#F59E0B,#A855F7)', display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14', boxShadow:`0 8px 24px -8px ${hexToRgba(directionColor(councilResult.recommendation),0.7)}` }}>
                           {councilResult.recommendation==='BUY'?<ArrowUpRight size={26} strokeWidth={2.75}/>:councilResult.recommendation==='SELL'?<ArrowDownRight size={26} strokeWidth={2.75}/>:<Minus size={26} strokeWidth={2.75}/>}
                         </div>
-                        <div style={{ fontSize: 'var(--text-3xl)', fontWeight:700, letterSpacing:'-0.03em', color:directionColor(councilResult.recommendation), lineHeight:1 }}>{t(dirLabelKey[councilResult.recommendation])}</div>
+                        <div style={{ fontSize: 35, fontWeight:700, letterSpacing:'-0.03em', color:directionColor(councilResult.recommendation), lineHeight:1 }}>{t(dirLabelKey[councilResult.recommendation])}</div>
                       </div>
                       {/* Vote tally */}
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -308,7 +308,7 @@ export default function CouncilPage() {
                           { c:COLORS.sell, n:councilResult.analyses.filter(a=>a.vote==='SELL').length, l:t('bearish') },
                           { c:COLORS.hold, n:councilResult.analyses.filter(a=>a.vote==='HOLD').length, l:t('neutral') },
                         ].filter(v=>v.n>0).map((v,i) => (
-                          <div key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius: 'var(--radius-md)', background:hexToRgba(v.c,0.1), border:`1px solid ${hexToRgba(v.c,0.3)}`, color:v.c, fontSize: 'var(--text-xs)', fontWeight:600 }}>
+                          <div key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius: 'var(--radius-md)', background:hexToRgba(v.c,0.1), border:`1px solid ${hexToRgba(v.c,0.3)}`, color:v.c, fontSize: 11, fontWeight:600 }}>
                             <span style={{ width:6, height:6, borderRadius:'50%', background:v.c, boxShadow:`0 0 6px ${v.c}` }} />
                             {v.n} {v.l}
                           </div>
@@ -316,7 +316,7 @@ export default function CouncilPage() {
                       </div>
                     </motion.div>
                   ) : (
-                    <div style={{ fontSize: 'var(--text-lg)', color:COLORS.textMuted, fontStyle:'italic' }}>{councilLoading ? t('conveningCouncil') : t('noSessionYet')}</div>
+                    <div style={{ fontSize: 19, color:COLORS.textMuted, fontStyle:'italic' }}>{councilLoading ? t('conveningCouncil') : t('noSessionYet')}</div>
                   )}
                 </div>
               </div>
@@ -325,13 +325,13 @@ export default function CouncilPage() {
               <div style={{ padding:'32px 24px', display:'flex', flexDirection:'column', justifyContent:'center', gap:18 }}>
                 <div>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('colConfidence')}</span>
-                    <span style={{ fontSize: 'var(--text-xl)', fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{councilResult?`${councilResult.consensusScore}%`:'—'}</span>
+                    <span style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('colConfidence')}</span>
+                    <span style={{ fontSize: 22, fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{councilResult?`${councilResult.consensusScore}%`:'—'}</span>
                   </div>
                   <ConfidenceBar value={councilResult?.consensusScore ?? 0} color={councilResult?directionColor(councilResult.recommendation):COLORS.council} height={6} />
                 </div>
                 <motion.button whileTap={{ scale:0.98 }} onClick={fetchCouncil} disabled={councilLoading}
-                  style={{ width:'100%', padding:'12px 18px', borderRadius: 'var(--radius-lg)', border:'none', cursor:councilLoading?'wait':'pointer', background:COLORS.gradientCouncil, color:'#0B0E14', fontWeight:600, fontSize: 'var(--text-sm)', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:`0 10px 30px -10px ${hexToRgba(COLORS.council,0.7)}` }}>
+                  style={{ width:'100%', padding:'12px 18px', borderRadius: 'var(--radius-lg)', border:'none', cursor:councilLoading?'wait':'pointer', background:COLORS.gradientCouncil, color:'#0B0E14', fontWeight:600, fontSize: 13, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:`0 10px 30px -10px ${hexToRgba(COLORS.council,0.7)}` }}>
                   <RefreshCw size={14} strokeWidth={2.5} className={councilLoading?'animate-spin':''} />
                   {councilLoading ? t('conveningCouncil') : t('analyze')}
                 </motion.button>
@@ -343,7 +343,7 @@ export default function CouncilPage() {
               <div style={{ padding:'22px 24px', borderTop:`1px solid ${COLORS.border}`, background:'rgba(0,0,0,0.18)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
                   <div style={{ width:26, height:26, borderRadius: 'var(--radius-md)', background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14' }}><Sparkles size={13} strokeWidth={2.5} /></div>
-                  <div style={{ fontSize: 'var(--text-xs)', fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>{t('unifiedStrategy')}</div>
+                  <div style={{ fontSize: 11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>{t('unifiedStrategy')}</div>
                   <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.4)}, transparent)` }} />
                 </div>
                 <FormattedText
@@ -361,9 +361,9 @@ export default function CouncilPage() {
           {councilResult?.analyses && councilResult.analyses.length > 0 && (
             <div style={{ marginTop:20 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>{t('councilVotes')}</div>
+                <div style={{ fontSize: 11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>{t('councilVotes')}</div>
                 <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.3)}, transparent)` }} />
-                <div style={{ fontSize: 'var(--text-xs)', color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{councilResult.analyses.length} {t('members')}</div>
+                <div style={{ fontSize: 11, color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{councilResult.analyses.length} {t('members')}</div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:10 }}>
                 {councilResult.analyses.map((a, i) => {
@@ -375,8 +375,8 @@ export default function CouncilPage() {
                         onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.transform='translateY(0)'}}>
                         {/* Header: Role + Vote badge */}
                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderBottom:`1px solid ${COLORS.border}`, gap:8 }}>
-                          <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1 }}>{a.role}</span>
-                          <div style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'3px 7px', borderRadius: 'var(--radius-sm)', background:hexToRgba(dc,0.12), border:`1px solid ${hexToRgba(dc,0.3)}`, color:dc, fontSize: 'var(--text-xs)', fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
+                          <span style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1 }}>{a.role}</span>
+                          <div style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'3px 7px', borderRadius: 'var(--radius-sm)', background:hexToRgba(dc,0.12), border:`1px solid ${hexToRgba(dc,0.3)}`, color:dc, fontSize: 11, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
                             {a.vote==='BUY'?<ArrowUpRight size={11} strokeWidth={2.5}/>:a.vote==='SELL'?<ArrowDownRight size={11} strokeWidth={2.5}/>:<Minus size={11} strokeWidth={2.5}/>}
                             {t(dirLabelKey[a.vote])}
                           </div>
@@ -384,8 +384,8 @@ export default function CouncilPage() {
                         {/* Body: Model + Confidence */}
                         <div style={{ padding:'8px 12px 10px', display:'flex', flexDirection:'column', gap:6 }}>
                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{a.model}</span>
-                            <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:dc, fontFamily: "var(--font-mono)" }}>{a.confidence}%</span>
+                            <span style={{ fontSize: 11, color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{a.model}</span>
+                            <span style={{ fontSize: 11, fontWeight:700, color:dc, fontFamily: "var(--font-mono)" }}>{a.confidence}%</span>
                           </div>
                           <div style={{ height:4, borderRadius: 'var(--radius-2xl)', background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
                             <div style={{ height:'100%', width:`${a.confidence}%`, background:`linear-gradient(90deg, ${dc}, ${hexToRgba(dc,0.5)})`, borderRadius: 'var(--radius-2xl)' }} />
@@ -395,7 +395,7 @@ export default function CouncilPage() {
                         <div style={{ padding:'6px 12px 8px', borderTop:`1px solid ${COLORS.border}`, display:'flex', justifyContent:'center' }}>
                           <button
                             onClick={() => setExpandedVote(expandedVote === i ? null : i)}
-                            style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius: 'var(--radius-sm)', background:expandedVote===i?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.03)', border:`1px solid ${expandedVote===i?hexToRgba(COLORS.council,0.3):COLORS.border}`, color:expandedVote===i?COLORS.council:COLORS.textMuted, fontSize: 'var(--text-xs)', fontWeight:600, cursor:'pointer', letterSpacing:'0.03em' }}
+                            style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius: 'var(--radius-sm)', background:expandedVote===i?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.03)', border:`1px solid ${expandedVote===i?hexToRgba(COLORS.council,0.3):COLORS.border}`, color:expandedVote===i?COLORS.council:COLORS.textMuted, fontSize: 11, fontWeight:600, cursor:'pointer', letterSpacing:'0.03em' }}
                           >
                             {expandedVote===i ? (t('hideDetails') ?? 'Hide') : (t('showDetails') ?? 'Details')}
                             <motion.span animate={{ rotate:expandedVote===i?180:0 }} transition={{ duration:0.2 }}><ChevronDown size={9} strokeWidth={2.5} /></motion.span>
@@ -426,30 +426,30 @@ export default function CouncilPage() {
           {/* V441: Compact filter bar — all filters in 2 rows */}
           <div style={{ display:'flex', gap:6, marginBottom:6, flexWrap:'wrap', alignItems:'center' }}>
             {(['ALL','BUY','SELL'] as const).map(d => (
-              <motion.button key={d} whileTap={{ scale:0.96 }} onClick={()=>setFilterDir(d)} style={{ padding:'5px 10px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.4):COLORS.border}`, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.12):'transparent', color:filterDir===d?(d==='ALL'?COLORS.council:directionColor(d)):COLORS.textMuted, fontSize: 'var(--text-xs)', fontWeight:600, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5 }}>
+              <motion.button key={d} whileTap={{ scale:0.96 }} onClick={()=>setFilterDir(d)} style={{ padding:'5px 10px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.4):COLORS.border}`, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.12):'transparent', color:filterDir===d?(d==='ALL'?COLORS.council:directionColor(d)):COLORS.textMuted, fontSize: 11, fontWeight:600, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:5 }}>
                 {d==='ALL'?t('all'):d==='BUY'?`▲ ${t('buy')}`:`▼ ${t('sell')}`}
-                <span style={{ fontSize: 'var(--text-xs)', padding:'1px 5px', borderRadius: 'var(--radius-sm)', background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.18):'rgba(255,255,255,0.06)', fontFamily: "var(--font-mono)", fontWeight:700 }}>{d==='ALL'?activeBriefs.length:activeBriefs.filter(b=>b.direction===d).length}</span>
+                <span style={{ fontSize: 11, padding:'1px 5px', borderRadius: 'var(--radius-sm)', background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.18):'rgba(255,255,255,0.06)', fontFamily: "var(--font-mono)", fontWeight:700 }}>{d==='ALL'?activeBriefs.length:activeBriefs.filter(b=>b.direction===d).length}</span>
               </motion.button>
             ))}
             <div style={{ width:1, height:18, background:COLORS.border, margin:'0 2px' }} />
             {(['ALL','Crypto','Forex','Commodities','Indices'] as const).map(c => (
-              <button key={c} onClick={()=>setFilterCategory(c)} style={{ padding:'5px 10px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterCategory===c?hexToRgba(COLORS.council,0.4):COLORS.border}`, background:filterCategory===c?hexToRgba(COLORS.council,0.12):'transparent', color:filterCategory===c?COLORS.council:COLORS.textMuted, fontSize: 'var(--text-xs)', fontWeight:600, cursor:'pointer' }}>{c}</button>
+              <button key={c} onClick={()=>setFilterCategory(c)} style={{ padding:'5px 10px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterCategory===c?hexToRgba(COLORS.council,0.4):COLORS.border}`, background:filterCategory===c?hexToRgba(COLORS.council,0.12):'transparent', color:filterCategory===c?COLORS.council:COLORS.textMuted, fontSize: 11, fontWeight:600, cursor:'pointer' }}>{c}</button>
             ))}
           </div>
           <div style={{ display:'flex', gap:6, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
             {(['ALL','M1','M5','M15','M30','H1','H4','D1','W1'] as const).map(tf => (
-              <button key={tf} onClick={()=>setFilterTf(tf)} style={{ padding:'5px 9px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterTf===tf?hexToRgba(COLORS.info,0.4):COLORS.border}`, background:filterTf===tf?hexToRgba(COLORS.info,0.12):'transparent', color:filterTf===tf?COLORS.info:COLORS.textMuted, fontSize: 'var(--text-xs)', fontWeight:600, fontFamily: "var(--font-mono)", cursor:'pointer' }}>{tf}</button>
+              <button key={tf} onClick={()=>setFilterTf(tf)} style={{ padding:'5px 9px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterTf===tf?hexToRgba(COLORS.info,0.4):COLORS.border}`, background:filterTf===tf?hexToRgba(COLORS.info,0.12):'transparent', color:filterTf===tf?COLORS.info:COLORS.textMuted, fontSize: 11, fontWeight:600, fontFamily: "var(--font-mono)", cursor:'pointer' }}>{tf}</button>
             ))}
             <div style={{ width:1, height:18, background:COLORS.border, margin:'0 2px' }} />
             {[0,50,60,70,75,80,85].map(c => (
-              <button key={c} onClick={()=>setFilterMinConf(c)} style={{ padding:'5px 9px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterMinConf===c?hexToRgba(COLORS.buy,0.4):COLORS.border}`, background:filterMinConf===c?hexToRgba(COLORS.buy,0.12):'transparent', color:filterMinConf===c?COLORS.buy:COLORS.textMuted, fontSize: 'var(--text-xs)', fontWeight:600, fontFamily: "var(--font-mono)", cursor:'pointer' }}>{c===0?(t('all') ?? 'All'):`${c}%`}</button>
+              <button key={c} onClick={()=>setFilterMinConf(c)} style={{ padding:'5px 9px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterMinConf===c?hexToRgba(COLORS.buy,0.4):COLORS.border}`, background:filterMinConf===c?hexToRgba(COLORS.buy,0.12):'transparent', color:filterMinConf===c?COLORS.buy:COLORS.textMuted, fontSize: 11, fontWeight:600, fontFamily: "var(--font-mono)", cursor:'pointer' }}>{c===0?(t('all') ?? 'All'):`${c}%`}</button>
             ))}
           </div>
           {fActive.length===0 ? (
             <GlassCard padding={40} style={{ textAlign:'center' }}>
               <div style={{ width:56, height:56, borderRadius: 'var(--radius-xl)', margin:'0 auto 16px', background:hexToRgba(COLORS.council,0.08), border:`1px solid ${hexToRgba(COLORS.council,0.2)}`, display:'flex', alignItems:'center', justifyContent:'center' }}><Sparkles size={24} color={COLORS.council} /></div>
-              <div style={{ fontSize: 'var(--text-md)', fontWeight:600, color:COLORS.textPrimary, marginBottom:6 }}>{t('noActiveBriefs')}</div>
-              <div style={{ fontSize: 'var(--text-sm)', color:COLORS.textMuted }}>{t('councilWatchingMarkets')}</div>
+              <div style={{ fontSize: 17, fontWeight:600, color:COLORS.textPrimary, marginBottom:6 }}>{t('noActiveBriefs')}</div>
+              <div style={{ fontSize: 13, color:COLORS.textMuted }}>{t('councilWatchingMarkets')}</div>
             </GlassCard>
           ) : (
             <>
@@ -474,8 +474,8 @@ export default function CouncilPage() {
                 <Layers size={15} />
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight:700, color:COLORS.textPrimary }}>{t('decisionMatrix') ?? 'Decision Matrix'}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color:COLORS.textMuted, marginTop:2 }}>{t('decisionMatrixDesc') ?? 'Pair × Timeframe heatmap'}</div>
+                <div style={{ fontSize: 15, fontWeight:700, color:COLORS.textPrimary }}>{t('decisionMatrix') ?? 'Decision Matrix'}</div>
+                <div style={{ fontSize: 11, color:COLORS.textMuted, marginTop:2 }}>{t('decisionMatrixDesc') ?? 'Pair × Timeframe heatmap'}</div>
               </div>
               <ChevronDown size={16} style={{ marginLeft:'auto', color:COLORS.textMuted, transition:'transform 200ms' }} />
             </summary>
@@ -492,21 +492,21 @@ export default function CouncilPage() {
             <SectionHeader index="03" eyebrow={t('section3Eyebrow')} title={t('sessionLog')} />
             <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
               {(['ALL','EXECUTED','MODIFIED','CANCELLED'] as const).map(s => (
-                <button key={s} onClick={()=>setFilterStatus(s)} style={{ padding:'6px 12px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.4):COLORS.border}`, background:filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.12):'rgba(255,255,255,0.025)', color:filterStatus===s?(s==='ALL'?COLORS.council:statusColor(s)):COLORS.textMuted, fontSize: 'var(--text-xs)', fontWeight:600, textTransform:'uppercase', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:7 }}>
+                <button key={s} onClick={()=>setFilterStatus(s)} style={{ padding:'6px 12px', borderRadius: 'var(--radius-md)', border:`1px solid ${filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.4):COLORS.border}`, background:filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.12):'rgba(255,255,255,0.025)', color:filterStatus===s?(s==='ALL'?COLORS.council:statusColor(s)):COLORS.textMuted, fontSize: 11, fontWeight:600, textTransform:'uppercase', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:7 }}>
                   {s==='ALL'?t('all'):t(stLabelKey[s])}
-                  <span style={{ fontSize: 'var(--text-xs)', padding:'1px 5px', borderRadius: 'var(--radius-sm)', background:filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.18):'rgba(255,255,255,0.06)', fontFamily: "var(--font-mono)", fontWeight:700 }}>{s==='ALL'?historyBriefs.length:historyBriefs.filter(b=>b.reviewStatus===s).length}</span>
+                  <span style={{ fontSize: 11, padding:'1px 5px', borderRadius: 'var(--radius-sm)', background:filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.18):'rgba(255,255,255,0.06)', fontFamily: "var(--font-mono)", fontWeight:700 }}>{s==='ALL'?historyBriefs.length:historyBriefs.filter(b=>b.reviewStatus===s).length}</span>
                 </button>
               ))}
             </div>
             {fHistory.length===0 ? (
               <GlassCard padding={36} style={{ textAlign:'center' }}>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight:600, color:COLORS.textPrimary, marginBottom:4 }}>{t('noHistory')}</div>
-                <div style={{ fontSize: 'var(--text-sm)', color:COLORS.textMuted }}>{t('historyWillAppear')}</div>
+                <div style={{ fontSize: 15, fontWeight:600, color:COLORS.textPrimary, marginBottom:4 }}>{t('noHistory')}</div>
+                <div style={{ fontSize: 13, color:COLORS.textMuted }}>{t('historyWillAppear')}</div>
               </GlassCard>
             ) : (
               <>
                 <GlassCard padding={12} style={{ overflow:'hidden', minWidth:540 }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', gap:12, padding:'8px 14px 10px', fontSize: 'var(--text-xs)', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, borderBottom:`1px solid ${COLORS.border}` }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', gap:12, padding:'8px 14px 10px', fontSize: 11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, borderBottom:`1px solid ${COLORS.border}` }}>
                     <div>{t('colPair')}</div><div>{t('colDirection')}</div><div>{t('colEntry')}</div><div>{t('colConfidence')}</div><div>{t('colStatus')}</div><div style={{ textAlign:'right' }}>{t('colOutcome')}</div>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:6, maxHeight:520, overflowY:'auto', paddingRight:4 }}>
@@ -524,17 +524,17 @@ export default function CouncilPage() {
                               {b.direction==='BUY'?<TrendingUp size={13} strokeWidth={2.5}/>:<TrendingDown size={13} strokeWidth={2.5}/>}
                             </div>
                             <div style={{ minWidth:0 }}>
-                              <div style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.pair}</div>
-                              <div style={{ fontSize: 'var(--text-xs)', color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{b.timeframe}</div>
+                              <div style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.pair}</div>
+                              <div style={{ fontSize: 11, color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{b.timeframe}</div>
                             </div>
                           </div>
-                          <div style={{ fontSize: 'var(--text-xs)', fontWeight:700, textTransform:'uppercase', color:dc }}>{t(dirLabelKey[b.direction])}</div>
-                          <div style={{ fontSize: 'var(--text-sm)', color:COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>{formatPrice(b.entryPrice)}</div>
+                          <div style={{ fontSize: 11, fontWeight:700, textTransform:'uppercase', color:dc }}>{t(dirLabelKey[b.direction])}</div>
+                          <div style={{ fontSize: 13, color:COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>{formatPrice(b.entryPrice)}</div>
                           <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                             <div style={{ width:40, height:4, borderRadius: 'var(--radius-2xl)', background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
                               <div style={{ height:'100%', width:`${b.confidence}%`, background:COLORS.council, borderRadius: 'var(--radius-2xl)' }} />
                             </div>
-                            <span style={{ fontSize: 'var(--text-xs)', color:COLORS.textSecondary, fontFamily: "var(--font-mono)", fontWeight:600 }}>{b.confidence}</span>
+                            <span style={{ fontSize: 11, color:COLORS.textSecondary, fontFamily: "var(--font-mono)", fontWeight:600 }}>{b.confidence}</span>
                           </div>
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                             {b.reviewStatus==='EXECUTED'?<CheckCircle2 size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:b.reviewStatus==='CANCELLED'?<XCircle size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:<RefreshCw size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>}
@@ -542,9 +542,9 @@ export default function CouncilPage() {
                           </div>
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
                             {b.outcomePips !== undefined ? (
-                              <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:won?COLORS.buy:lost?COLORS.sell:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{b.outcomePips>0?'+':''}{b.outcomePips.toFixed(b.outcomePips<1?4:2)}</span>
-                            ) : <span style={{ fontSize: 'var(--text-xs)', color:COLORS.textDim, fontStyle:'italic' }}>—</span>}
-                            <span style={{ fontSize: 'var(--text-xs)', color:COLORS.textDim, fontFamily: "var(--font-mono)" }}>{b.closedAt?relativeTime(b.closedAt, loc):'—'}</span>
+                              <span style={{ fontSize: 13, fontWeight:600, color:won?COLORS.buy:lost?COLORS.sell:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{b.outcomePips>0?'+':''}{b.outcomePips.toFixed(b.outcomePips<1?4:2)}</span>
+                            ) : <span style={{ fontSize: 11, color:COLORS.textDim, fontStyle:'italic' }}>—</span>}
+                            <span style={{ fontSize: 11, color:COLORS.textDim, fontFamily: "var(--font-mono)" }}>{b.closedAt?relativeTime(b.closedAt, loc):'—'}</span>
                           </div>
                         </motion.div>
                       )
@@ -584,15 +584,15 @@ export default function CouncilPage() {
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
                     <div style={{ width:28, height:28, borderRadius: 'var(--radius-md)', background:hexToRgba(COLORS.hold,0.12), border:`1px solid ${hexToRgba(COLORS.hold,0.3)}`, color:COLORS.hold, display:'flex', alignItems:'center', justifyContent:'center' }}><AlertTriangle size={15} /></div>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('sessionDiagnostics') ?? 'Session Diagnostics'}</div>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>{t('whySkipped') ?? 'Skip Reasons'}</div>
+                      <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('sessionDiagnostics') ?? 'Session Diagnostics'}</div>
+                      <div style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>{t('whySkipped') ?? 'Skip Reasons'}</div>
                     </div>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:200, overflowY:'auto' }}>
                     {skipReasons.slice(0, 20).map((d, i) => {
                       const isBlocked = d.includes('BLOCKED') || d.includes('REJECTED') || d.includes('FAIL');
                       return (
-                        <div key={i} style={{ fontSize: 'var(--text-xs)', color:isBlocked?COLORS.sell:COLORS.textMuted, fontFamily: "var(--font-mono)", padding:'6px 10px', borderRadius: 'var(--radius-md)', background:isBlocked?hexToRgba(COLORS.sell,0.05):'rgba(255,255,255,0.02)', border:`1px solid ${isBlocked?hexToRgba(COLORS.sell,0.2):COLORS.border}` }}>
+                        <div key={i} style={{ fontSize: 11, color:isBlocked?COLORS.sell:COLORS.textMuted, fontFamily: "var(--font-mono)", padding:'6px 10px', borderRadius: 'var(--radius-md)', background:isBlocked?hexToRgba(COLORS.sell,0.05):'rgba(255,255,255,0.02)', border:`1px solid ${isBlocked?hexToRgba(COLORS.sell,0.2):COLORS.border}` }}>
                           {d}
                         </div>
                       );
@@ -608,13 +608,13 @@ export default function CouncilPage() {
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <div style={{ width:28, height:28, borderRadius: 'var(--radius-md)', background:hexToRgba(COLORS.info,0.12), border:`1px solid ${hexToRgba(COLORS.info,0.3)}`, color:COLORS.info, display:'flex', alignItems:'center', justifyContent:'center' }}><Activity size={15} /></div>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('lastSession')}</div>
-                      <div style={{ fontSize: 'var(--text-sm)', color:COLORS.textSecondary, marginTop:2, display:'flex', alignItems:'center', gap:5 }}>
+                      <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('lastSession')}</div>
+                      <div style={{ fontSize: 13, color:COLORS.textSecondary, marginTop:2, display:'flex', alignItems:'center', gap:5 }}>
                         <Calendar size={11} /> {relativeTime(lastSession.timestamp, loc)}
                       </div>
                     </div>
                   </div>
-                  <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius: 'var(--radius-2xl)', background:hexToRgba(COLORS.buy,0.1), border:`1px solid ${hexToRgba(COLORS.buy,0.3)}`, color:COLORS.buy, fontSize: 'var(--text-xs)', fontWeight:600 }}>
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius: 'var(--radius-2xl)', background:hexToRgba(COLORS.buy,0.1), border:`1px solid ${hexToRgba(COLORS.buy,0.3)}`, color:COLORS.buy, fontSize: 11, fontWeight:600 }}>
                     <Sparkles size={11} /> {t('liveCouncil')}
                   </div>
                 </div>
@@ -630,9 +630,9 @@ export default function CouncilPage() {
                     <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 13px', borderRadius: 'var(--radius-lg)', background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
                       <div style={{ display:'flex', alignItems:'center', gap:9 }}>
                         <div style={{ width:26, height:26, borderRadius: 'var(--radius-md)', background:hexToRgba(s.c,0.12), color:s.c, display:'flex', alignItems:'center', justifyContent:'center' }}>{s.i}</div>
-                        <span style={{ fontSize: 'var(--text-sm)', color:COLORS.textSecondary, fontWeight:500 }}>{s.l}</span>
+                        <span style={{ fontSize: 13, color:COLORS.textSecondary, fontWeight:500 }}>{s.l}</span>
                       </div>
-                      <span style={{ fontSize: 'var(--text-base)', fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{s.v}</span>
+                      <span style={{ fontSize: 15, fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{s.v}</span>
                     </div>
                   ))}
                 </div>
@@ -643,8 +643,8 @@ export default function CouncilPage() {
 
         {/* Footer */}
         <footer style={{ marginTop:24, paddingTop:24, borderTop:`1px solid ${COLORS.border}`, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-          <div style={{ fontSize: 'var(--text-xs)', color:COLORS.textDim }}>{t('footerTagline')} · {t('footerSubline')}</div>
-          <div style={{ fontSize: 'var(--text-xs)', color:COLORS.textDim, fontFamily: "var(--font-mono)" }}>
+          <div style={{ fontSize: 11, color:COLORS.textDim }}>{t('footerTagline')} · {t('footerSubline')}</div>
+          <div style={{ fontSize: 11, color:COLORS.textDim, fontFamily: "var(--font-mono)" }}>
             <span style={{ color:COLORS.council }}>●</span> Council v1.0 · {ALL_SYMBOLS.length} symbols · 8 AI agents
           </div>
         </footer>
@@ -694,19 +694,19 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', gap:10 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
             <CircularProgress value={brief.confidence} size={40} strokeWidth={4} color={dc} glow={false} animationDelay={index*0.05}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{brief.confidence}</span>
+              <span style={{ fontSize: 11, fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{brief.confidence}</span>
             </CircularProgress>
             <div style={{ minWidth:0 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
-                <span style={{ fontSize: 'var(--text-base)', fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, padding:'2px 5px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily: "var(--font-mono)" }}>{brief.timeframe}</span>
+                <span style={{ fontSize: 15, fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
+                <span style={{ fontSize: 11, fontWeight:700, padding:'2px 5px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily: "var(--font-mono)" }}>{brief.timeframe}</span>
               </div>
-              <span style={{ fontSize: 'var(--text-xs)', color:COLORS.textDim, display:'inline-flex', alignItems:'center', gap:3, fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 11, color:COLORS.textDim, display:'inline-flex', alignItems:'center', gap:3, fontFamily: "var(--font-mono)" }}>
                 <Clock size={9} /> {relativeTime(brief.issuedAt, loc)}
               </span>
             </div>
           </div>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius: 'var(--radius-md)', background:dirSoft, border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize: 'var(--text-xs)', fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius: 'var(--radius-md)', background:dirSoft, border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize: 11, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
             {brief.direction==='BUY'?<TrendingUp size={12} strokeWidth={2.5}/>:<TrendingDown size={12} strokeWidth={2.5}/>}
             {t(dirLabelKey[brief.direction])}
           </div>
@@ -714,25 +714,25 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
         {/* Row 2: Entry / SL / TP in clean grid */}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:1, background:COLORS.border, borderTop:`1px solid ${COLORS.border}`, borderBottom:`1px solid ${COLORS.border}` }}>
           <div style={{ padding:'8px 12px', background:'rgba(0,0,0,0.15)', textAlign:'center' }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:2 }}>{t('entry')}</div>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.entryPrice)}</div>
+            <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:2 }}>{t('entry')}</div>
+            <div style={{ fontSize: 13, fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.entryPrice)}</div>
           </div>
           <div style={{ padding:'8px 12px', background:'rgba(0,0,0,0.15)', textAlign:'center', borderInlineStart:`1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.sell, marginBottom:2 }}>SL</div>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:COLORS.sell, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.stopLoss)}</div>
+            <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.sell, marginBottom:2 }}>SL</div>
+            <div style={{ fontSize: 13, fontWeight:700, color:COLORS.sell, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.stopLoss)}</div>
           </div>
           <div style={{ padding:'8px 12px', background:'rgba(0,0,0,0.15)', textAlign:'center', borderInlineStart:`1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.buy, marginBottom:2 }}>TP</div>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:COLORS.buy, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.takeProfit)}</div>
+            <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.buy, marginBottom:2 }}>TP</div>
+            <div style={{ fontSize: 13, fontWeight:700, color:COLORS.buy, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.takeProfit)}</div>
           </div>
         </div>
         {/* Row 3: R/R + Countdown + Details button */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 16px 10px', gap:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, fontSize: 'var(--text-xs)', color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, fontSize: 11, color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
             <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><Gauge size={10} /> R/R {rr.toFixed(2)}</span>
             <span style={{ display:'inline-flex', alignItems:'center', gap:3, color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textDim }}><Timer size={10} /> {isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
           </div>
-          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius: 'var(--radius-md)', background:hexToRgba(COLORS.council,0.08), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontSize: 'var(--text-xs)', fontWeight:600, cursor:'pointer', letterSpacing:'0.03em' }}>
+          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius: 'var(--radius-md)', background:hexToRgba(COLORS.council,0.08), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontSize: 11, fontWeight:600, cursor:'pointer', letterSpacing:'0.03em' }}>
             {t('showDetails')} <ChevronDown size={11} strokeWidth={2.5} />
           </motion.button>
         </div>
@@ -754,19 +754,19 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:`1px solid ${COLORS.border}`, position:'sticky', top:0, background:'#0F131C', zIndex:2 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                     <CircularProgress value={brief.confidence} size={44} strokeWidth={4} color={dc} glow={false}>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{brief.confidence}</span>
+                      <span style={{ fontSize: 11, fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{brief.confidence}</span>
                     </CircularProgress>
                     <div>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <span style={{ fontSize: 'var(--text-lg)', fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
-                        <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, padding:'2px 7px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily: "var(--font-mono)" }}>{brief.timeframe}</span>
+                        <span style={{ fontSize: 19, fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
+                        <span style={{ fontSize: 11, fontWeight:700, padding:'2px 7px', borderRadius: 'var(--radius-sm)', background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily: "var(--font-mono)" }}>{brief.timeframe}</span>
                       </div>
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
-                        <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius: 'var(--radius-md)', background:dirSoft, border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize: 'var(--text-xs)', fontWeight:700, textTransform:'uppercase' }}>
+                        <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius: 'var(--radius-md)', background:dirSoft, border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize: 11, fontWeight:700, textTransform:'uppercase' }}>
                           {brief.direction==='BUY'?<TrendingUp size={11} strokeWidth={2.5}/>:<TrendingDown size={11} strokeWidth={2.5}/>}
                           {t(dirLabelKey[brief.direction])}
                         </div>
-                        <span style={{ fontSize: 'var(--text-xs)', color:COLORS.textMuted, display:'inline-flex', alignItems:'center', gap:3 }}><Clock size={10} /> {relativeTime(brief.issuedAt, loc)}</span>
+                        <span style={{ fontSize: 11, color:COLORS.textMuted, display:'inline-flex', alignItems:'center', gap:3 }}><Clock size={10} /> {relativeTime(brief.issuedAt, loc)}</span>
                       </div>
                     </div>
                   </div>
@@ -781,27 +781,27 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                   {/* Price grid */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
                     <div style={{ textAlign:'center', padding:'12px', borderRadius: 'var(--radius-lg)', background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
-                      <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('entry')}</div>
-                      <div style={{ fontSize: 'var(--text-md)', fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.entryPrice)}</div>
+                      <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('entry')}</div>
+                      <div style={{ fontSize: 17, fontWeight:700, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.entryPrice)}</div>
                     </div>
                     <div style={{ textAlign:'center', padding:'12px', borderRadius: 'var(--radius-lg)', background:hexToRgba(COLORS.sell,0.06), border:`1px solid ${hexToRgba(COLORS.sell,0.2)}` }}>
-                      <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.sell, marginBottom:4 }}>{t('stopLoss')}</div>
-                      <div style={{ fontSize: 'var(--text-md)', fontWeight:700, color:COLORS.sell, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.stopLoss)}</div>
-                      <div style={{ fontSize: 'var(--text-xs)', color:COLORS.sell, fontFamily: "var(--font-mono)", marginTop:2 }}>{slPctStr}</div>
+                      <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.sell, marginBottom:4 }}>{t('stopLoss')}</div>
+                      <div style={{ fontSize: 17, fontWeight:700, color:COLORS.sell, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.stopLoss)}</div>
+                      <div style={{ fontSize: 11, color:COLORS.sell, fontFamily: "var(--font-mono)", marginTop:2 }}>{slPctStr}</div>
                     </div>
                     <div style={{ textAlign:'center', padding:'12px', borderRadius: 'var(--radius-lg)', background:hexToRgba(COLORS.buy,0.06), border:`1px solid ${hexToRgba(COLORS.buy,0.2)}` }}>
-                      <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.buy, marginBottom:4 }}>{t('takeProfit')}</div>
-                      <div style={{ fontSize: 'var(--text-md)', fontWeight:700, color:COLORS.buy, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.takeProfit)}</div>
-                      <div style={{ fontSize: 'var(--text-xs)', color:COLORS.buy, fontFamily: "var(--font-mono)", marginTop:2 }}>{tpPctStr}</div>
+                      <div style={{ fontSize: 11, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.buy, marginBottom:4 }}>{t('takeProfit')}</div>
+                      <div style={{ fontSize: 17, fontWeight:700, color:COLORS.buy, fontFamily: "var(--font-mono)" }}>{formatPrice(brief.takeProfit)}</div>
+                      <div style={{ fontSize: 11, color:COLORS.buy, fontFamily: "var(--font-mono)", marginTop:2 }}>{tpPctStr}</div>
                     </div>
                   </div>
                   {/* R/R bar */}
                   <div style={{ position:'relative', height:28, borderRadius: 'var(--radius-md)', overflow:'hidden', display:'flex', border:`1px solid ${COLORS.border}` }}>
-                    <div style={{ width:`${slBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.sell,0.3)}, ${hexToRgba(COLORS.sell,0.12)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--text-xs)', fontWeight:700, color:COLORS.sell }}>
+                    <div style={{ width:`${slBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.sell,0.3)}, ${hexToRgba(COLORS.sell,0.12)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize: 11, fontWeight:700, color:COLORS.sell }}>
                       {rr.toFixed(1)}R RISK
                     </div>
                     <div style={{ width:'2px', background:COLORS.textPrimary, zIndex:1 }} />
-                    <div style={{ width:`${tpBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.buy,0.12)}, ${hexToRgba(COLORS.buy,0.3)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--text-xs)', fontWeight:700, color:COLORS.buy }}>
+                    <div style={{ width:`${tpBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.buy,0.12)}, ${hexToRgba(COLORS.buy,0.3)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize: 11, fontWeight:700, color:COLORS.buy }}>
                       {(rr * 1).toFixed(1)}R REWARD
                     </div>
                   </div>
@@ -810,43 +810,43 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                     <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius: 'var(--radius-md)', background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
                       <Activity size={13} color={COLORS.info} />
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('lastReview')}</div>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{relativeTime(brief.lastReviewedAt, loc)}</span>
+                        <div style={{ fontSize: 11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('lastReview')}</div>
+                        <span style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{relativeTime(brief.lastReviewedAt, loc)}</span>
                       </div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius: 'var(--radius-md)', background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
                       <Gauge size={13} color={COLORS.info} />
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('riskReward')}</div>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.info, fontFamily: "var(--font-mono)" }}>{rr.toFixed(2)}</span>
+                        <div style={{ fontSize: 11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('riskReward')}</div>
+                        <span style={{ fontSize: 13, fontWeight:600, color:COLORS.info, fontFamily: "var(--font-mono)" }}>{rr.toFixed(2)}</span>
                       </div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius: 'var(--radius-md)', background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
                       <Shield size={13} color={COLORS.hold} />
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('maxSlippage') ?? 'Slippage'}</div>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{(brief.strictRules.maxSlippage*100).toFixed(2)}%</span>
+                        <div style={{ fontSize: 11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('maxSlippage') ?? 'Slippage'}</div>
+                        <span style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{(brief.strictRules.maxSlippage*100).toFixed(2)}%</span>
                       </div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius: 'var(--radius-md)', background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
                       <Timer size={13} color={isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary} />
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('expires')}</div>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>{isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
+                        <div style={{ fontSize: 11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('expires')}</div>
+                        <span style={{ fontSize: 13, fontWeight:600, color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>{isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
                       </div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius: 'var(--radius-md)', background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
                       <Target size={13} color={COLORS.sell} />
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('slDistance')}</div>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{slPctStr}</span>
+                        <div style={{ fontSize: 11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('slDistance')}</div>
+                        <span style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{slPctStr}</span>
                       </div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius: 'var(--radius-md)', background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
                       <Target size={13} color={COLORS.buy} />
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('tpDistance')}</div>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{tpPctStr}</span>
+                        <div style={{ fontSize: 11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('tpDistance')}</div>
+                        <span style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, fontFamily: "var(--font-mono)" }}>{tpPctStr}</span>
                       </div>
                     </div>
                   </div>
@@ -856,7 +856,7 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                       <div style={{ width:24, height:24, borderRadius: 'var(--radius-md)', background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14' }}>
                         <Sparkles size={12} strokeWidth={2.5} />
                       </div>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
+                      <span style={{ fontSize: 11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
                       <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.3)}, transparent)` }} />
                     </div>
                     <FormattedText text={brief.analysisSummary ?? ''} maxLength={0} collapsible={false} dir={loc==='ar'?'rtl':'ltr'} fontSize={13} accent={dc} placeholder={t('noAnalysis')} />

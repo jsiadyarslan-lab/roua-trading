@@ -11,7 +11,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       onClick={onClick}
       style={{
-        padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
+        padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700,
         fontFamily: "var(--font-ar)", cursor: 'pointer',
         background: active ? `${'#00D4FF'}20` : '#151A22', color: active ? '#00D4FF' : '#6B7280',
         border: `0.5px solid ${active ? '#3A4150' : '#2A313C'}`,
@@ -78,13 +78,13 @@ export function ScannerToolbar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <Filter size={16} color={'#00D4FF'} />
         <span style={{
-          fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5',
+          fontSize: 15, fontWeight: 800, color: '#F0F2F5',
           fontFamily: "var(--font-ar)",
         }}>
           {t('toolbar.liveScanTable')}
         </span>
         <span style={{
-          fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280',
+          fontSize: 11, fontWeight: 700, color: '#6B7280',
           fontFamily: "var(--font-mono)",
           padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: '#151A22',
         }}>
@@ -92,7 +92,7 @@ export function ScannerToolbar() {
         </span>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
-          fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00D4FF',
+          fontSize: 11, fontWeight: 700, color: '#00D4FF',
           fontFamily: "var(--font-ar)",
           padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}10`,
         }}>
@@ -126,7 +126,7 @@ export function ScannerToolbar() {
           onChange={e => ctx.setTimeframe(e.target.value)}
           aria-label={t('toolbar.selectTimeframe')}
           style={{
-            padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
+            padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700,
             fontFamily: "var(--font-ar)", background: '#151A22', color: '#9CA3B5',
             border: `0.5px solid ${'#2A313C'}`, cursor: 'pointer', direction: 'inherit',
           }}
@@ -142,7 +142,7 @@ export function ScannerToolbar() {
           onChange={e => ctx.setSignalFilter(e.target.value as SignalFilter)}
           aria-label={t('toolbar.filterBySignal')}
           style={{
-            padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
+            padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700,
             fontFamily: "var(--font-ar)", background: '#151A22', color: '#9CA3B5',
             border: `0.5px solid ${'#2A313C'}`, cursor: 'pointer', direction: 'inherit',
           }}
@@ -162,7 +162,7 @@ export function ScannerToolbar() {
             onChange={e => handleSearchChange(e.target.value)}
             aria-label={t('toolbar.searchScanner')}
             style={{
-              padding: '4px 28px 4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)',
+              padding: '4px 28px 4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11,
               fontFamily: "var(--font-ar)", background: '#151A22', color: '#F0F2F5',
               border: `0.5px solid ${'#2A313C'}`, direction: 'inherit', width: 120,
               outline: 'none',

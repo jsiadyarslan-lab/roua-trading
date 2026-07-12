@@ -87,7 +87,7 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
         borderBottom: `1px solid ${'#2A313C'}`,
       }}>
         <span style={{
-          fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)",
+          fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)",
           textTransform: 'uppercase', letterSpacing: 1,
         }}>
           {language}
@@ -97,7 +97,7 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: copied ? '#00FFA3' : '#6B7280', display: 'flex',
-            alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)',
+            alignItems: 'center', gap: 4, fontSize: 11,
             fontFamily: "var(--font-ar)", fontWeight: 600,
             transition: 'color 0.2s',
           }}
@@ -109,7 +109,7 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
       <pre style={{
         margin: 0, padding: '14px 16px', background: '#07080E',
         overflowX: 'auto', direction: 'ltr', textAlign: 'left',
-        fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
+        fontFamily: "var(--font-mono)", fontSize: 11,
         lineHeight: 1.7, color: '#9CA3B5',
         maxHeight: 280,
       }}>
@@ -142,7 +142,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
         <span style={{
           padding: '3px 10px', borderRadius: 'var(--radius-sm)',
           background: mc.bg, color: mc.text, border: `1px solid ${mc.border}`,
-          fontSize: 'var(--text-xs)', fontWeight: 800,
+          fontSize: 11, fontWeight: 800,
           fontFamily: "var(--font-mono)",
           flexShrink: 0, letterSpacing: 0.5,
           minWidth: 52, textAlign: 'center',
@@ -152,7 +152,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
 
         {/* Path */}
         <span style={{
-          flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600,
+          flex: 1, fontSize: 13, fontWeight: 600,
           color: isOpen ? '#F0F2F5' : '#9CA3B5',
           fontFamily: "var(--font-mono)",
           direction: 'ltr' as const, textAlign: 'left',
@@ -164,7 +164,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
 
         {/* Description */}
         <span style={{
-          flex: 2, fontSize: 'var(--text-xs)', color: '#6B7280',
+          flex: 2, fontSize: 11, color: '#6B7280',
           fontFamily: "var(--font-ar)",
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -176,7 +176,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
           padding: '2px 8px', borderRadius: 'var(--radius-sm)',
           background: endpoint.permission === 'none' ? `${'#6B7280'}14` : `${'#00FFA3'}14`,
           color: endpoint.permission === 'none' ? '#6B7280' : '#00FFA3',
-          fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)",
+          fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)",
           border: `1px solid ${endpoint.permission === 'none' ? `${'#6B7280'}25` : `${'#00FFA3'}25`}`,
           flexShrink: 0,
         }}>
@@ -211,7 +211,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
         <div style={{ padding: '0 0 16px 0' }}>
           {/* Description */}
           <div style={{
-            fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.8,
+            fontSize: 13, color: '#6B7280', lineHeight: 1.8,
             fontFamily: "var(--font-ar)", marginBottom: 12,
             padding: '8px 12px', borderRadius: 'var(--radius-md)',
             background: `${'#00D4FF'}04`, border: `1px solid ${'#00D4FF'}08`,
@@ -224,7 +224,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
           {endpoint.requestBody && (
             <div style={{ marginBottom: 10 }}>
               <div style={{
-                fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5', marginBottom: 4,
+                fontSize: 11, fontWeight: 700, color: '#9CA3B5', marginBottom: 4,
                 fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
@@ -238,7 +238,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
           {/* Response Example */}
           <div>
             <div style={{
-              fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5', marginBottom: 4,
+              fontSize: 11, fontWeight: 700, color: '#9CA3B5', marginBottom: 4,
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
@@ -293,15 +293,15 @@ function CategorySection({
           {category.icon}
         </div>
         <div style={{ flex: 1, textAlign: 'right' }}>
-          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
             {category.title}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 1, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 1, fontFamily: "var(--font-ar)" }}>
             {category.description}
           </div>
         </div>
         <span style={{
-          fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-lg)',
+          fontSize: 11, padding: '3px 8px', borderRadius: 'var(--radius-lg)',
           background: `${category.iconColor}10`, color: category.iconColor,
           fontFamily: "var(--font-mono)", fontWeight: 700,
         }}>
@@ -1011,10 +1011,10 @@ for signal in client.signals.stream():
             <Code size={22} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)", display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)", display: 'flex', alignItems: 'center', gap: 10 }}>
               {t('title')}
               <span style={{
-                fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-lg)',
+                fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                 background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`,
                 color: '#000', fontWeight: 800,
                 fontFamily: "var(--font-mono)",
@@ -1024,7 +1024,7 @@ for signal in client.signals.stream():
                 v1.0
               </span>
             </h1>
-            <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
               {t('subtitle')}
             </p>
           </div>
@@ -1055,10 +1055,10 @@ for signal in client.signals.stream():
                 {stat.icon}
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", marginBottom: 2 }}>
+                <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", marginBottom: 2 }}>
                   {stat.label}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'left' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'left' }}>
                   {stat.value}
                 </div>
               </div>
@@ -1076,7 +1076,7 @@ for signal in client.signals.stream():
             }}>
               <BookOpen size={14} color={'#00D4FF'} />
             </div>
-            <h2 id="getting-started-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="getting-started-heading" style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('gettingStarted')}
             </h2>
           </div>
@@ -1089,14 +1089,14 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Globe size={14} color={'#00D4FF'} />
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                   {t('baseUrlTitle')}
                 </span>
               </div>
               <div style={{
                 padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                 background: '#07080E', border: `1px solid ${'#3A4150'}`,
-                fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)',
+                fontFamily: "var(--font-mono)", fontSize: 13,
                 color: '#00D4FF', direction: 'ltr', textAlign: 'left',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
@@ -1111,14 +1111,14 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Shield size={14} color={'#00FFA3'} />
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                   {t('authTitle')}
                 </span>
               </div>
               <div style={{
                 padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                 background: `${'#00FFA3'}06`, border: `1px solid ${'#00FFA3'}12`,
-                fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.8,
+                fontSize: 11, color: '#6B7280', lineHeight: 1.8,
                 fontFamily: "var(--font-ar)", marginBottom: 10,
               }}>
                 {t('authDescription', { code: 'Authorization' })}
@@ -1133,7 +1133,7 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Zap size={14} color={'#FFB800'} />
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                   {t('rateLimitsTitle')}
                 </span>
               </div>
@@ -1148,16 +1148,16 @@ for signal in client.signals.stream():
                     background: '#151A22', border: `1px solid ${'#2A313C'}`,
                     textAlign: 'center',
                   }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4, fontFamily: "var(--font-ar)" }}>{r.plan}</div>
-                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: r.color, fontFamily: "var(--font-mono)" }}>{r.limit}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{r.unit}</div>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4, fontFamily: "var(--font-ar)" }}>{r.plan}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: r.color, fontFamily: "var(--font-mono)" }}>{r.limit}</div>
+                    <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>{r.unit}</div>
                   </div>
                 ))}
               </div>
               <div style={{
                 marginTop: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)',
                 background: `${'#FFB800'}06`, border: `1px solid ${'#FFB800'}10`,
-                fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.7,
+                fontSize: 11, color: '#6B7280', lineHeight: 1.7,
                 fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'flex-start', gap: 8,
               }}>
@@ -1170,7 +1170,7 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Terminal size={14} color={'#B388FF'} />
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                   {t('curlExampleTitle')}
                 </span>
               </div>
@@ -1195,7 +1195,7 @@ for signal in client.signals.stream():
             }}>
               <Key size={14} color={'#00FFA3'} />
             </div>
-            <h2 id="api-keys-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="api-keys-heading" style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('apiKeysTitle')}
             </h2>
           </div>
@@ -1207,8 +1207,8 @@ for signal in client.signals.stream():
             {/* Generate Button */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t('yourApiKeys')}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t('yourApiKeys')}</div>
+                <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                   {t('yourApiKeysDesc')}
                 </div>
               </div>
@@ -1219,7 +1219,7 @@ for signal in client.signals.stream():
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '9px 18px', borderRadius: 'var(--radius-lg)',
                   background: `linear-gradient(135deg, ${'#00FFA3'}, ${'#00CC82'})`,
-                  color: '#000', fontSize: 'var(--text-sm)', fontWeight: 800, cursor: generating ? 'wait' : 'pointer',
+                  color: '#000', fontSize: 13, fontWeight: 800, cursor: generating ? 'wait' : 'pointer',
                   fontFamily: "var(--font-ar)", border: 'none', transition: 'all 0.2s',
                   boxShadow: `0 0 16px ${'#00FFA3'}20`,
                   opacity: generating ? 0.7 : 1,
@@ -1245,13 +1245,13 @@ for signal in client.signals.stream():
                 }}>
                   {p.disabled ? <Lock size={10} color={'#FF4757'} /> : <Check size={10} color={p.color} />}
                   <span style={{
-                    fontSize: 'var(--text-xs)', fontWeight: 700, color: p.disabled ? '#FF4757' : p.color,
+                    fontSize: 11, fontWeight: 700, color: p.disabled ? '#FF4757' : p.color,
                     fontFamily: "var(--font-ar)",
                     textDecoration: p.disabled ? 'line-through' : 'none',
                   }}>
                     {p.label}
                   </span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                     {p.desc}
                   </span>
                 </div>
@@ -1276,11 +1276,11 @@ for signal in client.signals.stream():
                       <Key size={14} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: k.status === 'revoked' ? '#6B7280' : '#F0F2F5', fontFamily: "var(--font-ar)", textDecoration: k.status === 'revoked' ? 'line-through' : 'none' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: k.status === 'revoked' ? '#6B7280' : '#F0F2F5', fontFamily: "var(--font-ar)", textDecoration: k.status === 'revoked' ? 'line-through' : 'none' }}>
                         {k.name}
                       </div>
                       <div style={{
-                        fontSize: 'var(--text-xs)', color: '#6B7280',
+                        fontSize: 11, color: '#6B7280',
                         fontFamily: "var(--font-mono)",
                         direction: 'ltr', textAlign: 'left',
                         display: 'flex', alignItems: 'center', gap: 6,
@@ -1304,7 +1304,7 @@ for signal in client.signals.stream():
                             padding: '2px 7px', borderRadius: 'var(--radius-sm)',
                             background: p === 'read' ? `${'#00FFA3'}14` : `${'#6B7280'}14`,
                             color: p === 'read' ? '#00FFA3' : '#6B7280',
-                            fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)",
+                            fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)",
                           }}>
                             {p === 'read' ? t('permRead') : '—'}
                           </span>
@@ -1312,7 +1312,7 @@ for signal in client.signals.stream():
                       </div>
                       {/* Last Used */}
                       <span style={{
-                        fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)",
+                        fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)",
                         padding: '2px 8px', background: '#151A22', borderRadius: 'var(--radius-sm)',
                         border: `1px solid ${'#2A313C'}`,
                       }}>
@@ -1327,7 +1327,7 @@ for signal in client.signals.stream():
                             display: 'flex', alignItems: 'center', gap: 4,
                             padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                             background: `${'#FF4757'}10`, border: `1px solid ${'#FF4757'}20`,
-                            color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700,
+                            color: '#FF4757', fontSize: 11, fontWeight: 700,
                             fontFamily: "var(--font-ar)", cursor: 'pointer',
                             transition: 'all 0.2s',
                           }}
@@ -1339,7 +1339,7 @@ for signal in client.signals.stream():
                         </button>
                       ) : (
                         <span style={{
-                          fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-sm)',
+                          fontSize: 11, padding: '3px 8px', borderRadius: 'var(--radius-sm)',
                           background: `${'#FF4757'}14`, color: '#FF4757', fontWeight: 700,
                           fontFamily: "var(--font-ar)",
                           border: `1px solid ${'#FF4757'}25`,
@@ -1366,12 +1366,12 @@ for signal in client.signals.stream():
               }}>
                 <Braces size={14} color={'#B388FF'} />
               </div>
-              <h2 id="endpoints-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
+              <h2 id="endpoints-heading" style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
                 {t('endpointsTitle')}
               </h2>
             </div>
             <span style={{
-              fontSize: 'var(--text-xs)', color: '#6B7280',
+              fontSize: 11, color: '#6B7280',
               fontFamily: "var(--font-mono)",
               padding: '3px 10px', borderRadius: 'var(--radius-lg)', background: '#151A22',
               border: `1px solid ${'#2A313C'}`,
@@ -1404,7 +1404,7 @@ for signal in client.signals.stream():
             }}>
               <Terminal size={14} color={'#FFB800'} />
             </div>
-            <h2 id="sdks-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="sdks-heading" style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('sdksTitle')}
             </h2>
           </div>
@@ -1427,13 +1427,13 @@ for signal in client.signals.stream():
                     gap: 8, padding: '14px 12px', border: 'none', cursor: 'pointer',
                     background: activeTab === tab.id ? `${tab.color}08` : 'transparent',
                     color: activeTab === tab.id ? tab.color : '#6B7280',
-                    fontSize: 'var(--text-sm)', fontWeight: activeTab === tab.id ? 800 : 500,
+                    fontSize: 13, fontWeight: activeTab === tab.id ? 800 : 500,
                     fontFamily: "var(--font-ar)",
                     borderBottom: activeTab === tab.id ? `2px solid ${tab.color}` : '2px solid transparent',
                     transition: 'all 0.2s',
                   }}
                 >
-                  <span style={{ fontSize: 'var(--text-base)' }}>{tab.icon}</span>
+                  <span style={{ fontSize: 15 }}>{tab.icon}</span>
                   {tab.label}
                 </button>
               ))}
@@ -1441,7 +1441,7 @@ for signal in client.signals.stream():
 
             {/* Install Command */}
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${'#2A313C'}` }}>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5', marginBottom: 6, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B5', marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                 {t('install')}
               </div>
               <CodeBlock
@@ -1452,7 +1452,7 @@ for signal in client.signals.stream():
 
             {/* Code Snippet */}
             <div style={{ padding: '14px 20px' }}>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5', marginBottom: 6, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B5', marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                 {t('fullExample')}
               </div>
               <CodeBlock
@@ -1473,7 +1473,7 @@ for signal in client.signals.stream():
             }}>
               <Webhook size={14} color={'#00D4FF'} />
             </div>
-            <h2 id="webhooks-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="webhooks-heading" style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
               Webhooks
             </h2>
           </div>
@@ -1486,14 +1486,14 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Server size={14} color={'#00D4FF'} />
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                   {t('webhooksSetup')}
                 </span>
               </div>
               <div style={{
                 padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                 background: `${'#00D4FF'}06`, border: `1px solid ${'#00D4FF'}12`,
-                fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.8,
+                fontSize: 11, color: '#6B7280', lineHeight: 1.8,
                 fontFamily: "var(--font-ar)", marginBottom: 12,
               }}>
                 {t('webhooksDescription')}
@@ -1509,7 +1509,7 @@ for signal in client.signals.stream():
 
             {/* Event Types */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}` }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 10 }}>
                 {t('eventTypes')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }} className="apidocs-grid-2">
@@ -1525,13 +1525,13 @@ for signal in client.signals.stream():
                       flexShrink: 0,
                     }} />
                     <span style={{
-                      fontSize: 'var(--text-xs)', color: ev.color,
+                      fontSize: 11, color: ev.color,
                       fontFamily: "var(--font-mono)",
                       fontWeight: 700, direction: 'ltr',
                     }}>
                       {ev.event}
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
+                    <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                       {ev.description}
                     </span>
                   </div>
@@ -1541,7 +1541,7 @@ for signal in client.signals.stream():
 
             {/* Payload Example */}
             <div style={{ padding: '18px 20px' }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 8 }}>
                 {t('payloadExample')}
               </div>
               <CodeBlock
@@ -1565,7 +1565,7 @@ for signal in client.signals.stream():
               <div style={{
                 marginTop: 8, padding: '8px 12px', borderRadius: 'var(--radius-md)',
                 background: `${'#00FFA3'}06`, border: `1px solid ${'#00FFA3'}10`,
-                fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.7,
+                fontSize: 11, color: '#6B7280', lineHeight: 1.7,
                 fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'flex-start', gap: 6,
               }}>
@@ -1586,7 +1586,7 @@ for signal in client.signals.stream():
             }}>
               <AlertTriangle size={14} color={'#FF4757'} />
             </div>
-            <h2 id="errors-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="errors-heading" style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('errorCodesTitle')}
             </h2>
           </div>
@@ -1600,7 +1600,7 @@ for signal in client.signals.stream():
               display: 'grid', gridTemplateColumns: '80px 140px 1fr 1fr',
               padding: '12px 20px', borderBottom: `1px solid ${'#2A313C'}`,
               background: `${'#151A22'}40`,
-              fontSize: 'var(--text-xs)', fontWeight: 800, color: '#6B7280',
+              fontSize: 11, fontWeight: 800, color: '#6B7280',
               fontFamily: "var(--font-ar)",
             }}>
               <span>{t('colStatus')}</span>
@@ -1616,7 +1616,7 @@ for signal in client.signals.stream():
                   display: 'grid', gridTemplateColumns: '80px 140px 1fr 1fr',
                   padding: '10px 20px',
                   borderBottom: i < ERROR_CODES.length - 1 ? `1px solid ${'#2A313C'}` : 'none',
-                  alignItems: 'center', fontSize: 'var(--text-xs)',
+                  alignItems: 'center', fontSize: 11,
                   transition: 'background 0.2s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = `${'#151A22'}30` }}
@@ -1627,14 +1627,14 @@ for signal in client.signals.stream():
                   fontFamily: "var(--font-mono)", fontWeight: 800,
                   color: err.httpStatus >= 500 ? '#FF4757' :
                          err.httpStatus >= 400 ? '#FFB800' : '#00FFA3',
-                  fontSize: 'var(--text-sm)',
+                  fontSize: 13,
                 }}>
                   {err.httpStatus}
                 </span>
                 {/* Error Code */}
                 <span style={{
                   fontFamily: "var(--font-mono)",
-                  color: '#00D4FF', fontSize: 'var(--text-xs)', fontWeight: 600,
+                  color: '#00D4FF', fontSize: 11, fontWeight: 600,
                   direction: 'ltr',
                 }}>
                   {err.code}
@@ -1664,10 +1664,10 @@ for signal in client.signals.stream():
           borderTop: `1px solid ${'#2A313C'}`,
           marginTop: 8,
         }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.8 }}>
+          <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.8 }}>
             {t('footerNote')}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", marginTop: 4 }}>
             {t('needHelp')}{' '}
             <span style={{ color: '#00D4FF', cursor: 'pointer', fontWeight: 700 }}>{t('contactSupport')}</span>
             {' '}{t('or')}{' '}

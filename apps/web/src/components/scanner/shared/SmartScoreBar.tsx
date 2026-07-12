@@ -45,7 +45,7 @@ export function SmartScoreBar({ smartScore }: SmartScoreBarProps) {
         return (
           <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{
-              width: 32, fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280',
+              width: 32, fontSize: 11, fontWeight: 700, color: '#6B7280',
               fontFamily: "var(--font-ar)", textAlign: 'right', flexShrink: 0,
             }}>
               {t(labelKey)}
@@ -62,7 +62,7 @@ export function SmartScoreBar({ smartScore }: SmartScoreBarProps) {
               }} />
             </div>
             <span style={{
-              width: 26, fontSize: 'var(--text-xs)', fontWeight: 800, color,
+              width: 26, fontSize: 11, fontWeight: 800, color,
               fontFamily: "var(--font-mono)", textAlign: 'left', flexShrink: 0,
             }}>
               {val > 0 ? '+' : ''}{val}

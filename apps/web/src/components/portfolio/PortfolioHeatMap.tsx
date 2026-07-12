@@ -74,7 +74,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
           justifyContent: 'center',
           height: 80,
           color: '#6B7280',
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           fontFamily: "var(--font-ar)",
           direction: 'inherit',
         }}

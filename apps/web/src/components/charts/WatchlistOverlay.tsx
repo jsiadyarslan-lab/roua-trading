@@ -110,7 +110,7 @@ export function WatchlistOverlay({
           >
             {/* Symbol */}
             <span style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               color: isSelected ? COLORS.cyan : COLORS.textSecondary,
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
@@ -137,7 +137,7 @@ export function WatchlistOverlay({
             {/* Price + Change */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <span style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 color: COLORS.text,
                 fontWeight: 600,
                 fontFamily: "var(--font-mono)",
@@ -145,7 +145,7 @@ export function WatchlistOverlay({
                 {spark.price > 1000 ? spark.price.toFixed(0) : spark.price.toFixed(2)}
               </span>
               <span style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 color,
                 fontWeight: 700,
                 fontFamily: "var(--font-mono)",

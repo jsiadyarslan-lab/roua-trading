@@ -115,21 +115,21 @@ export default function StrategyBuilderPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <GitBranch size={20} color={'#00D4FF'} />
-            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{sb('pageTitle')}</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>{sb('pageTitle')}</h1>
             <span style={{
-              fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
+              fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
               background: `${'#00D4FF'}18`, color: '#00D4FF',
               fontFamily: "var(--font-mono)",
             }}>NO-CODE BUILDER</span>
           </div>
-          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#9CA3B5' }}>
             {sb('pageSubtitle')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={handleSaveDraft}
-            style={{ background: '#151A22', color: '#F0F2F5', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${'#2A313C'}`, cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ background: '#151A22', color: '#F0F2F5', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${'#2A313C'}`, cursor: 'pointer', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#00D4FF'; e.currentTarget.style.color = '#00D4FF' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A313C'; e.currentTarget.style.color = '#F0F2F5' }}
           >
@@ -137,7 +137,7 @@ export default function StrategyBuilderPage() {
           </button>
           <button
             onClick={handleBacktest}
-            style={{ background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`, color: '#fff', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`, color: '#fff', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
           >
             <Play size={16} /> {sb('backtestBtn')}
           </button>
@@ -159,18 +159,18 @@ export default function StrategyBuilderPage() {
               onChange={e => setStrategyName(e.target.value)}
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                color: '#F0F2F5', fontSize: 'var(--text-base)', fontWeight: 700, fontFamily: "var(--font-ar)",
+                color: '#F0F2F5', fontSize: 15, fontWeight: 700, fontFamily: "var(--font-ar)",
                 direction: 'inherit',
               }}
               placeholder={sb('strategyNamePlaceholder')}
             />
-            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
               {sb('componentCount', { count: nodes.length })}
             </span>
             {nodes.length > 0 && (
               <button
                 onClick={handleClearAll}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#FF4757', display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)" }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#FF4757', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)" }}
               >
                 <Trash2 size={12} /> {sb('clearAll')}
               </button>
@@ -193,10 +193,10 @@ export default function StrategyBuilderPage() {
               /* Empty State */
               <div style={{ position: 'relative', textAlign: 'center', padding: '60px 20px' }}>
                 <Settings2 size={48} color={'#2A313C'} style={{ marginBottom: 16, marginInline: 'auto' }} />
-                <div style={{ color: '#9CA3B5', fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 8 }}>
+                <div style={{ color: '#9CA3B5', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>
                   {sb('emptyTitle')}
                 </div>
-                <div style={{ color: '#6B7280', fontSize: 'var(--text-sm)' }}>
+                <div style={{ color: '#6B7280', fontSize: 13 }}>
                   {sb('emptySubtitle')}
                 </div>
               </div>
@@ -207,7 +207,7 @@ export default function StrategyBuilderPage() {
                 <div style={{
                   padding: '8px 24px', borderRadius: 'var(--radius-2xl)',
                   background: `${'#00D4FF'}15`, border: `1px solid ${'#00D4FF'}40`,
-                  color: '#00D4FF', fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
+                  color: '#00D4FF', fontSize: 13, fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ▶ {sb('strategyStart')}
@@ -224,7 +224,7 @@ export default function StrategyBuilderPage() {
                     }}>
                       {/* Type Badge */}
                       <span style={{
-                        fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
+                        fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-lg)',
                         background: `${node.color}20`, color: node.color,
                         fontWeight: 700, fontFamily: "var(--font-mono)",
                         whiteSpace: 'nowrap',
@@ -232,13 +232,13 @@ export default function StrategyBuilderPage() {
                         {node.type === 'indicator' ? 'IND' : node.type === 'condition' ? 'COND' : node.type === 'action' ? 'ACT' : 'RISK'}
                       </span>
                       {/* Icon & Label */}
-                      <span style={{ fontSize: 'var(--text-md)' }}>{node.icon}</span>
+                      <span style={{ fontSize: 17 }}>{node.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.label}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{node.sublabel}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.label}</div>
+                        <div style={{ fontSize: 11, color: '#6B7280' }}>{node.sublabel}</div>
                       </div>
                       {/* Step Number */}
-                      <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                         {sb('step', { n: idx + 1 })}
                       </span>
                       {/* Move & Delete Buttons */}
@@ -288,7 +288,7 @@ export default function StrategyBuilderPage() {
                 <div style={{
                   padding: '8px 24px', borderRadius: 'var(--radius-2xl)',
                   background: `${'#B388FF'}15`, border: `1px solid ${'#B388FF'}40`,
-                  color: '#B388FF', fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
+                  color: '#B388FF', fontSize: 13, fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ◼ {sb('strategyEnd')}
@@ -318,11 +318,11 @@ export default function StrategyBuilderPage() {
 
           {showPanel && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1 }}>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{sb('availableComponents')}</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{sb('availableComponents')}</h3>
 
               {availableComponents.map((cat, catIdx) => (
                 <div key={catIdx}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${'#2A313C'}` }}>
+                  <div style={{ fontSize: 11, color: '#9CA3B5', fontWeight: 700, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${'#2A313C'}` }}>
                     {cat.category}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -333,7 +333,7 @@ export default function StrategyBuilderPage() {
                         style={{
                           padding: '10px 12px', background: `${item.color}08`,
                           border: `1px solid ${item.color}25`, borderRadius: 'var(--radius-md)',
-                          color: '#F0F2F5', fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
+                          color: '#F0F2F5', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 8,
                           transition: 'all 0.2s', textAlign: 'right',
                           fontFamily: "var(--font-ar)",
@@ -347,10 +347,10 @@ export default function StrategyBuilderPage() {
                           e.currentTarget.style.borderColor = `${item.color}25`
                         }}
                       >
-                        <span style={{ fontSize: 'var(--text-base)' }}>{item.icon}</span>
+                        <span style={{ fontSize: 15 }}>{item.icon}</span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: item.color }}>{item.label}</div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 400 }}>{item.sublabel}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.label}</div>
+                          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 400 }}>{item.sublabel}</div>
                         </div>
                         <Plus size={12} color={item.color} style={{ opacity: 0.5 }} />
                       </button>

@@ -105,7 +105,7 @@ export function ChartTradePanel({
               borderRadius: 'var(--radius-sm)',
               color: '#000',
               padding: '4px 9px',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               cursor: 'pointer',
               fontFamily: "var(--font-ar)",
@@ -124,15 +124,15 @@ export function ChartTradePanel({
             <button
               onClick={() => onSetLotSize(Math.max(0.01, +(lotSize - 0.01).toFixed(2)))}
               aria-label="Decrease lot size"
-              style={{ background: 'none', border: 'none', color: '#888', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0 2px', outline: 'none' }}
+              style={{ background: 'none', border: 'none', color: '#888', fontSize: 13, cursor: 'pointer', padding: '0 2px', outline: 'none' }}
             >−</button>
-            <span style={{ color: '#ccc', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 28, textAlign: 'center' }}>
+            <span style={{ color: '#ccc', fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 28, textAlign: 'center' }}>
               {lotSize.toFixed(2)}
             </span>
             <button
               onClick={() => onSetLotSize(+(lotSize + 0.01).toFixed(2))}
               aria-label="Increase lot size"
-              style={{ background: 'none', border: 'none', color: '#888', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0 2px', outline: 'none' }}
+              style={{ background: 'none', border: 'none', color: '#888', fontSize: 13, cursor: 'pointer', padding: '0 2px', outline: 'none' }}
             >+</button>
           </div>
 
@@ -147,7 +147,7 @@ export function ChartTradePanel({
               borderRadius: 'var(--radius-sm)',
               color: '#fff',
               padding: '4px 9px',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               cursor: 'pointer',
               fontFamily: "var(--font-ar)",

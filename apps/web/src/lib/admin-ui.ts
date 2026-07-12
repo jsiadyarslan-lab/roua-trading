@@ -47,6 +47,6 @@ export const EMPTY_STATE_STYLE: React.CSSProperties = {
   padding: 30,
   textAlign: 'center',
   color: COLORS.muted,
-  fontSize: 'var(--text-sm)',
+  fontSize: 13,
   fontFamily: "var(--font-ar)",
 } as const

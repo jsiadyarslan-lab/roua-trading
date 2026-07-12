@@ -158,7 +158,7 @@ export function ChartOverlayPanel({
               <span style={{
                 color,
                 fontFamily: "var(--font-mono)",
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: 800,
                 letterSpacing: 0.5,
                 whiteSpace: 'nowrap',
@@ -169,7 +169,7 @@ export function ChartOverlayPanel({
                 <span style={{
                   color: ov.linePnl !== undefined && ov.linePnl >= 0 ? '#00FFA3' : '#FF4757',
                   fontFamily: "var(--font-mono)",
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   fontWeight: 700,
                   whiteSpace: 'nowrap',
                   borderLeft: `1px solid ${color}44`,
@@ -183,7 +183,7 @@ export function ChartOverlayPanel({
               {isDraggable && (
                 <span style={{
                   color: color + 'AA',
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   marginLeft: 2,
                   lineHeight: 1,
                 }}>⇕</span>

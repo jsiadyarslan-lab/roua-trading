@@ -59,19 +59,19 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             <AlertTriangle size={28} color={'#FF4D4D'} />
           </div>
           <h2 style={{
-            fontSize: 'var(--text-lg)', fontWeight: 800, color: '#E6EBF5',
+            fontSize: 19, fontWeight: 800, color: '#E6EBF5',
             margin: '0 0 8px',
           }}>
             حدث خطأ غير متوقع
           </h2>
           <p style={{
-            fontSize: 'var(--text-sm)', color: '#8090A8',
+            fontSize: 13, color: '#8090A8',
             margin: '0 0 6px', maxWidth: 420, lineHeight: 1.7,
           }}>
             {this.state.error?.message || 'حدث خطأ أثناء عرض هذا القسم.'}
           </p>
           <p style={{
-            fontSize: 'var(--text-xs)', color: '#6B7280',
+            fontSize: 11, color: '#6B7280',
             margin: '0 0 20px',
           }}>
             يمكنك المحاولة مرة أخرى أو العودة لاحقاً.
@@ -83,7 +83,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               padding: '8px 20px', borderRadius: 'var(--radius-md)',
               background: 'rgba(10,132,255,0.1)',
               border: '1px solid rgba(10,132,255,0.2)',
-              color: '#00D4FF', fontSize: 'var(--text-sm)', fontWeight: 700,
+              color: '#00D4FF', fontSize: 13, fontWeight: 700,
               cursor: 'pointer', fontFamily: "var(--font-ar)",
               transition: 'all 0.2s',
             }}

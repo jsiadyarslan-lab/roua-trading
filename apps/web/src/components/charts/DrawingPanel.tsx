@@ -108,8 +108,8 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(0,212,255,0.4)' }}>⠿</span>
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: COLORS.cyan }}>
+          <span style={{ fontSize: 11, color: 'rgba(0,212,255,0.4)' }}>⠿</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: COLORS.cyan }}>
             {tc('drawingTools')} ({allTools.length})
           </span>
         </div>
@@ -117,7 +117,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           onClick={onClose}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: COLORS.textMuted, fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px',
+            color: COLORS.textMuted, fontSize: 15, lineHeight: 1, padding: '0 2px',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.danger; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textMuted; }}
@@ -140,7 +140,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           border: '1px solid rgba(0,212,255,0.15)',
           borderRadius: 'var(--radius-sm)',
           color: COLORS.text,
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           fontFamily: "var(--font-ar)",
           outline: 'none',
           direction: 'inherit',
@@ -167,7 +167,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
               borderRadius: 'var(--radius-sm)',
               color: activeTool === 'cursor' ? '#000' : COLORS.textSecondary,
               cursor: 'pointer',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 700,
               fontFamily: "var(--font-ar)",
               transition: 'all 0.12s',
@@ -188,7 +188,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
                 borderRadius: 'var(--radius-sm)',
                 color: activeCategory === cat.key ? COLORS.cyan : COLORS.textSecondary,
                 cursor: 'pointer',
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: activeCategory === cat.key ? 700 : 400,
                 fontFamily: "var(--font-ar)",
                 transition: 'all 0.12s',
@@ -225,7 +225,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
             .map(cat => (
               <div key={cat.key} style={{ marginBottom: 6 }}>
                 <div style={{
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   color: COLORS.textMuted,
                   fontWeight: 700,
                   fontFamily: "var(--font-ar)",
@@ -267,7 +267,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           border: '1px solid rgba(248,81,73,0.2)',
           borderRadius: 'var(--radius-sm)',
           color: COLORS.danger,
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           fontWeight: 600,
           cursor: 'pointer',
           fontFamily: "var(--font-ar)",
@@ -311,7 +311,7 @@ function renderToolButton(
         color: isActive ? '#000' : COLORS.textSecondary,
         cursor: 'pointer',
         transition: 'all 0.12s',
-        fontSize: 'var(--text-xs)',
+        fontSize: 11,
         fontWeight: isActive ? 700 : 400,
         fontFamily: "var(--font-ar)",
       }}
@@ -322,9 +322,9 @@ function renderToolButton(
         if (!isActive) e.currentTarget.style.background = 'none';
       }}
     >
-      <span style={{ fontSize: 'var(--text-base)' }}>{tool.icon}</span>
+      <span style={{ fontSize: 15 }}>{tool.icon}</span>
       <span style={{
-        fontSize: 'var(--text-xs)',
+        fontSize: 11,
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',

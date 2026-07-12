@@ -263,10 +263,10 @@ export default function AdminAiCostsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>
             مراقبة نماذج الذكاء الاصطناعي
           </h1>
-          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
+          <p style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
             الاستهلاك والتوكن والأداء والحالة لكل نموذج
           </p>
         </div>
@@ -276,7 +276,7 @@ export default function AdminAiCostsPage() {
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px', borderRadius: 'var(--radius-md)',
             border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-            color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
+            color: COLORS.accent, fontSize: 13, fontWeight: 600,
             fontFamily: "var(--font-ar)", cursor: 'pointer',
             transition: 'all 0.2s',
           }}
@@ -294,7 +294,7 @@ export default function AdminAiCostsPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <AlertCircle size={16} color={COLORS.danger} />
-            <span style={{ fontSize: 'var(--text-sm)', color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 13, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
               {error}
             </span>
           </div>
@@ -303,7 +303,7 @@ export default function AdminAiCostsPage() {
             style={{
               padding: '4px 10px', borderRadius: 'var(--radius-sm)',
               border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
-              color: COLORS.danger, fontSize: 'var(--text-xs)', fontWeight: 600,
+              color: COLORS.danger, fontSize: 11, fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
@@ -340,11 +340,11 @@ export default function AdminAiCostsPage() {
                 <CardIcon size={18} color={card.color} />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: COLORS.text, fontFamily: "var(--font-mono)", lineHeight: 1 }}>
+                <div style={{ fontSize: 19, fontWeight: 800, color: COLORS.text, fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                   {loading ? '—' : card.value}
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: `${card.color}99`, fontFamily: "var(--font-ar)", marginTop: 1 }}>{card.sub}</div>
+                <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
+                <div style={{ fontSize: 11, color: `${card.color}99`, fontFamily: "var(--font-ar)", marginTop: 1 }}>{card.sub}</div>
               </div>
             </div>
           )
@@ -359,16 +359,16 @@ export default function AdminAiCostsPage() {
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <Cpu size={14} color={COLORS.accent} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>حالة مزودي الذكاء الاصطناعي</span>
-          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 8 }}>نشط = طلب خلال آخر ساعة</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>حالة مزودي الذكاء الاصطناعي</span>
+          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 8 }}>نشط = طلب خلال آخر ساعة</span>
         </div>
         <div style={{ padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {loading ? (
-            <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', width: '100%' }}>
+            <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13, width: '100%' }}>
               جارٍ التحميل...
             </div>
           ) : !data?.byProvider?.length ? (
-            <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', width: '100%' }}>
+            <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13, width: '100%' }}>
               لا توجد بيانات استخدام بعد — سيظهر المزودون عند أول طلب AI
             </div>
           ) : (
@@ -391,12 +391,12 @@ export default function AdminAiCostsPage() {
                         background: p.isActive ? COLORS.success : COLORS.muted,
                         boxShadow: p.isActive ? `0 0 8px ${COLORS.success}60` : 'none',
                       }} />
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
                         {getProviderLabel(p.provider)}
                       </span>
                     </div>
                     <span style={{
-                      fontSize: 'var(--text-xs)', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)',
+                      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-sm)',
                       background: p.isActive ? `${COLORS.success}15` : `${COLORS.muted}10`,
                       color: p.isActive ? COLORS.success : COLORS.muted,
                       fontFamily: "var(--font-ar)",
@@ -407,25 +407,25 @@ export default function AdminAiCostsPage() {
                   {/* Provider stats */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>النماذج</div>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: color, fontFamily: "var(--font-mono)" }}>{p.models}</div>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>النماذج</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: color, fontFamily: "var(--font-mono)" }}>{p.models}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>الطلبات</div>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-mono)" }}>{p.requests.toLocaleString()}</div>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>الطلبات</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-mono)" }}>{p.requests.toLocaleString()}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مدخلة</div>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.blue, fontFamily: "var(--font-mono)" }}>{formatTokens(p.inputTokens)}</div>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مدخلة</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.blue, fontFamily: "var(--font-mono)" }}>{formatTokens(p.inputTokens)}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مخرجة</div>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.teal, fontFamily: "var(--font-mono)" }}>{formatTokens(p.outputTokens)}</div>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مخرجة</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.teal, fontFamily: "var(--font-mono)" }}>{formatTokens(p.outputTokens)}</div>
                     </div>
                   </div>
                   <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>التكلفة الإجمالية</div>
-                    <div style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: COLORS.amber, fontFamily: "var(--font-mono)" }}>{formatCost(p.cost)}</div>
+                    <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>التكلفة الإجمالية</div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: COLORS.amber, fontFamily: "var(--font-mono)" }}>{formatCost(p.cost)}</div>
                   </div>
                 </div>
               )
@@ -443,21 +443,21 @@ export default function AdminAiCostsPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Brain size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تفاصيل كل نموذج</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تفاصيل كل نموذج</span>
           </div>
-          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>انقر على عنوان العمود للترتيب</span>
+          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>انقر على عنوان العمود للترتيب</span>
         </div>
         <div style={{ overflowX: 'auto' }}>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
               جارٍ التحميل...
             </div>
           ) : !data?.byModel?.length ? (
-            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
               لا توجد بيانات استخدام بعد — ستظهر النماذج عند أول طلب AI
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                   {[
@@ -470,7 +470,7 @@ export default function AdminAiCostsPage() {
                   ].map(col => (
                     <th key={col.key} onClick={col.sortable ? () => handleSort(col.key as typeof sortField) : undefined} style={{
                       padding: '10px 12px', textAlign: 'right',
-                      fontSize: 'var(--text-xs)', fontWeight: 700, color: COLORS.muted,
+                      fontSize: 11, fontWeight: 700, color: COLORS.muted,
                       fontFamily: "var(--font-ar)", whiteSpace: 'nowrap',
                       cursor: col.sortable ? 'pointer' : 'default',
                       userSelect: 'none',
@@ -480,10 +480,10 @@ export default function AdminAiCostsPage() {
                       {col.label}
                     </th>
                   ))}
-                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>الأخطاء</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>النجاح</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>آخر استخدام</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>الحالة</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>الأخطاء</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>النجاح</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>آخر استخدام</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>الحالة</th>
                 </tr>
               </thead>
               <tbody>
@@ -499,21 +499,21 @@ export default function AdminAiCostsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <div style={{ width: 6, height: 6, borderRadius: '50%', background: providerColor, flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontWeight: 600, color: COLORS.accent, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', lineHeight: 1.2 }}>{m.model}</div>
-                            <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{getProviderLabel(m.provider)}</div>
+                            <div style={{ fontWeight: 600, color: COLORS.accent, fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.2 }}>{m.model}</div>
+                            <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{getProviderLabel(m.provider)}</div>
                           </div>
                         </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <div style={{ fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}>{formatCost(m.cost)}</div>
+                        <div style={{ fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-mono)", fontSize: 11 }}>{formatCost(m.cost)}</div>
                         {costPer1KInput > 0 && (
-                          <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }}>
+                          <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>
                             {formatCost(costPer1KInput)}/1K توكن
                           </div>
                         )}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <div style={{ color: COLORS.blue, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600 }}>{formatTokens(m.inputTokens)}</div>
+                        <div style={{ color: COLORS.blue, fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600 }}>{formatTokens(m.inputTokens)}</div>
                         {/* Mini bar showing input vs output proportion */}
                         <div style={{ height: 3, borderRadius: 'var(--radius-xs)', background: 'rgba(255,255,255,0.05)', marginTop: 4, width: 80 }}>
                           <div style={{
@@ -524,7 +524,7 @@ export default function AdminAiCostsPage() {
                         </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <div style={{ color: COLORS.teal, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600 }}>{formatTokens(m.outputTokens)}</div>
+                        <div style={{ color: COLORS.teal, fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600 }}>{formatTokens(m.outputTokens)}</div>
                         <div style={{ height: 3, borderRadius: 'var(--radius-xs)', background: 'rgba(255,255,255,0.05)', marginTop: 4, width: 80 }}>
                           <div style={{
                             width: `${m.inputTokens + m.outputTokens > 0 ? (m.outputTokens / (m.inputTokens + m.outputTokens)) * 100 : 0}%`,
@@ -533,37 +533,37 @@ export default function AdminAiCostsPage() {
                           }} />
                         </div>
                       </td>
-                      <td style={{ padding: '10px 12px', color: COLORS.text, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}>
+                      <td style={{ padding: '10px 12px', color: COLORS.text, fontFamily: "var(--font-mono)", fontSize: 11 }}>
                         {m.requests.toLocaleString()}
                       </td>
-                      <td style={{ padding: '10px 12px', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: m.avgLatency < 2000 ? COLORS.success : m.avgLatency < 5000 ? COLORS.amber : COLORS.danger }}>
+                      <td style={{ padding: '10px 12px', fontFamily: "var(--font-mono)", fontSize: 11, color: m.avgLatency < 2000 ? COLORS.success : m.avgLatency < 5000 ? COLORS.amber : COLORS.danger }}>
                         {m.avgLatency}ms
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         {m.errors > 0 ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: COLORS.danger, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: COLORS.danger, fontFamily: "var(--font-mono)", fontSize: 11 }}>
                             <AlertTriangle size={10} /> {m.errors}
                           </span>
                         ) : (
-                          <span style={{ color: COLORS.success, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}>0</span>
+                          <span style={{ color: COLORS.success, fontFamily: "var(--font-mono)", fontSize: 11 }}>0</span>
                         )}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
-                          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600,
+                          fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600,
                           color: m.successRate >= 95 ? COLORS.success : m.successRate >= 80 ? COLORS.amber : COLORS.danger,
                         }}>
                           {m.successRate}%
                         </span>
                       </td>
-                      <td style={{ padding: '10px 12px', fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 12px', fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>
                         {timeAgo(m.lastUsed)}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
                           padding: '3px 8px', borderRadius: 'var(--radius-sm)',
-                          fontSize: 'var(--text-xs)', fontWeight: 600,
+                          fontSize: 11, fontWeight: 600,
                           fontFamily: "var(--font-ar)",
                           background: m.isActive ? `${COLORS.success}15` : `${COLORS.danger}10`,
                           color: m.isActive ? COLORS.success : COLORS.danger,
@@ -591,16 +591,16 @@ export default function AdminAiCostsPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <BarChart3 size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
               {chartMode === 'cost' ? 'اتجاه التكلفة اليومية' : 'اتجاه استهلاك التوكن اليومي'}
             </span>
-            <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 8 }}>آخر 30 يوم</span>
+            <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 8 }}>آخر 30 يوم</span>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
             <button
               onClick={() => setChartMode('tokens')}
               style={{
-                padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 600,
+                padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 600,
                 fontFamily: "var(--font-ar)", border: 'none', cursor: 'pointer',
                 background: chartMode === 'tokens' ? `${COLORS.accent}20` : 'transparent',
                 color: chartMode === 'tokens' ? COLORS.accent : COLORS.muted,
@@ -612,7 +612,7 @@ export default function AdminAiCostsPage() {
             <button
               onClick={() => setChartMode('cost')}
               style={{
-                padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 600,
+                padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 600,
                 fontFamily: "var(--font-ar)", border: 'none', cursor: 'pointer',
                 background: chartMode === 'cost' ? `${COLORS.amber}20` : 'transparent',
                 color: chartMode === 'cost' ? COLORS.amber : COLORS.muted,
@@ -625,13 +625,13 @@ export default function AdminAiCostsPage() {
         </div>
         <div style={{ padding: 16 }}>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
               جارٍ التحميل...
             </div>
           ) : chartMode === 'cost' ? (
             /* Cost chart */
             !dailyEntries.length ? (
-              <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+              <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
                 لا توجد بيانات استخدام بعد
               </div>
             ) : (
@@ -659,7 +659,7 @@ export default function AdminAiCostsPage() {
                           cursor: 'pointer', opacity: isToday ? 1 : 0.6,
                         }} />
                         {i % 5 === 0 && (
-                          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
                             {date.slice(5)}
                           </span>
                         )}
@@ -678,10 +678,10 @@ export default function AdminAiCostsPage() {
                     zIndex: 10, pointerEvents: 'none',
                     whiteSpace: 'nowrap',
                   }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{tooltipInfo.date}</div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-mono)" }}>{tooltipInfo.cost}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.blue, fontFamily: "var(--font-ar)" }}>مدخلة: {tooltipInfo.inputTokens}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.teal, fontFamily: "var(--font-ar)" }}>مخرجة: {tooltipInfo.outputTokens}</div>
+                    <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{tooltipInfo.date}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-mono)" }}>{tooltipInfo.cost}</div>
+                    <div style={{ fontSize: 11, color: COLORS.blue, fontFamily: "var(--font-ar)" }}>مدخلة: {tooltipInfo.inputTokens}</div>
+                    <div style={{ fontSize: 11, color: COLORS.teal, fontFamily: "var(--font-ar)" }}>مخرجة: {tooltipInfo.outputTokens}</div>
                   </div>
                 )}
               </div>
@@ -689,7 +689,7 @@ export default function AdminAiCostsPage() {
           ) : (
             /* Token chart — stacked input/output */
             !dailyTokenEntries.length ? (
-              <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+              <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
                 لا توجد بيانات استخدام بعد
               </div>
             ) : (
@@ -698,11 +698,11 @@ export default function AdminAiCostsPage() {
                 <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <div style={{ width: 10, height: 10, borderRadius: 'var(--radius-xs)', background: COLORS.blue }} />
-                    <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مدخلة</span>
+                    <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مدخلة</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <div style={{ width: 10, height: 10, borderRadius: 'var(--radius-xs)', background: COLORS.teal }} />
-                    <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مخرجة</span>
+                    <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن مخرجة</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 160, paddingTop: 8 }}>
@@ -741,7 +741,7 @@ export default function AdminAiCostsPage() {
                           }} />
                         </div>
                         {i % 5 === 0 && (
-                          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
                             {date.slice(5)}
                           </span>
                         )}
@@ -760,11 +760,11 @@ export default function AdminAiCostsPage() {
                     zIndex: 10, pointerEvents: 'none',
                     whiteSpace: 'nowrap',
                   }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{tooltipInfo.date}</div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.blue, fontFamily: "var(--font-mono)" }}>مدخلة: {tooltipInfo.inputTokens}</div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.teal, fontFamily: "var(--font-mono)" }}>مخرجة: {tooltipInfo.outputTokens}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.amber, fontFamily: "var(--font-mono)" }}>التكلفة: {tooltipInfo.cost}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>الطلبات: {tooltipInfo.requests}</div>
+                    <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{tooltipInfo.date}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.blue, fontFamily: "var(--font-mono)" }}>مدخلة: {tooltipInfo.inputTokens}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.teal, fontFamily: "var(--font-mono)" }}>مخرجة: {tooltipInfo.outputTokens}</div>
+                    <div style={{ fontSize: 11, color: COLORS.amber, fontFamily: "var(--font-mono)" }}>التكلفة: {tooltipInfo.cost}</div>
+                    <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>الطلبات: {tooltipInfo.requests}</div>
                   </div>
                 )}
               </div>
@@ -783,15 +783,15 @@ export default function AdminAiCostsPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <Zap size={14} color={COLORS.amber} />
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>التكلفة حسب الميزة</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>التكلفة حسب الميزة</span>
           </div>
           <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
             {loading ? (
-              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
                 جارٍ التحميل...
               </div>
             ) : !data?.byEndpoint?.length ? (
-              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
                 لا توجد بيانات استخدام بعد
               </div>
             ) : (
@@ -805,14 +805,14 @@ export default function AdminAiCostsPage() {
                     border: `1px solid ${COLORS.border}`,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
                         {getEndpointLabel(ep.endpoint)}
                       </span>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-mono)" }}>
                         {formatCost(ep.cost)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
+                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
                       <span>مدخلة: <b style={{ color: COLORS.blue }}>{formatTokens(ep.inputTokens)}</b></span>
                       <span>مخرجة: <b style={{ color: COLORS.teal }}>{formatTokens(ep.outputTokens)}</b></span>
                       <span>طلبات: <b style={{ color: COLORS.text }}>{ep.requests}</b></span>
@@ -835,11 +835,11 @@ export default function AdminAiCostsPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <Activity size={14} color={COLORS.teal} />
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>ملخص التوكن الشهري</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>ملخص التوكن الشهري</span>
           </div>
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {loading ? (
-              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
+              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 13 }}>
                 جارٍ التحميل...
               </div>
             ) : (
@@ -850,17 +850,17 @@ export default function AdminAiCostsPage() {
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
                 }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>توكن هذا الشهر</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>توكن هذا الشهر</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.blue, fontFamily: "var(--font-ar)" }}>مدخلة</div>
-                      <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: COLORS.blue, fontFamily: "var(--font-mono)", lineHeight: 1.2 }}>
+                      <div style={{ fontSize: 11, color: COLORS.blue, fontFamily: "var(--font-ar)" }}>مدخلة</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.blue, fontFamily: "var(--font-mono)", lineHeight: 1.2 }}>
                         {formatTokens(monthInputTokens)}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.teal, fontFamily: "var(--font-ar)" }}>مخرجة</div>
-                      <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: COLORS.teal, fontFamily: "var(--font-mono)", lineHeight: 1.2 }}>
+                      <div style={{ fontSize: 11, color: COLORS.teal, fontFamily: "var(--font-ar)" }}>مخرجة</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.teal, fontFamily: "var(--font-mono)", lineHeight: 1.2 }}>
                         {formatTokens(monthOutputTokens)}
                       </div>
                     </div>
@@ -876,10 +876,10 @@ export default function AdminAiCostsPage() {
                     }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                    <span style={{ fontSize: 'var(--text-xs)', color: COLORS.blue, fontFamily: "var(--font-ar)" }}>
+                    <span style={{ fontSize: 11, color: COLORS.blue, fontFamily: "var(--font-ar)" }}>
                       {monthInputTokens + monthOutputTokens > 0 ? Math.round((monthInputTokens / (monthInputTokens + monthOutputTokens)) * 100) : 0}% مدخلة
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: COLORS.teal, fontFamily: "var(--font-ar)" }}>
+                    <span style={{ fontSize: 11, color: COLORS.teal, fontFamily: "var(--font-ar)" }}>
                       {monthInputTokens + monthOutputTokens > 0 ? Math.round((monthOutputTokens / (monthInputTokens + monthOutputTokens)) * 100) : 0}% مخرجة
                     </span>
                   </div>
@@ -891,17 +891,17 @@ export default function AdminAiCostsPage() {
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
                 }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>اليوم مقابل المتوسط اليومي</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>اليوم مقابل المتوسط اليومي</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن اليوم</div>
-                      <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-mono)" }}>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>توكن اليوم</div>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-mono)" }}>
                         {formatTokens(todayInputTokens + todayOutputTokens)}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>المتوسط اليومي</div>
-                      <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>المتوسط اليومي</div>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>
                         {dailyTokenEntries.length > 0
                           ? formatTokens(
                               (Object.values(data?.dailyInputTokens || {}).reduce((a: number, b) => a + Number(b), 0)
@@ -920,23 +920,23 @@ export default function AdminAiCostsPage() {
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
                 }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>كفاءة التكلفة</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>كفاءة التكلفة</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>التكلفة لكل 1K توكن مدخلة</span>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.blue, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>التكلفة لكل 1K توكن مدخلة</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.blue, fontFamily: "var(--font-mono)" }}>
                         {monthInputTokens > 0 ? formatCost((data?.summary.month.cost ?? 0) / monthInputTokens * 1000) : '—'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>التكلفة لكل 1K توكن مخرجة</span>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.teal, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>التكلفة لكل 1K توكن مخرجة</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.teal, fontFamily: "var(--font-mono)" }}>
                         {monthOutputTokens > 0 ? formatCost((data?.summary.month.cost ?? 0) / monthOutputTokens * 1000) : '—'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>نسبة المدخلة/المخرجة</span>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.accent, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>نسبة المدخلة/المخرجة</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent, fontFamily: "var(--font-mono)" }}>
                         {monthOutputTokens > 0 ? (monthInputTokens / monthOutputTokens).toFixed(2) : '—'}
                       </span>
                     </div>

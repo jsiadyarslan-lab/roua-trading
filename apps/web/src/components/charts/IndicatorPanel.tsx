@@ -74,14 +74,14 @@ export function IndicatorPanel({
 
         {/* Label */}
         <span style={{
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           color: isActive ? COLORS.text : COLORS.textSecondary,
           fontFamily: "var(--font-ar)",
           fontWeight: isActive ? 600 : 400,
           flex: 1,
         }}>
           {config.label}
-          <span style={{ color: COLORS.textMuted, fontSize: 'var(--text-xs)', marginInlineEnd: 4 }}>({config.labelEn})</span>
+          <span style={{ color: COLORS.textMuted, fontSize: 11, marginInlineEnd: 4 }}>({config.labelEn})</span>
         </span>
 
         {/* Color indicator */}
@@ -102,7 +102,7 @@ export function IndicatorPanel({
               border: 'none',
               color: COLORS.textMuted,
               cursor: 'pointer',
-              fontSize: 'var(--text-sm)',
+              fontSize: 13,
               padding: 2,
             }}
             title={tc('settings')}
@@ -138,8 +138,8 @@ export function IndicatorPanel({
         marginBottom: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(0,212,255,0.4)' }}>⠿</span>
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: COLORS.cyan }}>
+          <span style={{ fontSize: 11, color: 'rgba(0,212,255,0.4)' }}>⠿</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: COLORS.cyan }}>
             {tc('indicatorPanel')}
           </span>
         </div>
@@ -147,7 +147,7 @@ export function IndicatorPanel({
           onClick={onClose}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: COLORS.textMuted, fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px',
+            color: COLORS.textMuted, fontSize: 15, lineHeight: 1, padding: '0 2px',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.danger; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textMuted; }}
@@ -170,7 +170,7 @@ export function IndicatorPanel({
           border: '1px solid rgba(0,212,255,0.15)',
           borderRadius: 'var(--radius-sm)',
           color: COLORS.text,
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           fontFamily: "var(--font-mono)",
           outline: 'none',
         }}
@@ -184,7 +184,7 @@ export function IndicatorPanel({
       {filteredOverlay.length > 0 && (
         <>
           <div style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             color: COLORS.cyan,
             letterSpacing: 1,
             marginBottom: 4,
@@ -201,7 +201,7 @@ export function IndicatorPanel({
       {filteredOsc.length > 0 && (
         <>
           <div style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             color: COLORS.cyan,
             letterSpacing: 1,
             marginTop: 8,

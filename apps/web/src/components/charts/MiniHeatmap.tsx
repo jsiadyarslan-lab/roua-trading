@@ -181,15 +181,15 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
           <div style={{
             width: 24, height: 24, borderRadius: 'var(--radius-sm)',
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
           }}>
             🔲
           </div>
           <div>
-            <div style={{ fontSize: 'var(--text-sm)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 13, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               Heatmap
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 11, color: C.textDim, fontFamily: "var(--font-mono)" }}>
               {items.length} symbols • {activeAlertCount} hot
             </div>
           </div>
@@ -197,7 +197,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
         <button onClick={onClose} style={{
           background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-sm)',
           color: C.textMuted, width: 22, height: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', padding: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, padding: 0,
         }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </button>
@@ -218,7 +218,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
               background: sortMode === s.mode ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
               border: `1px solid ${sortMode === s.mode ? 'rgba(0,212,255,0.25)' : C.border}`,
               borderRadius: 'var(--radius-sm)', color: sortMode === s.mode ? C.cyan : C.textDim,
-              fontSize: 'var(--text-xs)', fontWeight: sortMode === s.mode ? 700 : 500,
+              fontSize: 11, fontWeight: sortMode === s.mode ? 700 : 500,
               cursor: 'pointer', fontFamily: "var(--font-mono)",
             }}
           >
@@ -233,7 +233,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
             width: 24, height: 24, borderRadius: 'var(--radius-sm)',
             background: 'rgba(255,255,255,0.03)',
             border: `1px solid ${C.border}`,
-            color: C.textDim, fontSize: 'var(--text-xs)', cursor: 'pointer',
+            color: C.textDim, fontSize: 11, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             transition: 'transform 0.3s ease',
             transform: loading ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -290,7 +290,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
             >
               {/* Symbol name */}
               <span style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: 700,
                 color: isSelected ? C.cyan : C.text,
                 fontFamily: "var(--font-mono)",
@@ -305,7 +305,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
 
               {/* Change % */}
               <span style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: 900,
                 color: textColor,
                 fontFamily: "var(--font-mono)",
@@ -336,7 +336,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
-        fontSize: 'var(--text-xs)',
+        fontSize: 11,
         fontFamily: "var(--font-mono)",
         color: C.textMuted,
       }}>

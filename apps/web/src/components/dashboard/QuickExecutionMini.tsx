@@ -312,9 +312,9 @@ export function QuickExecutionMini({
         gap: 12,
       }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>{t('executionStatus')}</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>{t('executionStatus')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--foreground)', fontWeight: 800 }}>{formatExecutionLabel(executionState, pendingAction, tc)}</span>
+            <span style={{ fontSize: 13, color: 'var(--foreground)', fontWeight: 800 }}>{formatExecutionLabel(executionState, pendingAction, tc)}</span>
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -324,7 +324,7 @@ export function QuickExecutionMini({
               border: `1px solid ${statusTone}44`,
               background: `${statusTone}18`,
               color: statusTone,
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               fontFamily: "var(--font-mono)",
             }}>
@@ -334,8 +334,8 @@ export function QuickExecutionMini({
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: 4 }}>{sourceLabel}</div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--foreground)', fontWeight: 700 }}>{formatFreshness(lastUpdatedAt, tc)}</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{sourceLabel}</div>
+          <div style={{ fontSize: 11, color: 'var(--foreground)', fontWeight: 700 }}>{formatFreshness(lastUpdatedAt, tc)}</div>
         </div>
       </div>
 
@@ -347,10 +347,10 @@ export function QuickExecutionMini({
           borderRadius: 'var(--radius-sm)', padding: '3px 8px',
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00FFA3', boxShadow: '0 0 6px #00C853' }} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
         </div>
         {account && (
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
             {t('buyingPowerLabel')}: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${formatCashValue(account.cash)}</span>
           </div>
         )}
@@ -375,8 +375,8 @@ export function QuickExecutionMini({
             border: '1px solid var(--card-border)',
             background: 'rgba(255,255,255,0.025)',
           }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>{item.label}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: item.tone, fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: item.tone, fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.value}</div>
           </div>
         ))}
       </div>
@@ -384,7 +384,7 @@ export function QuickExecutionMini({
       {/* Symbol & Quantity Wrapper */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 800 }}>{t('asset')}</label>
+          <label style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 800 }}>{t('asset')}</label>
           <input 
             value={localSymbol}
             onChange={e => setLocalSymbol(e.target.value.toUpperCase())}
@@ -404,7 +404,7 @@ export function QuickExecutionMini({
           />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 800 }}>{t('quantityLabel')}</label>
+          <label style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 800 }}>{t('quantityLabel')}</label>
           <input 
             value={quantity}
             onChange={e => setQuantity(e.target.value)}
@@ -439,7 +439,7 @@ export function QuickExecutionMini({
             color: 'var(--foreground)',
             padding: '0 12px',
             fontFamily: "var(--font-ar)",
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             fontWeight: 800,
           }}
         >
@@ -450,7 +450,7 @@ export function QuickExecutionMini({
 
       {(!mobile || showAdvanced) && <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--success)', fontWeight: 800 }}>{tc('takeProfit')}</label>
+          <label style={{ fontSize: 11, color: 'var(--success)', fontWeight: 800 }}>{tc('takeProfit')}</label>
           <input 
             value={takeProfit}
             onChange={e => setTakeProfit(e.target.value)}
@@ -467,7 +467,7 @@ export function QuickExecutionMini({
           />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', fontWeight: 800 }}>{tc('stopLoss')}</label>
+          <label style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 800 }}>{tc('stopLoss')}</label>
           <input 
             value={stopLoss}
             onChange={e => setStopLoss(e.target.value)}
@@ -513,7 +513,7 @@ export function QuickExecutionMini({
           }}
           style={{
             background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.2)',
-            color: 'var(--accent)', fontSize: 'var(--text-xs)', fontWeight: 700, padding: '12px 14px', minHeight: 48,
+            color: 'var(--accent)', fontSize: 11, fontWeight: 700, padding: '12px 14px', minHeight: 48,
             borderRadius: 'var(--radius-lg)', cursor: 'pointer', fontFamily: "var(--font-ar)",
             display: 'flex', alignItems: 'center', gap: 4
           }}
@@ -533,7 +533,7 @@ export function QuickExecutionMini({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Calculator size={12} color="var(--accent)" />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--accent)', fontFamily: "var(--font-ar)" }}>{t('riskCalculator')}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)', fontFamily: "var(--font-ar)" }}>{t('riskCalculator')}</span>
           </div>
           {showRiskCalc ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
@@ -542,14 +542,14 @@ export function QuickExecutionMini({
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Risk % slider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 700, whiteSpace: 'nowrap' }}>{t('riskPercent')}:</span>
+              <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, whiteSpace: 'nowrap' }}>{t('riskPercent')}:</span>
               <input
                 type="range" min="0.1" max="10" step="0.1"
                 value={riskPct}
                 onChange={e => setRiskPct(e.target.value)}
                 style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
               />
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: 'var(--accent)', fontFamily: "var(--font-mono)", minWidth: 36, textAlign: 'left' }}>
+              <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)', fontFamily: "var(--font-mono)", minWidth: 36, textAlign: 'left' }}>
                 {riskPct}%
               </span>
             </div>
@@ -565,8 +565,8 @@ export function QuickExecutionMini({
                   background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: '6px 8px',
                   border: '1px solid var(--card-border)', textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color, fontFamily: "var(--font-mono)" }}>{value}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 700, marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color, fontFamily: "var(--font-mono)" }}>{value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -576,14 +576,14 @@ export function QuickExecutionMini({
               <div style={{ display: 'flex', gap: 6 }}>
                 {potentialGain !== null && (
                   <div style={{ flex: 1, background: 'rgba(0,200,83,0.07)', borderRadius: 'var(--radius-md)', padding: '6px 8px', border: '1px solid rgba(0,200,83,0.2)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: 'var(--success)', fontFamily: "var(--font-mono)" }}>+${potentialGain.toFixed(2)}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedTakeProfit')}</div>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--success)', fontFamily: "var(--font-mono)" }}>+${potentialGain.toFixed(2)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedTakeProfit')}</div>
                   </div>
                 )}
                 {potentialLoss !== null && (
                   <div style={{ flex: 1, background: 'rgba(255,59,48,0.07)', borderRadius: 'var(--radius-md)', padding: '6px 8px', border: '1px solid rgba(255,59,48,0.2)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: 'var(--danger)', fontFamily: "var(--font-mono)" }}>-${potentialLoss.toFixed(2)}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedStopLoss')}</div>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--danger)', fontFamily: "var(--font-mono)" }}>-${potentialLoss.toFixed(2)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedStopLoss')}</div>
                   </div>
                 )}
               </div>
@@ -593,7 +593,7 @@ export function QuickExecutionMini({
               <button
                 onClick={() => setQuantity(autoQty)}
                 style={{
-                  fontSize: 'var(--text-xs)', padding: '5px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--accent)',
+                  fontSize: 11, padding: '5px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--accent)',
                   background: 'rgba(0,229,255,0.06)', color: 'var(--accent)', cursor: 'pointer',
                   fontWeight: 700, fontFamily: "var(--font-ar)",
                 }}
@@ -614,7 +614,7 @@ export function QuickExecutionMini({
             style={{
               flex: 1, minHeight: 44, borderRadius: 'var(--radius-lg)',
               background: 'linear-gradient(135deg, #00FFC6, #10B981)',
-              border: 'none', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800,
+              border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
               cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -630,7 +630,7 @@ export function QuickExecutionMini({
             style={{
               flex: 1, minHeight: 44, borderRadius: 'var(--radius-lg)',
               background: 'linear-gradient(135deg, #FF4757, #EF4444)',
-              border: 'none', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800,
+              border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
               cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -649,7 +649,7 @@ export function QuickExecutionMini({
             className="btn-neon-buy"
             style={{
               flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
-              fontSize: 'var(--text-sm)', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
@@ -666,7 +666,7 @@ export function QuickExecutionMini({
             className="btn-neon-sell"
             style={{
               flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
-              fontSize: 'var(--text-sm)', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
@@ -685,7 +685,7 @@ export function QuickExecutionMini({
         <div style={{
           position: 'absolute', inset: 0,
           background: `${'#0B0E14'}f0`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
-          fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-ar)",
+          fontSize: 13, fontWeight: 800, fontFamily: "var(--font-ar)",
           color: status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--danger)' : 'var(--foreground)',
           backdropFilter: 'blur(8px)', zIndex: 20, borderRadius: 'var(--radius-lg)',
           padding: 24, textAlign: 'center', lineHeight: 1.5
@@ -720,7 +720,7 @@ export function QuickExecutionMini({
       {/* Safety Badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: 0.6, marginTop: 4 }}>
         <ShieldCheck size={12} color="var(--success)" />
-        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--muted)' }}>{t('encryptedTrading')}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{t('encryptedTrading')}</span>
       </div>
     </div>
   )

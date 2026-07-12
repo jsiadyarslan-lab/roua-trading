@@ -271,7 +271,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
         layout: {
           background: { color: C.bg },
           textColor: C.textDim,
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           fontFamily: "var(--font-mono)",
           attributionLogo: false,
         },
@@ -640,7 +640,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 borderRadius: 'var(--radius-xs)',
                 color: C.cyan,
                 fontFamily: "var(--font-mono)",
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: 700,
                 padding: '1px 4px',
                 cursor: 'pointer',
@@ -668,7 +668,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                       borderRadius: 'var(--radius-xs)',
                       color: isActive ? C.cyan : C.textMuted,
                       fontFamily: "var(--font-mono)",
-                      fontSize: 'var(--text-xs)',
+                      fontSize: 11,
                       fontWeight: isActive ? 700 : 500,
                       padding: '0 3px',
                       height: 18,
@@ -702,7 +702,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
               <>
                 <span style={{
                   color: C.text,
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   fontWeight: 600,
                   fontFamily: "var(--font-mono)",
                 }}>
@@ -711,7 +711,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 {state.changePercent !== null && (
                   <span style={{
                     color: isPositive ? C.success : C.danger,
-                    fontSize: 'var(--text-xs)',
+                    fontSize: 11,
                     fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     padding: '0 3px',
@@ -725,7 +725,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
             )}
 
             {state?.error && (
-              <span style={{ color: C.danger, fontSize: 'var(--text-xs)' }}>!</span>
+              <span style={{ color: C.danger, fontSize: 11 }}>!</span>
             )}
 
             {/* Chart type mini dropdown */}
@@ -738,7 +738,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 border: '1px solid rgba(255,255,255,0.08)',
                 borderRadius: 'var(--radius-xs)',
                 color: C.textDim,
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 padding: '0 2px',
                 height: 18,
                 cursor: 'pointer',
@@ -833,10 +833,10 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
             </svg>
           </div>
           <div>
-            <div style={{ color: C.text, fontWeight: 700, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)", lineHeight: 1.2 }}>
+            <div style={{ color: C.text, fontWeight: 700, fontSize: 13, fontFamily: "var(--font-ar)", lineHeight: 1.2 }}>
               {t('multiChartGrid')}
             </div>
-            <div style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: 0.5 }}>
+            <div style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5 }}>
               {activeConfig.label} · {activeConfig.cols * activeConfig.rows} charts
             </div>
           </div>
@@ -855,7 +855,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
               borderRadius: 'var(--radius-sm)',
               color: C.cyan,
               padding: '5px 10px',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 700,
               cursor: 'pointer',
               fontFamily: "var(--font-mono)",
@@ -886,7 +886,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
               minWidth: 220,
             }}>
               <div style={{
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 color: C.textMuted,
                 letterSpacing: 1,
                 marginBottom: 8,
@@ -928,7 +928,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                       <GridIcon cols={cfg.cols} rows={cfg.rows} size={20} active={isActive} />
                       <span style={{
                         color: isActive ? C.cyan : C.textDim,
-                        fontSize: 'var(--text-xs)',
+                        fontSize: 11,
                         fontWeight: isActive ? 700 : 500,
                         fontFamily: "var(--font-mono)",
                       }}>
@@ -956,7 +956,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
               borderRadius: 'var(--radius-sm)',
               color: syncMode ? C.cyan : C.textMuted,
               padding: '4px 8px',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 700,
               cursor: 'pointer',
               fontFamily: "var(--font-mono)",
@@ -1045,13 +1045,13 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
         flexShrink: 0,
         direction: 'ltr',
       }}>
-        <span style={{ color: C.textMuted, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)" }}>
+        <span style={{ color: C.textMuted, fontSize: 11, fontFamily: "var(--font-mono)" }}>
           ESC {fullscreenCellId ? t('exitFullscreen') : t('close')}
         </span>
-        <span style={{ color: C.textMuted, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)" }}>
+        <span style={{ color: C.textMuted, fontSize: 11, fontFamily: "var(--font-mono)" }}>
           Double-click → {t('fullscreen')}
         </span>
-        <span style={{ color: C.textMuted, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)" }}>
+        <span style={{ color: C.textMuted, fontSize: 11, fontFamily: "var(--font-mono)" }}>
           {syncMode ? `🔄 ${t('syncOn')}` : `🔗 ${t('independent')}`}
         </span>
       </div>

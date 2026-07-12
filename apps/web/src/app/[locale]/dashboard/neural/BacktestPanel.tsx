@@ -341,10 +341,10 @@ export default function BacktestPanel() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={'#151A22'} />
-                  <XAxis dataKey="date" stroke={'#6B7280'} tick={{ fontSize: 'var(--text-xs)' }} />
-                  <YAxis stroke={'#6B7280'} tick={{ fontSize: 'var(--text-xs)' }} />
+                  <XAxis dataKey="date" stroke={'#6B7280'} tick={{ fontSize: 11 }} />
+                  <YAxis stroke={'#6B7280'} tick={{ fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ background: '#151A22', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
+                    contentStyle={{ background: '#151A22', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 13 }}
                     labelStyle={{ color: '#9CA3B5' }}
                   />
                   <Area type="monotone" dataKey="value" stroke={'#B388FF'} fill="url(#equityGrad)" strokeWidth={2} />

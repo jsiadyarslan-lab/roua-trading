@@ -217,7 +217,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                 border: 'none',
                 outline: 'none',
                 color: '#F0F2F5',
-                fontSize: 'var(--text-sm)',
+                fontSize: 13,
                 fontFamily: "var(--font-ar)",
               }}
             />
@@ -230,7 +230,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                   color: '#9CA3B5',
                   cursor: 'pointer',
                   padding: 0,
-                  fontSize: 'var(--text-base)',
+                  fontSize: 15,
                   lineHeight: 1,
                   flexShrink: 0,
                 }}
@@ -261,7 +261,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                 style={{
                   padding: '16px 14px',
                   color: '#9CA3B5',
-                  fontSize: 'var(--text-sm)',
+                  fontSize: 13,
                   textAlign: 'center',
                   fontFamily: "var(--font-ar)",
                 }}
@@ -283,7 +283,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                     background: opt.code === locale ? 'rgba(0,212,255,0.08)' : 'transparent',
                     color: opt.code === locale ? '#00D4FF' : '#9CA3B5',
                     cursor: 'pointer',
-                    fontSize: 'var(--text-sm)',
+                    fontSize: 13,
                     fontFamily: opt.code === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif",
                     fontWeight: opt.code === locale ? 600 : 400,
                     textAlign: 'start',
@@ -305,7 +305,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ 
                       color: '#555C70', 
-                      fontSize: 'var(--text-xs)', 
+                      fontSize: 11, 
                       fontWeight: 600,
                       width: 22,
                       fontFamily: "var(--font-en)",
@@ -338,7 +338,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             gap: 6,
             cursor: 'pointer',
             fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-            fontSize: 'var(--text-sm)',
+            fontSize: 13,
             fontWeight: 600,
           }}
           aria-label="Switch language"
@@ -372,7 +372,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             color: '#9CA3B5',
             cursor: 'pointer',
             fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             fontWeight: 600,
             transition: 'all 0.15s',
             whiteSpace: 'nowrap',
@@ -417,7 +417,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
           color: '#9CA3B5',
           cursor: 'pointer',
           fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-          fontSize: 'var(--text-sm)',
+          fontSize: 13,
           fontWeight: 600,
           transition: 'all 0.15s',
         }}

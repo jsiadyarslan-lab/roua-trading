@@ -134,18 +134,18 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' }}>
             {title}
             {badge && (
               <span style={{
-                fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
+                fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-lg)',
                 background: `${iconColor}15`, color: iconColor,
                 fontFamily: "var(--font-mono)", fontWeight: 700,
                 border: `1px solid ${iconColor}25`,
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>
+          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>
         </div>
       </div>
       {/* Section Body */}
@@ -178,8 +178,8 @@ function SettingRow({ icon, label, description, children, indent }: {
           }}>{icon}</span>
         )}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{label}</div>
-          {description && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
+          <div style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{label}</div>
+          {description && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
         </div>
       </div>
       <div style={{ flexShrink: 0, marginInlineStart: 12 }}>{children}</div>
@@ -195,7 +195,7 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
       padding: '5px 10px', borderRadius: 'var(--radius-md)',
       background: active ? `${color}12` : 'rgba(255,255,255,0.025)',
       color: active ? color : '#6B7280',
-      fontSize: 'var(--text-xs)', fontWeight: 600,
+      fontSize: 11, fontWeight: 600,
       fontFamily: "var(--font-ar)",
       border: `1px solid ${active ? `${color}30` : '#2A313C'}`,
       transition: 'all 0.25s',
@@ -264,7 +264,7 @@ function ActiveAccountSelector() {
 
   if (loading) {
     return (
-      <div style={{ padding: '16px 0', textAlign: 'center', color: '#6B7280', fontSize: 'var(--text-xs)' }}>
+      <div style={{ padding: '16px 0', textAlign: 'center', color: '#6B7280', fontSize: 11 }}>
         <Loader2 size={16} color={'#B388FF'} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
         {t('loadingAccounts')}
       </div>
@@ -274,7 +274,7 @@ function ActiveAccountSelector() {
   if (credentials.length === 0) {
     return (
       <div style={{ padding: '16px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
           {t('noLinkedAccounts')}
         </div>
         <button
@@ -283,7 +283,7 @@ function ActiveAccountSelector() {
             padding: '8px 18px', borderRadius: 'var(--radius-lg)',
             background: `linear-gradient(135deg, ${'#B388FF'}18, ${'#00D4FF'}12)`,
             border: `1px solid ${'#B388FF'}30`,
-            color: '#B388FF', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+            color: '#B388FF', fontSize: 11, fontWeight: 700, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
             boxShadow: `0 4px 14px ${'#B388FF'}15`,
           }}
@@ -305,7 +305,7 @@ function ActiveAccountSelector() {
         marginBottom: 14,
       }}>
         <Shield size={16} color={'#B388FF'} />
-        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+        <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
           {t('accountSelectorBanner')}
         </div>
       </div>
@@ -350,14 +350,14 @@ function ActiveAccountSelector() {
               }}
             >
               {/* Account type indicator */}
-              <span style={{ fontSize: 'var(--text-lg)' }}>{typeIcon}</span>
+              <span style={{ fontSize: 19 }}>{typeIcon}</span>
 
               {/* Account info */}
               <div style={{ flex: 1, textAlign: 'right' }}>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: isActive ? typeColor : '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? typeColor : '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                   {cred.label || cred.exchange}
                   <span style={{
-                    fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-sm)',
+                    fontSize: 11, padding: '2px 7px', borderRadius: 'var(--radius-sm)',
                     background: `${typeColor}18`, color: typeColor,
                     fontWeight: 700, fontFamily: "var(--font-mono)",
                     border: `1px solid ${typeColor}25`,
@@ -365,7 +365,7 @@ function ActiveAccountSelector() {
                     {typeLabel}
                   </span>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3 }}>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>
                   {cred.exchange} {cred.lastValidatedAt ? `• ${t('lastVerified')}: ${new Date(cred.lastValidatedAt).toLocaleDateString()}` : ''}
                 </div>
               </div>
@@ -447,7 +447,7 @@ function SaveStatusBadge({ status, t }: {
         padding: '7px 13px', borderRadius: 'var(--radius-lg)',
         background: config.bg,
         border: `1px solid ${config.border}`,
-        color: config.color, fontSize: 'var(--text-xs)', fontWeight: 700,
+        color: config.color, fontSize: 11, fontWeight: 700,
         fontFamily: "var(--font-ar)", flexShrink: 0,
         boxShadow: config.glow,
         backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
@@ -1179,13 +1179,13 @@ export default function SettingsPage() {
           </div>
           <div className="settings-brand-meta">
             <h1 style={{
-              margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5',
+              margin: 0, fontSize: 19, fontWeight: 900, color: '#F0F2F5',
               letterSpacing: '-0.02em',
               background: 'linear-gradient(135deg, #F0F2F5, #A855F7)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}>{t('title')}</h1>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 500 }}>{t('subtitle')}</p>
+            <p style={{ margin: 0, fontSize: 11, color: '#6B7280', fontWeight: 500 }}>{t('subtitle')}</p>
           </div>
         </div>
 
@@ -1217,7 +1217,7 @@ export default function SettingsPage() {
             aria-label={t('searchSettingsAria')}
             style={{
               flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
-              color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)", fontWeight: 500,
+              color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-ar)", fontWeight: 500,
             }}
           />
           {searchQuery ? (
@@ -1237,7 +1237,7 @@ export default function SettingsPage() {
             </button>
           ) : (
             <kbd style={{
-              fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
+              fontSize: 11, padding: '2px 6px', borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,255,255,0.05)', color: '#6B7280',
               fontFamily: "var(--font-mono)", fontWeight: 600,
               border: `1px solid ${'#2A313C'}`,
@@ -1282,7 +1282,7 @@ export default function SettingsPage() {
               <div key={group.id} style={{ marginBottom: 4, position: 'relative' }}>
                 {/* Group label */}
                 <div className="settings-group-label">
-                  <span style={{ color: group.accent, fontSize: 'var(--text-xs)' }}>●</span>
+                  <span style={{ color: group.accent, fontSize: 11 }}>●</span>
                   {group.label}
                 </div>
                 {/* Tabs in this group */}
@@ -1301,7 +1301,7 @@ export default function SettingsPage() {
                           ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
                           : 'transparent',
                         color: isActive ? tab.color : '#6B7280',
-                        fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
+                        fontSize: 13, fontWeight: isActive ? 800 : 600,
                         fontFamily: "var(--font-ar)",
                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                         borderInlineStart: isActive
@@ -1345,8 +1345,8 @@ export default function SettingsPage() {
               }}>
                 <Search size={22} color={'#B388FF'} />
               </div>
-              <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', fontWeight: 700 }}>{t('noSearchResults')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 6, lineHeight: 1.5 }}>{t('noSearchResultsDesc')}</div>
+              <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 700 }}>{t('noSearchResults')}</div>
+              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6, lineHeight: 1.5 }}>{t('noSearchResultsDesc')}</div>
             </div>
           )}
 
@@ -1370,8 +1370,8 @@ export default function SettingsPage() {
                 <Sparkles size={11} color="#fff" />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#9CA3B5', fontFamily: "var(--font-mono)", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>AI Strategic Council</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#9CA3B5', fontFamily: "var(--font-mono)", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>AI Strategic Council</div>
               </div>
             </div>
           </div>
@@ -1402,7 +1402,7 @@ export default function SettingsPage() {
                           ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
                           : 'rgba(255,255,255,0.03)',
                         color: isActive ? tab.color : '#6B7280',
-                        fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
+                        fontSize: 13, fontWeight: isActive ? 800 : 600,
                         fontFamily: "var(--font-ar)",
                         whiteSpace: 'nowrap', flexShrink: 0,
                         transition: 'all 0.25s',
@@ -1418,7 +1418,7 @@ export default function SettingsPage() {
               </div>
             ))
           ) : (
-            <div style={{ padding: '8px 10px', fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noSearchResults')}</div>
+            <div style={{ padding: '8px 10px', fontSize: 11, color: '#6B7280' }}>{t('noSearchResults')}</div>
           )}
         </div>
 
@@ -1469,7 +1469,7 @@ export default function SettingsPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.05 }}
                 style={{
-                  margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5',
+                  margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5',
                   letterSpacing: '-0.02em',
                 }}
               >
@@ -1480,7 +1480,7 @@ export default function SettingsPage() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
-                style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.5, fontWeight: 500 }}
+                style={{ margin: '4px 0 0', fontSize: 13, color: '#6B7280', lineHeight: 1.5, fontWeight: 500 }}
               >
                 {activeTabMeta.description}
               </motion.p>
@@ -1523,7 +1523,7 @@ export default function SettingsPage() {
                 width: 68, height: 68, borderRadius: 'var(--radius-xl)',
                 background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 'var(--text-2xl)', fontWeight: 900, color: '#fff',
+                fontSize: 27, fontWeight: 900, color: '#fff',
                 fontFamily: "var(--font-mono)",
                 boxShadow: `0 8px 24px ${roleInfo.color}30, inset 0 1px 0 rgba(255,255,255,0.2)`,
                 flexShrink: 0,
@@ -1532,10 +1532,10 @@ export default function SettingsPage() {
                 {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'}
               </div>
               <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5', marginBottom: 5, letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: 19, fontWeight: 900, color: '#F0F2F5', marginBottom: 5, letterSpacing: '-0.02em' }}>
                   {user?.displayName || t('defaultUserName')}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <div style={{ fontSize: 13, color: '#9CA3B5', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <Mail size={12} />
                   <span style={{ fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</span>
                 </div>
@@ -1543,7 +1543,7 @@ export default function SettingsPage() {
                   <span style={{
                     padding: '4px 11px', borderRadius: 'var(--radius-lg)',
                     background: `${roleInfo.color}15`, color: roleInfo.color,
-                    fontSize: 'var(--text-xs)', fontWeight: 700,
+                    fontSize: 11, fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     border: `1px solid ${roleInfo.color}30`,
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -1551,7 +1551,7 @@ export default function SettingsPage() {
                     {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={11} /> : userTier === 'PRO' ? <Star size={11} /> : <Crown size={11} />}
                     {tc(roleInfo.labelKey)}
                   </span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{tc(roleInfo.descriptionKey)}</span>
+                  <span style={{ fontSize: 11, color: '#6B7280' }}>{tc(roleInfo.descriptionKey)}</span>
                 </div>
               </div>
               <button
@@ -1560,7 +1560,7 @@ export default function SettingsPage() {
                   padding: '9px 18px', borderRadius: 'var(--radius-lg)', border: `1px solid ${'#B388FF'}30`,
                   background: `linear-gradient(135deg, ${'#B388FF'}12, ${'#00D4FF'}08)`,
                   color: '#B388FF',
-                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', gap: 7,
                   transition: 'all 0.25s', flexShrink: 0,
@@ -1590,7 +1590,7 @@ export default function SettingsPage() {
                   marginBottom: 14,
                 }}>
                   <Shield size={16} color={'#00D4FF'} />
-                  <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                     {t('apiKeysSecurityInfo')}
                     <span style={{ color: '#FF4757', fontWeight: 600 }}> {t('withdrawKeysRejected')}</span>
                   </div>
@@ -1600,7 +1600,7 @@ export default function SettingsPage() {
                   style={{
                     width: '100%', padding: '13px 18px', borderRadius: 'var(--radius-lg)',
                     border: `1px dashed ${'#3A4150'}`, background: 'transparent',
-                    color: '#00D4FF', fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
+                    color: '#00D4FF', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s',
@@ -1618,7 +1618,7 @@ export default function SettingsPage() {
                   style={{
                     width: '100%', padding: '13px 18px', borderRadius: 'var(--radius-lg)',
                     border: `1px dashed ${'#3A4150'}`, background: 'transparent',
-                    color: '#B388FF', fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
+                    color: '#B388FF', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s', marginTop: 8,
@@ -1646,7 +1646,7 @@ export default function SettingsPage() {
                 label={t("userId")}
                 description={user?.id || '—'}
               >
-                <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+                <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                   {user?.id?.slice(0, 12) || '—'}...
                 </span>
               </SettingRow>
@@ -1657,7 +1657,7 @@ export default function SettingsPage() {
                 <span style={{
                   padding: '3px 9px', borderRadius: 'var(--radius-md)',
                   background: `${roleInfo.color}15`, color: roleInfo.color,
-                  fontSize: 'var(--text-xs)', fontWeight: 700,
+                  fontSize: 11, fontWeight: 700,
                   fontFamily: "var(--font-mono)",
                 }}>
                   {user?.tier?.toUpperCase() || 'FREE'}
@@ -1667,7 +1667,7 @@ export default function SettingsPage() {
                 icon={<Clock size={13} color={'#6B7280'} />}
                 label={t("sessionStatus")}
               >
-                <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 11, color: '#00FFA3', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-xs)', background: '#00FFA3', boxShadow: `0 0 6px ${'#00FFA3'}60` }} />
                   {t('activeAutoRenew')}
                 </span>
@@ -1686,7 +1686,7 @@ export default function SettingsPage() {
               <div style={{ padding: '18px 22px', borderBottom: `1px solid rgba(255,71,87,0.12)`, background: 'linear-gradient(180deg, rgba(255,71,87,0.04), transparent)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AlertTriangle size={16} color={'#FF4757'} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#FF4757', letterSpacing: '-0.01em' }}>{t('dangerZone')}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: '#FF4757', letterSpacing: '-0.01em' }}>{t('dangerZone')}</span>
                 </div>
               </div>
               <div style={{ padding: '8px 22px 18px' }}>
@@ -1700,7 +1700,7 @@ export default function SettingsPage() {
                     style={{
                       padding: '7px 16px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.22)`,
-                      color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                      color: '#FF4757', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
@@ -1717,7 +1717,7 @@ export default function SettingsPage() {
                     style={{
                       padding: '7px 16px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.28)',
-                      color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                      color: '#FF4757', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
@@ -1731,11 +1731,11 @@ export default function SettingsPage() {
                   padding: '18px 22px', borderTop: `1px solid rgba(255,71,87,0.18)`,
                   background: 'rgba(255,71,87,0.04)',
                 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', marginBottom: 12, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 13, color: '#9CA3B5', marginBottom: 12, lineHeight: 1.6 }}>
                     {t('deleteAccountWarning')}
                   </div>
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 5 }}>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 5 }}>
                       {t('typeToConfirm')} &quot;DELETE&quot;
                     </div>
                     <input
@@ -1746,7 +1746,7 @@ export default function SettingsPage() {
                       style={{
                         width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-md)',
                         background: '#151A22', border: `1px solid rgba(255,71,87,0.22)`,
-                        color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                        color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -1757,7 +1757,7 @@ export default function SettingsPage() {
                       style={{
                         padding: '7px 16px', borderRadius: 'var(--radius-md)',
                         background: '#151A22', border: `1px solid ${'#2A313C'}`,
-                        color: '#6B7280', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
+                        color: '#6B7280', fontSize: 11, fontWeight: 600, cursor: 'pointer',
                         fontFamily: "var(--font-ar)",
                       }}
                     >
@@ -1776,7 +1776,7 @@ export default function SettingsPage() {
                         padding: '7px 16px', borderRadius: 'var(--radius-md)',
                         background: deleteConfirmText === 'DELETE' ? 'rgba(255,71,87,0.18)' : '#151A22',
                         border: '1px solid rgba(255,71,87,0.28)',
-                        color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700,
+                        color: '#FF4757', fontSize: 11, fontWeight: 700,
                         cursor: deleteConfirmText === 'DELETE' ? 'pointer' : 'not-allowed',
                         fontFamily: "var(--font-ar)",
                         opacity: deleteConfirmText === 'DELETE' ? 1 : 0.5,
@@ -1825,18 +1825,18 @@ export default function SettingsPage() {
                      <Crown size={26} color="#fff" />}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.02em' }}>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.02em' }}>
                       {t('planLabel', { plan: tc(roleInfo.labelKey) })}
                       {userTier === 'FREE' && (
                         <span style={{
-                          fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-lg)',
+                          fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                           background: `${'#00D4FF'}15`, color: '#00D4FF',
                           fontFamily: "var(--font-ar)", fontWeight: 700,
                           border: `1px solid ${'#00D4FF'}25`,
                         }}>{t('upgrade')}</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', marginTop: 3 }}>{tc(roleInfo.descriptionKey)}</div>
+                    <div style={{ fontSize: 13, color: '#6B7280', marginTop: 3 }}>{tc(roleInfo.descriptionKey)}</div>
                   </div>
                 </div>
 
@@ -1852,13 +1852,13 @@ export default function SettingsPage() {
                         transition: 'all 0.3s',
                         boxShadow: isActive ? `0 4px 18px ${info.color}12` : 'none',
                       }}>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: isActive ? info.color : '#6B7280', fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: isActive ? info.color : '#6B7280', fontFamily: "var(--font-ar)" }}>
                           {tc(info.labelKey)}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3 }}>{tc(info.descriptionKey)}</div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>{tc(info.descriptionKey)}</div>
                         {isActive && (
                           <div style={{
-                            marginTop: 8, fontSize: 'var(--text-xs)', fontWeight: 700,
+                            marginTop: 8, fontSize: 11, fontWeight: 700,
                             color: info.color, fontFamily: "var(--font-mono)",
                           }}>{t('current')}</div>
                         )}
@@ -1881,7 +1881,7 @@ export default function SettingsPage() {
               <div style={{ padding: '8px 0' }}>
                 {permissionCategories.map((cat, ci) => (
                   <div key={ci} style={{ marginBottom: ci < permissionCategories.length - 1 ? 14 : 0 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', marginBottom: 8, letterSpacing: '0.06em' }}>{cat.name}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', marginBottom: 8, letterSpacing: '0.06em' }}>{cat.name}</div>
                     <div className="perm-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7 }}>
                       {cat.perms.map((p, pi) => (
                         <PermissionTag key={pi} label={p.label} active={hasPermission(userTier, p.perm)} color={roleInfo.color} />
@@ -1908,10 +1908,10 @@ export default function SettingsPage() {
                   background: `radial-gradient(circle, ${'#B388FF'}20, transparent 70%)`,
                   pointerEvents: 'none', filter: 'blur(30px)',
                 }} />
-                <div style={{ fontSize: 'var(--text-md)', fontWeight: 900, color: '#F0F2F5', marginBottom: 10, position: 'relative', letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: '#F0F2F5', marginBottom: 10, position: 'relative', letterSpacing: '-0.02em' }}>
                   {t('unlockFullPotential')}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.8, marginBottom: 18, position: 'relative' }}>
+                <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.8, marginBottom: 18, position: 'relative' }}>
                   {t('upgradeProDesc')}
                 </div>
                 <button
@@ -1919,7 +1919,7 @@ export default function SettingsPage() {
                   style={{
                   padding: '11px 32px', borderRadius: 'var(--radius-lg)',
                   background: `linear-gradient(135deg, ${'#B388FF'}, ${'#00D4FF'})`,
-                  border: 'none', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800,
+                  border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
                   cursor: 'pointer', fontFamily: "var(--font-ar)",
                   boxShadow: `0 8px 24px ${'#B388FF'}35`,
                   position: 'relative',
@@ -1975,10 +1975,10 @@ export default function SettingsPage() {
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: mode === m.id ? m.color : '#6B7280' }}>
                       {m.icon}
                     </div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: mode === m.id ? m.color : '#9CA3B5', fontFamily: "var(--font-ar)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: mode === m.id ? m.color : '#9CA3B5', fontFamily: "var(--font-ar)" }}>
                       {m.label}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3 }}>{m.desc}</div>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>{m.desc}</div>
                   </button>
                 ))}
               </div>
@@ -2004,7 +2004,7 @@ export default function SettingsPage() {
                     onChange={e => setOrderSize(e.target.value)}
                     style={{ width: 90, accentColor: '#B388FF', height: 3 }}
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {orderSize}%
                   </span>
                 </div>
@@ -2062,12 +2062,12 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2083,12 +2083,12 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2104,12 +2104,12 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2125,19 +2125,19 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               {/* BUG-066: Configurable hard caps */}
               <div style={{
                 marginTop: 8, marginBottom: 4, padding: '8px 10px', borderRadius: 'var(--radius-md)',
                 background: `${'#FF4757'}08`, border: `1px solid ${'#FF4757'}20`,
-                fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.5,
+                fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.5,
               }}>
                 {t('hardCapsBanner')}
               </div>
@@ -2154,12 +2154,12 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2175,12 +2175,12 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2196,7 +2196,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2225,11 +2225,11 @@ export default function SettingsPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <AlertTriangle size={14} color={'#FF4757'} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#FF4757', fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#FF4757', fontFamily: "var(--font-ar)" }}>
                     {t('resetPaperAccountTitle')}
                   </span>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", marginBottom: 10, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", marginBottom: 10, lineHeight: 1.5 }}>
                   {t('resetPaperAccountDesc')}
                 </div>
                 <button
@@ -2256,7 +2256,7 @@ export default function SettingsPage() {
                   style={{
                     padding: '8px 16px', borderRadius: 'var(--radius-md)',
                     background: `${'#FF4757'}15`, border: `1px solid ${'#FF4757'}40`,
-                    color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700,
+                    color: '#FF4757', fontSize: 11, fontWeight: 700,
                     fontFamily: "var(--font-ar)", cursor: 'pointer',
                   }}
                 >
@@ -2332,7 +2332,7 @@ export default function SettingsPage() {
               </SettingRow>
               {pairFilterMode === 'whitelist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                     {t('pairWhitelistLabel')}
                   </div>
                   <textarea
@@ -2343,7 +2343,7 @@ export default function SettingsPage() {
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                       background: 'rgba(255,255,255,0.03)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 11, fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2352,7 +2352,7 @@ export default function SettingsPage() {
               )}
               {pairFilterMode === 'blacklist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                     {t('pairBlacklistLabel')}
                   </div>
                   <textarea
@@ -2363,7 +2363,7 @@ export default function SettingsPage() {
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                       background: 'rgba(255,255,255,0.03)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 11, fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2378,7 +2378,7 @@ export default function SettingsPage() {
                 marginTop: 10,
               }}>
                 <CheckCircle2 size={16} color={'#00FFA3'} />
-                <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                   {t('pairFilterInfo')}
                 </div>
               </div>
@@ -2413,7 +2413,7 @@ export default function SettingsPage() {
                       style={{
                         padding: '5px 10px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                        color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                        color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -2430,13 +2430,13 @@ export default function SettingsPage() {
                       style={{
                         padding: '5px 10px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                        color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                        color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, marginBottom: 10 }}>
                       {t('tradingDays')}
                     </div>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -2465,7 +2465,7 @@ export default function SettingsPage() {
                               border: isSelected ? `1px solid ${'#FFB800'}45` : `1px solid ${'#3A4150'}`,
                               background: isSelected ? `${'#FFB800'}14` : 'rgba(255,255,255,0.025)',
                               color: isSelected ? '#FFB800' : '#6B7280',
-                              fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                              fontSize: 11, fontWeight: 700, cursor: 'pointer',
                               fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
                             }}
@@ -2484,7 +2484,7 @@ export default function SettingsPage() {
                     marginTop: 10,
                   }}>
                     <AlertTriangle size={16} color={'#FFB800'} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('tradingScheduleInfo')}
                     </div>
                   </div>
@@ -2594,7 +2594,7 @@ export default function SettingsPage() {
 
 
               <div style={{ height: 1, background: '#2A313C', margin: '10px 0' }} />
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', padding: '4px 0 0', letterSpacing: '0.06em' }}>{t('notificationSources')}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', padding: '4px 0 0', letterSpacing: '0.06em' }}>{t('notificationSources')}</div>
 
               <SettingRow icon={<Bot size={13} color={'#B388FF'} />} label={t('botAlerts')}>
                 <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={'#B388FF'} size="sm" />
@@ -2613,12 +2613,12 @@ export default function SettingsPage() {
               {/* Confidence Slider */}
               <div style={{ marginTop: 10, padding: '8px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', fontWeight: 600 }}>
+                  <span style={{ fontSize: 13, color: '#9CA3B5', fontWeight: 600 }}>
                     <Target size={13} style={{ display: 'inline', verticalAlign: -2, marginLeft: 4 }} />
                     {t('minConfidenceLevel')}
                   </span>
                   <span style={{
-                    fontSize: 'var(--text-sm)', fontWeight: 800, color: '#00D4FF',
+                    fontSize: 13, fontWeight: 800, color: '#00D4FF',
                     fontFamily: "var(--font-mono)",
                     background: `${'#00D4FF'}15`, padding: '3px 10px', borderRadius: 'var(--radius-md)',
                     border: `1px solid ${'#00D4FF'}25`,
@@ -2633,8 +2633,8 @@ export default function SettingsPage() {
                   style={{ width: '100%', accentColor: '#B388FF', height: 4 }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('allSignals')}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('highConfidenceOnly')}</span>
+                  <span style={{ fontSize: 11, color: '#6B7280' }}>{t('allSignals')}</span>
+                  <span style={{ fontSize: 11, color: '#6B7280' }}>{t('highConfidenceOnly')}</span>
                 </div>
               </div>
             </SectionCard>
@@ -2684,7 +2684,7 @@ export default function SettingsPage() {
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                    color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                    color: '#F0F2F5', fontSize: 11, fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2702,7 +2702,7 @@ export default function SettingsPage() {
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                    color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                    color: '#F0F2F5', fontSize: 11, fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2720,7 +2720,7 @@ export default function SettingsPage() {
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                    color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                    color: '#F0F2F5', fontSize: 11, fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2774,7 +2774,7 @@ export default function SettingsPage() {
                     onChange={e => setAiConfidence(e.target.value)}
                     style={{ width: 90, accentColor: '#B388FF', height: 3 }}
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {aiConfidence}%
                   </span>
                 </div>
@@ -2823,7 +2823,7 @@ export default function SettingsPage() {
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
+                    <div style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                       {t('monitoringPairsLabel')}
                     </div>
                     <textarea
@@ -2834,7 +2834,7 @@ export default function SettingsPage() {
                       style={{
                         width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                         background: 'rgba(255,255,255,0.03)', border: `1px solid ${'#3A4150'}`,
-                        color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                        color: '#F0F2F5', fontSize: 11, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr', resize: 'vertical',
                         lineHeight: 1.6,
                       }}
@@ -2847,7 +2847,7 @@ export default function SettingsPage() {
                     marginTop: 10,
                   }}>
                     <Radar size={16} color={'#00D4FF'} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('monitoringInfo')}
                     </div>
                   </div>
@@ -2884,7 +2884,7 @@ export default function SettingsPage() {
                         onChange={e => setSignalMinConfidence(e.target.value)}
                         style={{ width: 90, accentColor: '#00FFA3', height: 3 }}
                       />
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00FFA3', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#00FFA3', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {signalMinConfidence}%
                       </span>
                     </div>
@@ -2912,7 +2912,7 @@ export default function SettingsPage() {
                     marginTop: 10,
                   }}>
                     <Activity size={16} color={'#00FFA3'} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('signalsInfo')}
                     </div>
                   </div>
@@ -2949,7 +2949,7 @@ export default function SettingsPage() {
                         onChange={e => setVolatilityThreshold(e.target.value)}
                         style={{ width: 90, accentColor: '#FFB800', height: 3 }}
                       />
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#FFB800', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#FFB800', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {volatilityThreshold}%
                       </span>
                     </div>
@@ -2977,7 +2977,7 @@ export default function SettingsPage() {
                     marginTop: 10,
                   }}>
                     <AlertTriangle size={16} color={'#FFB800'} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('riskAlertsInfo')}
                     </div>
                   </div>
@@ -3041,7 +3041,7 @@ export default function SettingsPage() {
                     marginTop: 10,
                   }}>
                     <BarChart3 size={16} color={'#B388FF'} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('sentimentInfo')}
                     </div>
                   </div>
@@ -3065,7 +3065,7 @@ export default function SettingsPage() {
                 marginBottom: 14,
               }}>
                 <AlertTriangle size={16} color={'#FFB800'} />
-                <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.6 }}>
                   {t('advStrategyWarning')}
                 </div>
               </div>
@@ -3098,7 +3098,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3118,7 +3118,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3138,7 +3138,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3158,7 +3158,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3239,7 +3239,7 @@ export default function SettingsPage() {
                 description={t('textDirectionRtl')}
               >
                 <span style={{
-                  fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-md)',
+                  fontSize: 11, padding: '3px 9px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,255,255,0.04)', color: '#6B7280',
                   fontFamily: "var(--font-mono)", fontWeight: 600,
                   border: `1px solid ${'#3A4150'}`,
@@ -3321,7 +3321,7 @@ export default function SettingsPage() {
                   style={{
                   padding: '6px 14px', borderRadius: 'var(--radius-md)',
                   background: `${'#00FFA3'}12`, border: `1px solid ${'#00FFA3'}28`,
-                  color: '#00FFA3', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                  color: '#00FFA3', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                 }}>{tc('activate')}</button>
               </SettingRow>
@@ -3377,7 +3377,7 @@ export default function SettingsPage() {
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
-                    color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
+                    color: '#FF4757', fontSize: 11, fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     opacity: killLoading ? 0.6 : 1,
                   }}
@@ -3395,13 +3395,13 @@ export default function SettingsPage() {
             >
               <div style={{ padding: '8px 0' }}>
                 {sessionsLoading && (
-                  <div style={{ padding: '14px 0', textAlign: 'center', color: '#6B7280', fontSize: 'var(--text-xs)' }}>
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: '#6B7280', fontSize: 11 }}>
                     <Loader2 size={16} color={'#B388FF'} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
                     {t('loadingAccounts')}
                   </div>
                 )}
                 {!sessionsLoading && sessions.length === 0 && (
-                  <div style={{ padding: '14px 0', textAlign: 'center', color: '#6B7280', fontSize: 'var(--text-xs)' }}>
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: '#6B7280', fontSize: 11 }}>
                     {t('noActiveSessions')}
                   </div>
                 )}
@@ -3416,18 +3416,18 @@ export default function SettingsPage() {
                   }}>
                     <Monitor size={16} color={session.current ? '#00D4FF' : '#6B7280'} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {session.device}
                         {session.current && (
                           <span style={{
-                            fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-sm)',
+                            fontSize: 11, padding: '2px 7px', borderRadius: 'var(--radius-sm)',
                             background: `${'#00D4FF'}15`, color: '#00D4FF',
                             fontFamily: "var(--font-mono)", fontWeight: 700,
                             border: `1px solid ${'#00D4FF'}25`,
                           }}>{t('current')}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: '#6B7280', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
                         <span>{t('lastActivity')}: {session.lastActive}</span>
                         {session.maskedIp && <span>IP: {session.maskedIp}</span>}
                       </div>
@@ -3450,7 +3450,7 @@ export default function SettingsPage() {
                         style={{
                           padding: '4px 10px', borderRadius: 'var(--radius-md)',
                           background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.18)',
-                          color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                          color: '#FF4757', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                           fontFamily: "var(--font-ar)",
                         }}
                       >{t('terminate')}</button>
@@ -3476,7 +3476,7 @@ export default function SettingsPage() {
               </SettingRow>
               {antiPhishingEnabled && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                     {t('antiPhishingSecretWord')}
                   </div>
                   <input
@@ -3488,11 +3488,11 @@ export default function SettingsPage() {
                     style={{
                       width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-lg)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
-                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr',
                     }}
                   />
-                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 6, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6, lineHeight: 1.5 }}>
                     {t('antiPhishingHint')}
                   </div>
                 </div>
@@ -3522,7 +3522,7 @@ export default function SettingsPage() {
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: `${'#00D4FF'}12`, border: `1px solid ${'#00D4FF'}28`,
-                    color: '#00D4FF', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
+                    color: '#00D4FF', fontSize: 11, fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
                     opacity: dataExportLoading ? 0.6 : 1,
@@ -3586,7 +3586,7 @@ export default function SettingsPage() {
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: `${'#B388FF'}12`, border: `1px solid ${'#B388FF'}28`,
-                    color: '#B388FF', fontSize: 'var(--text-xs)', fontWeight: 700,
+                    color: '#B388FF', fontSize: 11, fontWeight: 700,
                     cursor: importLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -3649,7 +3649,7 @@ export default function SettingsPage() {
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
-                    color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                    color: '#FF4757', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                   }}
                 >{tc('reset')}</button>

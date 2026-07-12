@@ -225,7 +225,7 @@ export function OrderBookMini() {
                 borderBottom: `2px solid ${active ? 'var(--success)' : 'transparent'}`,
                 padding: '4px 0',
                 color: active ? 'var(--foreground)' : 'var(--muted)',
-                fontSize: 'var(--text-xs)', fontWeight: active ? 800 : 500, cursor: 'pointer',
+                fontSize: 11, fontWeight: active ? 800 : 500, cursor: 'pointer',
                 fontFamily: 'var(--mono)', transition: '0.2s'
               }}>
                 {s.split('/')[0]}
@@ -240,7 +240,7 @@ export function OrderBookMini() {
             background: connected ? 'var(--success)' : (isCrypto ? 'var(--danger)' : 'var(--warning)'),
             boxShadow: connected ? '0 0 4px var(--success)' : 'none'
           }} />
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--foreground)', fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 11, color: 'var(--foreground)', fontFamily: "var(--font-mono)" }}>
             {connected ? tob('live') : isCrypto ? tob('connecting') : tob('sim')}
           </span>
         </div>
@@ -249,7 +249,7 @@ export function OrderBookMini() {
       {/* Header Labels */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', padding: '8px 16px',
-        fontSize: 'var(--text-xs)', color: 'var(--foreground)', fontWeight: 800, textTransform: 'uppercase',
+        fontSize: 11, color: 'var(--foreground)', fontWeight: 800, textTransform: 'uppercase',
         letterSpacing: '0.05em'
       }}>
         <span>{tc('price')}</span>
@@ -260,7 +260,7 @@ export function OrderBookMini() {
         {basePrice === 0 && asks.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
             <div style={{ width: 24, height: 24, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <span style={{ color: 'var(--foreground)', fontSize: 'var(--text-xs)' }}>{t('connecting')}</span>
+            <span style={{ color: 'var(--foreground)', fontSize: 11 }}>{t('connecting')}</span>
 
           </div>
         ) : (
@@ -285,7 +285,7 @@ export function OrderBookMini() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {isPositive ? <ArrowUp size={18} color="var(--success)" /> : <ArrowDown size={18} color="var(--danger)" />}
                 <span className="price" style={{
-                  fontSize: 'var(--text-lg)', color: isPositive ? 'var(--success)' : 'var(--danger)',
+                  fontSize: 19, color: isPositive ? 'var(--success)' : 'var(--danger)',
                   letterSpacing: '-0.02em', fontWeight: 900,
                   textShadow: `0 0 10px ${isPositive ? 'var(--success)' : 'var(--danger)'}60`
                 }}>
@@ -295,10 +295,10 @@ export function OrderBookMini() {
                 </span>
               </div>
               <div style={{ textAlign: 'left' }}>
-                <div className="number-data" style={{ fontSize: 'var(--text-xs)', color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>
+                <div className="number-data" style={{ fontSize: 11, color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>
                   {isPositive ? '+' : ''}{(quote?.changePercent ?? 0).toFixed(2)}%
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--foreground)', fontWeight: 700 }}>
+                <div style={{ fontSize: 11, color: 'var(--foreground)', fontWeight: 700 }}>
                   {connected ? tob('liveDepth') : tob('lastPrice')}
                 </div>
               </div>
@@ -358,7 +358,7 @@ function OrderRowUI({ row, type, maxTotal, maxSize, index }: {
 
       <span className="price" style={{
         color: isWall ? '#fff' : color, fontWeight: isWall ? 900 : 700,
-        zIndex: 1, fontSize: 'var(--text-xs)',
+        zIndex: 1, fontSize: 11,
         textShadow: isWall ? `0 0 6px rgba(${rawColor},0.7)` : 'none'
       }}>
         {row.price > 100
@@ -367,7 +367,7 @@ function OrderRowUI({ row, type, maxTotal, maxSize, index }: {
       </span>
       <span className="number-data" style={{
         color: isWall ? `rgb(${rawColor})` : 'var(--foreground)',
-        fontWeight: isWall ? 900 : 600, zIndex: 1, fontSize: 'var(--text-xs)',
+        fontWeight: isWall ? 900 : 600, zIndex: 1, fontSize: 11,
         textShadow: isWall ? `0 0 5px rgba(${rawColor},0.5)` : 'none'
       }}>
         {row.size < 0.001 ? row.size.toFixed(6) : row.size.toFixed(3)}

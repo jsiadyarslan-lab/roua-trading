@@ -40,9 +40,9 @@ function PanelShell({
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon size={14} color={accent} />
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{title}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{title}</span>
           </div>
-          <div style={{ marginTop: 4, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{subtitle}</div>
+          <div style={{ marginTop: 4, fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>{subtitle}</div>
         </div>
         {actions}
       </div>
@@ -84,17 +84,17 @@ export function DesktopNewsPanel() {
   return (
     <PanelShell title={t('title')} accent={'#00D4FF'} icon={Newspaper} subtitle={t('newsSummary', { symbol: selectedSymbol })}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loadingFeed')}</div>}
-        {!loading && items.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('unavailableBrief')}</div>}
+        {loading && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('loadingFeed')}</div>}
+        {!loading && items.length === 0 && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('unavailableBrief')}</div>}
         {items.map((item, index) => (
           <div key={`${safeStr(item.text)}-${index}`} className="card" style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: item.impact === 'high' ? '#FF4757' : '#FFB800', fontWeight: 800 }}>{safeStr(locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : locale === 'es' ? (item.categoryEs || item.category) : item.category)}</span>
-              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 11, color: item.impact === 'high' ? '#FF4757' : '#FFB800', fontWeight: 800 }}>{safeStr(locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : locale === 'es' ? (item.categoryEs || item.category) : item.category)}</span>
+              <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                 {item.publishedAt ? formatFreshness(item.publishedAt, tc) : safeStr(item.source)}
               </span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', lineHeight: 1.8 }}>{safeStr(locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : locale === 'tr' ? (item.textTr || item.text) : locale === 'es' ? (item.textEs || item.text) : item.text)}</div>
+            <div style={{ fontSize: 11, color: '#F0F2F5', lineHeight: 1.8 }}>{safeStr(locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : locale === 'tr' ? (item.textTr || item.text) : locale === 'es' ? (item.textEs || item.text) : item.text)}</div>
           </div>
         ))}
       </div>
@@ -131,16 +131,16 @@ export function DesktopCalendarPanel() {
   return (
     <PanelShell title={t('title')} accent={'#FFB800'} icon={CalendarDays} subtitle={t('subtitle', { symbol: selectedSymbol })}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loading')}</div>}
-        {!loading && events.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noEvents')}</div>}
+        {loading && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('loading')}</div>}
+        {!loading && events.length === 0 && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('noEvents')}</div>}
         {events.map((event, index) => (
           <div key={`${event.event}-${index}`} className="card" style={{ padding: '10px 11px', display: 'grid', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', fontWeight: 800 }}>{event.currency}</span>
-              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>{event.dateLabel} • {event.time}</span>
+              <span style={{ fontSize: 11, color: '#F0F2F5', fontWeight: 800 }}>{event.currency}</span>
+              <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>{event.dateLabel} • {event.time}</span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', lineHeight: 1.7 }}>{event.event}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: event.ai?.bias === 'bullish' ? '#00FFA3' : event.ai?.bias === 'bearish' ? '#FF4757' : '#FFB800' }}>
+            <div style={{ fontSize: 11, color: '#F0F2F5', lineHeight: 1.7 }}>{event.event}</div>
+            <div style={{ fontSize: 11, color: event.ai?.bias === 'bullish' ? '#00FFA3' : event.ai?.bias === 'bearish' ? '#FF4757' : '#FFB800' }}>
               {event.ai?.summary || t('watchImpact')}
             </div>
           </div>
@@ -228,7 +228,7 @@ export function DesktopBacktestPanel() {
               background: strategy === item.id ? `${item.color}12` : 'rgba(255,255,255,0.02)',
               color: strategy === item.id ? item.color : '#6B7280',
               padding: '7px 9px',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               cursor: 'pointer',
             }}
@@ -247,7 +247,7 @@ export function DesktopBacktestPanel() {
               background: interval === item ? `${'#00D4FF'}12` : 'rgba(255,255,255,0.02)',
               color: interval === item ? '#00D4FF' : '#6B7280',
               padding: '7px 9px',
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               cursor: 'pointer',
             }}
@@ -257,9 +257,9 @@ export function DesktopBacktestPanel() {
         ))}
       </div>
 
-      {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loading')}</div>}
+      {loading && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('loading')}</div>}
 
-      {!loading && !summary && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noResult')}</div>}
+      {!loading && !summary && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('noResult')}</div>}
 
       {!loading && summary && (
         <div style={{ display: 'grid', gap: 8 }}>
@@ -271,14 +271,14 @@ export function DesktopBacktestPanel() {
               { label: t('maxDrawdown'), value: `${Number(summary.maxDrawdown || 0).toFixed(2)}%`, color: '#FFB800' },
             ].map(item => (
               <div key={item.label} className="card" style={{ padding: '10px 11px' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{item.label}</div>
-                <div style={{ marginTop: 4, fontSize: 'var(--text-sm)', color: item.color, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{item.value}</div>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>{item.label}</div>
+                <div style={{ marginTop: 4, fontSize: 13, color: item.color, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{item.value}</div>
               </div>
             ))}
           </div>
           <div className="card" style={{ padding: '10px 11px' }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('quickRead')}</div>
-            <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: '#F0F2F5', lineHeight: 1.8 }}>
+            <div style={{ fontSize: 11, color: '#6B7280' }}>{t('quickRead')}</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: '#F0F2F5', lineHeight: 1.8 }}>
               {Number(summary.return || 0) >= 0 ? t('positiveResult') : t('negativeResult')}
               {' '}{t('profitFactor')}: <span style={{ color: '#00D4FF' }}>{Number(summary.profitFactor || 0).toFixed(2)}</span>
               {' '}| {t('sharpe')}: <span style={{ color: '#B388FF' }}>{Number(summary.sharpe || 0).toFixed(2)}</span>
@@ -326,16 +326,16 @@ export function DesktopCorrelationPanel() {
   return (
     <PanelShell title={t('title')} accent={'#00FFA3'} icon={GitMerge} subtitle={t('subtitle', { symbol: selectedSymbol })}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loading')}</div>}
-        {!loading && relationships.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noData')}</div>}
+        {loading && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('loading')}</div>}
+        {!loading && relationships.length === 0 && <div style={{ fontSize: 11, color: '#6B7280' }}>{t('noData')}</div>}
         {relationships.map(([symbol, value]: any) => {
           const positive = Number(value) >= 0
           const accent = positive ? '#00FFA3' : '#FF4757'
           return (
             <div key={symbol} className="card" style={{ padding: '10px 11px', display: 'grid', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', fontWeight: 800, fontFamily: "var(--font-mono)" }}>{symbol}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: accent, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{Number(value).toFixed(3)}</span>
+                <span style={{ fontSize: 11, color: '#F0F2F5', fontWeight: 800, fontFamily: "var(--font-mono)" }}>{symbol}</span>
+                <span style={{ fontSize: 11, color: accent, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{Number(value).toFixed(3)}</span>
               </div>
               <div style={{ height: 8, borderRadius: 'var(--radius-2xl)', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
                 <div
@@ -347,7 +347,7 @@ export function DesktopCorrelationPanel() {
                   }}
                 />
               </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>
                 {positive ? t('positiveCorrelation') : t('negativeCorrelation')}
               </div>
             </div>

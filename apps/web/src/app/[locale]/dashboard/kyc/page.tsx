@@ -83,7 +83,7 @@ function StatusBadge({ status }: { status: LinkingStatus }) {
       background: c.bg, border: `1px solid ${c.color}20`,
     }}>
       <Icon size={14} color={c.color} style={status === 'in_progress' || status === 'testing' ? { animation: 'spin 1s linear infinite' } : {}} />
-      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: c.color, fontFamily: "var(--font-ar)" }}>{c.label}</span>
+      <span style={{ fontSize: 13, fontWeight: 700, color: c.color, fontFamily: "var(--font-ar)" }}>{c.label}</span>
     </div>
   )
 }
@@ -100,12 +100,12 @@ function FormInput({ label, icon, value, onChange, type = 'text', placeholder, e
     <div style={{ marginBottom: 14 }}>
       <label style={{
         display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
-        fontSize: 'var(--text-sm)', fontWeight: 600, color: '#9CA3B5',
+        fontSize: 13, fontWeight: 600, color: '#9CA3B5',
         fontFamily: "var(--font-ar)",
       }}>
         {icon}
         {label}
-        {required && <span style={{ color: '#FF4757', fontSize: 'var(--text-xs)' }}>*</span>}
+        {required && <span style={{ color: '#FF4757', fontSize: 11 }}>*</span>}
       </label>
       <input
         type={type}
@@ -118,7 +118,7 @@ function FormInput({ label, icon, value, onChange, type = 'text', placeholder, e
         style={{
           width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
           background: '#151A22', border: `1px solid ${error ? '#FF4757' : focused ? '#00D4FF' + '40' : '#2A313C'}`,
-          color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: dir === 'ltr' ? "'JetBrains Mono', monospace" : "'Cairo', sans-serif",
+          color: '#F0F2F5', fontSize: 13, fontFamily: dir === 'ltr' ? "'JetBrains Mono', monospace" : "'Cairo', sans-serif",
           outline: 'none', direction: (dir || 'rtl') as React.CSSProperties['direction'], transition: 'all 0.2s',
           boxShadow: focused ? `0 0 0 3px ${'#00D4FF'}15` : 'none',
           boxSizing: 'border-box',
@@ -126,7 +126,7 @@ function FormInput({ label, icon, value, onChange, type = 'text', placeholder, e
         }}
       />
       {error && (
-        <div style={{ fontSize: 'var(--text-xs)', color: '#FF4757', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: 11, color: '#FF4757', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
           <AlertCircle size={10} /> هذا الحقل مطلوب
         </div>
       )}
@@ -148,12 +148,12 @@ function ApiKeyInput({ label, icon, value, onChange, placeholder, error, require
     <div style={{ marginBottom: 14 }}>
       <label style={{
         display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
-        fontSize: 'var(--text-sm)', fontWeight: 600, color: '#9CA3B5',
+        fontSize: 13, fontWeight: 600, color: '#9CA3B5',
         fontFamily: "var(--font-ar)",
       }}>
         {icon}
         {label}
-        {required && <span style={{ color: '#FF4757', fontSize: 'var(--text-xs)' }}>*</span>}
+        {required && <span style={{ color: '#FF4757', fontSize: 11 }}>*</span>}
       </label>
       <div style={{ position: 'relative' }}>
         <input
@@ -166,7 +166,7 @@ function ApiKeyInput({ label, icon, value, onChange, placeholder, error, require
           style={{
             width: '100%', padding: '10px 42px 10px 14px', borderRadius: 'var(--radius-lg)',
             background: '#151A22', border: `1px solid ${error ? '#FF4757' : focused ? '#00D4FF' + '40' : '#2A313C'}`,
-            color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+            color: '#F0F2F5', fontSize: 13, fontFamily: "var(--font-mono)",
             outline: 'none', direction: 'ltr', transition: 'all 0.2s',
             boxShadow: focused ? `0 0 0 3px ${'#00D4FF'}15` : 'none',
             boxSizing: 'border-box',
@@ -186,7 +186,7 @@ function ApiKeyInput({ label, icon, value, onChange, placeholder, error, require
         </button>
       </div>
       {error && (
-        <div style={{ fontSize: 'var(--text-xs)', color: '#FF4757', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: 11, color: '#FF4757', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
           <AlertCircle size={10} /> هذا الحقل مطلوب
         </div>
       )}
@@ -219,10 +219,10 @@ function PermissionToggle({ label, description, enabled, onChange, color, icon, 
         {icon}
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
           {label}
         </div>
-        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>
           {description}
         </div>
       </div>
@@ -260,10 +260,10 @@ function BenefitCard({ icon, title, description, color }: {
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 2 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 2 }}>
           {title}
         </div>
-        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
           {description}
         </div>
       </div>
@@ -431,10 +431,10 @@ export default function AccountLinkingPage() {
               <Link2 size={22} color="#fff" />
             </div>
             <div style={{ flex: 1 }}>
-              <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>
                 ربط الحسابات
               </h1>
-              <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#6B7280', marginTop: 2 }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#6B7280', marginTop: 2 }}>
                 اربط حسابات البورصة الخاصة بك لمتابعة المحفظة وتلقي توصيات AI
               </p>
             </div>
@@ -475,7 +475,7 @@ export default function AccountLinkingPage() {
                       )}
                     </div>
                     <div style={{
-                      fontSize: 'var(--text-xs)', fontWeight: isCurrent ? 800 : 500,
+                      fontSize: 11, fontWeight: isCurrent ? 800 : 500,
                       color: isCurrent ? step.color : isCompleted ? '#00FFA3' : '#6B7280',
                       fontFamily: "var(--font-ar)", textAlign: 'center',
                     }}>
@@ -488,7 +488,7 @@ export default function AccountLinkingPage() {
                       background: isCompleted ? '#00FFA3' : isCurrent ? step.color : '#151A22',
                       border: `1px solid ${isCompleted ? '#00FFA3' : isCurrent ? step.color : '#2A313C'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 'var(--text-xs)', fontWeight: 800, color: '#fff',
+                      fontSize: 11, fontWeight: 800, color: '#fff',
                       fontFamily: "var(--font-mono)",
                     }}>
                       {isCompleted ? '✓' : step.id}
@@ -533,7 +533,7 @@ export default function AccountLinkingPage() {
                     <Icon size={14} color={isCurrent ? step.color : '#6B7280'} />
                   )}
                   <span style={{
-                    fontSize: 'var(--text-xs)', fontWeight: isCurrent ? 800 : 500,
+                    fontSize: 11, fontWeight: isCurrent ? 800 : 500,
                     color: isCurrent ? step.color : isCompleted ? '#00FFA3' : '#6B7280',
                     fontFamily: "var(--font-ar)",
                   }}>
@@ -570,10 +570,10 @@ export default function AccountLinkingPage() {
                     <Globe size={18} color={'#00D4FF'} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>
                       اختيار البورصة
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
                       اختر البورصة التي تريد ربط حسابك بها
                     </div>
                   </div>
@@ -588,7 +588,7 @@ export default function AccountLinkingPage() {
                     marginBottom: 18,
                   }}>
                     <Info size={16} color={'#00D4FF'} style={{ flexShrink: 0, marginTop: 1 }} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.7 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.7 }}>
                       ربط حسابك لا يمنحنا أي صلاحية سحب الأموال. نستخدم مفاتيح API للقراءة فقط بشكل افتراضي.
                     </div>
                   </div>
@@ -599,7 +599,7 @@ export default function AccountLinkingPage() {
                     marginBottom: 14,
                   }}>
                     <Search size={14} color={'#6B7280'} />
-                    <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+                    <span style={{ fontSize: 11, color: '#6B7280' }}>
                       اختر البورصة التي تملك حساباً عليها
                     </span>
                   </div>
@@ -634,7 +634,7 @@ export default function AccountLinkingPage() {
                             width: 40, height: 40, borderRadius: 'var(--radius-lg)',
                             background: isSelected ? `${exchange.color}20` : `${exchange.color}10`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 'var(--text-sm)', fontWeight: 900,
+                            fontSize: 13, fontWeight: 900,
                             color: exchange.color,
                             fontFamily: "var(--font-mono)",
                             transition: 'all 0.3s',
@@ -644,7 +644,7 @@ export default function AccountLinkingPage() {
                           </div>
                           <div>
                             <div style={{
-                              fontSize: 'var(--text-sm)', fontWeight: isSelected ? 800 : 600,
+                              fontSize: 13, fontWeight: isSelected ? 800 : 600,
                               color: isSelected ? exchange.color : '#F0F2F5',
                               fontFamily: "var(--font-ar)",
                               marginBottom: 2,
@@ -652,7 +652,7 @@ export default function AccountLinkingPage() {
                               {exchange.name}
                             </div>
                             <div style={{
-                              fontSize: 'var(--text-xs)', color: '#6B7280',
+                              fontSize: 11, color: '#6B7280',
                               fontFamily: "var(--font-ar)",
                               lineHeight: 1.4,
                             }}>
@@ -665,7 +665,7 @@ export default function AccountLinkingPage() {
                               display: 'flex', alignItems: 'center', gap: 3,
                             }}>
                               <CheckCircle2 size={12} color={exchange.color} />
-                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: exchange.color, fontFamily: "var(--font-ar)" }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: exchange.color, fontFamily: "var(--font-ar)" }}>
                                 محدد
                               </span>
                             </div>
@@ -676,7 +676,7 @@ export default function AccountLinkingPage() {
                   </div>
 
                   {errors.exchangeId && !exchangeInfo.exchangeId && (
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#FF4757', display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
+                    <div style={{ fontSize: 11, color: '#FF4757', display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
                       <AlertCircle size={10} /> يرجى اختيار بورصة
                     </div>
                   )}
@@ -705,10 +705,10 @@ export default function AccountLinkingPage() {
                     <Key size={18} color={'#FFB800'} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>
                       مفاتيح API
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
                       أدخل مفاتيح API من حسابك على {getSelectedExchange()?.name || 'البورصة'}
                     </div>
                   </div>
@@ -725,13 +725,13 @@ export default function AccountLinkingPage() {
                         width: 20, height: 20, borderRadius: 'var(--radius-sm)',
                         background: `${getSelectedExchange()!.color}20`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 'var(--text-xs)', fontWeight: 900,
+                        fontSize: 11, fontWeight: 900,
                         color: getSelectedExchange()!.color,
                         fontFamily: "var(--font-mono)",
                       }}>
                         {getSelectedExchange()!.initial}
                       </div>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: getSelectedExchange()!.color, fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: getSelectedExchange()!.color, fontFamily: "var(--font-ar)" }}>
                         {getSelectedExchange()!.name}
                       </span>
                     </div>
@@ -747,7 +747,7 @@ export default function AccountLinkingPage() {
                     marginBottom: 18,
                   }}>
                     <ShieldAlert size={16} color={'#FFB800'} style={{ flexShrink: 0, marginTop: 1 }} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.7 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.7 }}>
                       <strong style={{ color: '#FFB800' }}>تنبيه أمني:</strong> نوصي بشدة باستخدام مفاتيح API بصلاحية القراءة فقط. لا تفعّل صلاحية السحب أبداً. يتم تشفير مفاتيحك بتقنية AES-256-GCM.
                     </div>
                   </div>
@@ -760,25 +760,25 @@ export default function AccountLinkingPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                       <KeyRound size={14} color={'#00D4FF'} />
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#00D4FF', fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#00D4FF', fontFamily: "var(--font-ar)" }}>
                         كيفية الحصول على مفاتيح API
                       </span>
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 2 }}>
+                    <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 2 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>1</span>
+                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>1</span>
                         سجّل الدخول إلى حسابك على {getSelectedExchange()?.name || 'البورصة'}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>2</span>
+                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>2</span>
                         انتقل إلى إعدادات API Management
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>3</span>
+                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>3</span>
                         أنشئ مفتاح API جديد بصلاحيات القراءة فقط
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>4</span>
+                        <span style={{ width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#00D4FF', flexShrink: 0 }}>4</span>
                         انسخ API Key و API Secret وألصقهما أدناه
                       </div>
                     </div>
@@ -833,11 +833,11 @@ export default function AccountLinkingPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                       <ShieldAlert size={14} color={'#FF4757'} />
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#FF4757', fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#FF4757', fontFamily: "var(--font-ar)" }}>
                         نصائح أمنية هامة
                       </span>
                     </div>
-                    <ul style={{ margin: 0, padding: '0 16px', fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 2.2 }}>
+                    <ul style={{ margin: 0, padding: '0 16px', fontSize: 11, color: '#6B7280', lineHeight: 2.2 }}>
                       <li>لا تفعّل صلاحية <span style={{ color: '#FF4757', fontWeight: 700 }}>السحب (Withdraw)</span> أبداً — المنصة لا تحتاجها</li>
                       <li>قيّد المفتاح بعنوان IP الخاص بك إن أمكن</li>
                       <li>استخدم صلاحية <span style={{ color: '#00FFA3', fontWeight: 700 }}>القراءة فقط (Read Only)</span> للأمان الأقصى</li>
@@ -871,10 +871,10 @@ export default function AccountLinkingPage() {
                     <Wifi size={18} color={'#B388FF'} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>
                       اختبار الاتصال
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
                       تحقق من صحة المفاتيح واختبر الاتصال بالبورصة
                     </div>
                   </div>
@@ -885,7 +885,7 @@ export default function AccountLinkingPage() {
                   <div style={{ marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                       <Shield size={14} color={'#00D4FF'} />
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                         صلاحيات الاتصال
                       </span>
                     </div>
@@ -923,7 +923,7 @@ export default function AccountLinkingPage() {
                       background: `${'#00FFA3'}06`, border: `1px solid ${'#00FFA3'}15`,
                     }}>
                       <ShieldCheck size={16} color={'#00FFA3'} />
-                      <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 600, fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 11, color: '#00FFA3', fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                         المنصة لا تطلب صلاحية السحب أبداً — أموالك تبقى آمنة في حسابك على البورصة
                       </span>
                     </div>
@@ -944,10 +944,10 @@ export default function AccountLinkingPage() {
                         }}>
                           <Loader2 size={28} color={'#B388FF'} style={{ animation: 'spin 1s linear infinite' }} />
                         </div>
-                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#B388FF', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#B388FF', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                           جاري اختبار الاتصال...
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                           يتم التحقق من المفاتيح مع {getSelectedExchange()?.name || 'البورصة'}
                         </div>
                         {/* Progress steps */}
@@ -966,7 +966,7 @@ export default function AccountLinkingPage() {
                               }}>
                                 <s.icon size={14} color={'#B388FF'} />
                               </div>
-                              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{s.label}</span>
+                              <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>{s.label}</span>
                             </div>
                           ))}
                         </div>
@@ -980,10 +980,10 @@ export default function AccountLinkingPage() {
                         }}>
                           <CheckCircle2 size={28} color={'#00FFA3'} />
                         </div>
-                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#00FFA3', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#00FFA3', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                           تم الاتصال بنجاح!
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7 }}>
+                        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7 }}>
                           تم التحقق من صحة مفاتيح API والاتصال بـ {getSelectedExchange()?.name}
                         </div>
                         {/* Connection details */}
@@ -1000,8 +1000,8 @@ export default function AccountLinkingPage() {
                               padding: '6px 12px', borderRadius: 'var(--radius-md)',
                               background: `${detail.color}08`, border: `1px solid ${detail.color}15`,
                             }}>
-                              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{detail.label}</div>
-                              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: detail.color, fontFamily: "var(--font-mono)" }}>{detail.value}</div>
+                              <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>{detail.label}</div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: detail.color, fontFamily: "var(--font-mono)" }}>{detail.value}</div>
                             </div>
                           ))}
                         </div>
@@ -1015,10 +1015,10 @@ export default function AccountLinkingPage() {
                         }}>
                           <AlertCircle size={28} color={'#FF4757'} />
                         </div>
-                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#FF4757', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#FF4757', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                           فشل الاتصال
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7 }}>
+                        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7 }}>
                           تعذر الاتصال بالبورصة. تأكد من صحة المفاتيح والصلاحيات.
                         </div>
                       </div>
@@ -1031,10 +1031,10 @@ export default function AccountLinkingPage() {
                         }}>
                           <Wifi size={28} color={'#B388FF'} />
                         </div>
-                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                           جاهز لاختبار الاتصال
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7, marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7, marginBottom: 16 }}>
                           سيتم التحقق من مفاتيح API واختبار الاتصال بـ {getSelectedExchange()?.name || 'البورصة'}
                         </div>
                         <button
@@ -1043,7 +1043,7 @@ export default function AccountLinkingPage() {
                             display: 'inline-flex', alignItems: 'center', gap: 8,
                             padding: '12px 28px', borderRadius: 'var(--radius-lg)',
                             background: `linear-gradient(135deg, ${'#B388FF'}, #8B5CF6)`,
-                            border: 'none', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800,
+                            border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
                             cursor: 'pointer', fontFamily: "var(--font-ar)",
                             boxShadow: `0 0 20px ${'#B388FF'}25`, transition: 'all 0.2s',
                           }}
@@ -1061,7 +1061,7 @@ export default function AccountLinkingPage() {
                         style={{
                           marginTop: 14, padding: '6px 16px', borderRadius: 'var(--radius-md)',
                           background: `${'#00FFA3'}10`, border: `1px solid ${'#00FFA3'}20`,
-                          color: '#00FFA3', fontSize: 'var(--text-xs)', fontWeight: 600,
+                          color: '#00FFA3', fontSize: 11, fontWeight: 600,
                           cursor: 'pointer', fontFamily: "var(--font-ar)",
                           display: 'inline-flex', alignItems: 'center', gap: 4,
                         }}
@@ -1075,7 +1075,7 @@ export default function AccountLinkingPage() {
                         style={{
                           marginTop: 14, padding: '8px 20px', borderRadius: 'var(--radius-md)',
                           background: `linear-gradient(135deg, ${'#B388FF'}, #8B5CF6)`,
-                          border: 'none', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 700,
+                          border: 'none', color: '#fff', fontSize: 13, fontWeight: 700,
                           cursor: 'pointer', fontFamily: "var(--font-ar)",
                           display: 'inline-flex', alignItems: 'center', gap: 6,
                         }}
@@ -1086,7 +1086,7 @@ export default function AccountLinkingPage() {
                   </div>
 
                   {errors.connectionTest && connectionTestResult !== 'success' && (
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#FF4757', display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: '#FF4757', display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
                       <AlertCircle size={10} /> يرجى إجراء اختبار الاتصال بنجاح قبل المتابعة
                     </div>
                   )}
@@ -1115,10 +1115,10 @@ export default function AccountLinkingPage() {
                     <CheckCircle2 size={18} color={'#00FFA3'} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>
                       تأكيد الربط
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
                       راجع جميع البيانات قبل تأكيد ربط الحساب
                     </div>
                   </div>
@@ -1134,7 +1134,7 @@ export default function AccountLinkingPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Globe size={14} color={'#00D4FF'} />
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           البورصة
                         </span>
                       </div>
@@ -1143,7 +1143,7 @@ export default function AccountLinkingPage() {
                         style={{
                           padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                           background: `${'#00D4FF'}10`, border: `1px solid ${'#00D4FF'}20`,
-                          color: '#00D4FF', fontSize: 'var(--text-xs)', fontWeight: 600,
+                          color: '#00D4FF', fontSize: 11, fontWeight: 600,
                           cursor: 'pointer', fontFamily: "var(--font-ar)",
                           display: 'flex', alignItems: 'center', gap: 4,
                         }}
@@ -1158,7 +1158,7 @@ export default function AccountLinkingPage() {
                           background: `${getSelectedExchange()!.color}15`,
                           border: `1px solid ${getSelectedExchange()!.color}25`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 'var(--text-base)', fontWeight: 900,
+                          fontSize: 15, fontWeight: 900,
                           color: getSelectedExchange()!.color,
                           fontFamily: "var(--font-mono)",
                         }}>
@@ -1166,10 +1166,10 @@ export default function AccountLinkingPage() {
                         </div>
                       )}
                       <div>
-                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           {getSelectedExchange()?.name || '—'}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                           {getSelectedExchange()?.desc || ''}
                         </div>
                       </div>
@@ -1185,7 +1185,7 @@ export default function AccountLinkingPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Key size={14} color={'#FFB800'} />
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           مفاتيح API
                         </span>
                       </div>
@@ -1194,7 +1194,7 @@ export default function AccountLinkingPage() {
                         style={{
                           padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                           background: `${'#FFB800'}10`, border: `1px solid ${'#FFB800'}20`,
-                          color: '#FFB800', fontSize: 'var(--text-xs)', fontWeight: 600,
+                          color: '#FFB800', fontSize: 11, fontWeight: 600,
                           cursor: 'pointer', fontFamily: "var(--font-ar)",
                           display: 'flex', alignItems: 'center', gap: 4,
                         }}
@@ -1204,20 +1204,20 @@ export default function AccountLinkingPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>اسم الاتصال</span>
-                        <span style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-ar)" }}>
+                        <span style={{ fontSize: 11, color: '#6B7280' }}>اسم الاتصال</span>
+                        <span style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                           {apiKeyInfo.label || '—'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>API Key</span>
-                        <span style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-mono)", direction: 'ltr' }}>
+                        <span style={{ fontSize: 11, color: '#6B7280' }}>API Key</span>
+                        <span style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-mono)", direction: 'ltr' }}>
                           {maskApiKey(apiKeyInfo.apiKey)}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>API Secret</span>
-                        <span style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-mono)", direction: 'ltr' }}>
+                        <span style={{ fontSize: 11, color: '#6B7280' }}>API Secret</span>
+                        <span style={{ fontSize: 13, color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-mono)", direction: 'ltr' }}>
                           {maskApiSecret(apiKeyInfo.apiSecret)}
                         </span>
                       </div>
@@ -1233,7 +1233,7 @@ export default function AccountLinkingPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Shield size={14} color={'#B388FF'} />
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           الصلاحيات
                         </span>
                       </div>
@@ -1242,7 +1242,7 @@ export default function AccountLinkingPage() {
                         style={{
                           padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                           background: `${'#B388FF'}10`, border: `1px solid ${'#B388FF'}20`,
-                          color: '#B388FF', fontSize: 'var(--text-xs)', fontWeight: 600,
+                          color: '#B388FF', fontSize: 11, fontWeight: 600,
                           cursor: 'pointer', fontFamily: "var(--font-ar)",
                           display: 'flex', alignItems: 'center', gap: 4,
                         }}
@@ -1257,9 +1257,9 @@ export default function AccountLinkingPage() {
                         { label: 'السماح بالتداول (اختياري)', enabled: permissions.allowTrading, color: '#FFB800' },
                       ].map((perm, idx) => (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{perm.label}</span>
+                          <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)" }}>{perm.label}</span>
                           <span style={{
-                            fontSize: 'var(--text-xs)', fontWeight: 600,
+                            fontSize: 11, fontWeight: 600,
                             color: perm.enabled ? perm.color : '#6B7280',
                             display: 'flex', alignItems: 'center', gap: 4,
                             fontFamily: "var(--font-ar)",
@@ -1283,13 +1283,13 @@ export default function AccountLinkingPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Wifi size={14} color={'#00FFA3'} />
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                         اختبار الاتصال
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
                       <CheckCircle2 size={14} color={'#00FFA3'} />
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#00FFA3', fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#00FFA3', fontFamily: "var(--font-ar)" }}>
                         تم اختبار الاتصال بنجاح
                       </span>
                     </div>
@@ -1303,10 +1303,10 @@ export default function AccountLinkingPage() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <ShieldAlert size={16} color={'#00D4FF'} style={{ flexShrink: 0, marginTop: 1 }} />
                       <div>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                           إقرار الموافقة
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.8 }}>
+                        <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.8 }}>
                           بالنقر على "تأكيد الربط"، أقر بأنني أمتلك الحق في ربط هذا الحساب، وأن مفاتيح API يتم تخزينها بشكل مشفر،
                           وأن المنصة لن تقوم بأي عملية سحب دون موافقتي الصريحة. أوافق على
                           <span style={{ color: '#00D4FF' }}> شروط الاستخدام </span>
@@ -1335,7 +1335,7 @@ export default function AccountLinkingPage() {
                 background: currentStep === 1 ? '#151A22' : 'rgba(255,255,255,0.04)',
                 border: `1px solid ${currentStep === 1 ? '#2A313C' : 'rgba(255,255,255,0.10)'}`,
                 color: currentStep === 1 ? '#6B7280' : '#9CA3B5',
-                fontSize: 'var(--text-sm)', fontWeight: 700, cursor: currentStep === 1 ? 'not-allowed' : 'pointer',
+                fontSize: 13, fontWeight: 700, cursor: currentStep === 1 ? 'not-allowed' : 'pointer',
                 fontFamily: "var(--font-ar)", transition: 'all 0.2s',
               }}
             >
@@ -1367,7 +1367,7 @@ export default function AccountLinkingPage() {
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '12px 24px', borderRadius: 'var(--radius-lg)',
                   background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`,
-                  border: 'none', color: '#000', fontSize: 'var(--text-sm)', fontWeight: 800,
+                  border: 'none', color: '#000', fontSize: 13, fontWeight: 800,
                   cursor: 'pointer', fontFamily: "var(--font-ar)",
                   boxShadow: `0 0 20px ${'#00D4FF'}25`, transition: 'all 0.2s',
                 }}
@@ -1387,7 +1387,7 @@ export default function AccountLinkingPage() {
                     : `linear-gradient(135deg, ${'#00FFA3'}, ${'#00CC82'})`,
                   border: 'none',
                   color: isSubmitting || linkingStatus === 'connected' ? '#6B7280' : '#000',
-                  fontSize: 'var(--text-sm)', fontWeight: 800, cursor: isSubmitting || linkingStatus === 'connected' ? 'not-allowed' : 'pointer',
+                  fontSize: 13, fontWeight: 800, cursor: isSubmitting || linkingStatus === 'connected' ? 'not-allowed' : 'pointer',
                   fontFamily: "var(--font-ar)",
                   boxShadow: isSubmitting || linkingStatus === 'connected' ? 'none' : `0 0 20px ${'#00FFA3'}25`,
                   transition: 'all 0.2s',
@@ -1421,10 +1421,10 @@ export default function AccountLinkingPage() {
                 <Sparkles size={18} color={'#00FFA3'} />
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>
                   لماذا ربط حسابك؟
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
                   افتح كافة إمكانيات منصة رؤى بربط حساباتك
                 </div>
               </div>
@@ -1474,11 +1474,11 @@ export default function AccountLinkingPage() {
                 <Lock size={20} color={'#00D4FF'} />
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 6 }}>
                   أمان مفاتيح API
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.9 }}>
-                  نستخدم تشفير <span style={{ color: '#00D4FF', fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}>AES-256-GCM</span> لحماية مفاتيح API الخاصة بك. تُخزن المفاتيح بشكل مشفر ولا يمكن الوصول إليها إلا من قبل النظام المصرّح له.
+                <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.9 }}>
+                  نستخدم تشفير <span style={{ color: '#00D4FF', fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: 11 }}>AES-256-GCM</span> لحماية مفاتيح API الخاصة بك. تُخزن المفاتيح بشكل مشفر ولا يمكن الوصول إليها إلا من قبل النظام المصرّح له.
                   نوصي بشدة باستخدام صلاحية <span style={{ color: '#00FFA3', fontWeight: 700 }}>القراءة فقط</span> وعدم تفعيل صلاحية
                   <span style={{ color: '#FF4757', fontWeight: 700 }}> السحب (Withdraw)</span>.
                   يمكنك قطع الاتصال في أي وقت بحذف المفتاح من البورصة أو من إعدادات المنصة.
@@ -1493,7 +1493,7 @@ export default function AccountLinkingPage() {
                     <span key={idx} style={{
                       padding: '3px 10px', borderRadius: 'var(--radius-md)',
                       background: `${badge.color}10`, border: `1px solid ${badge.color}20`,
-                      fontSize: 'var(--text-xs)', fontWeight: 700, color: badge.color,
+                      fontSize: 11, fontWeight: 700, color: badge.color,
                       fontFamily: "var(--font-mono)",
                     }}>
                       {badge.label}

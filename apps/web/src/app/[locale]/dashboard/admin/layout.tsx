@@ -167,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }}>
         <div style={{ textAlign: 'center' }}>
           <Loader2 size={32} color={'#00D4FF'} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <div style={{ fontSize: 'var(--text-base)', color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>جارٍ التحقق من الهوية...</div>
+          <div style={{ fontSize: 15, color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>جارٍ التحقق من الهوية...</div>
         </div>
       </div>
     )
@@ -237,8 +237,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           {!collapsed && (
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: TEXT, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>لوحة الإدارة</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: ACCENT, fontFamily: "var(--font-mono)", fontWeight: 600 }}>ADMIN PANEL</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: TEXT, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>لوحة الإدارة</div>
+              <div style={{ fontSize: 11, color: ACCENT, fontFamily: "var(--font-mono)", fontWeight: 600 }}>ADMIN PANEL</div>
             </div>
           )}
         </div>
@@ -274,7 +274,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Icon size={16} color={active ? ACCENT : TEXT_MUTED} strokeWidth={active ? 2.2 : 1.8} />
                 {!collapsed && (
                   <span style={{
-                    fontSize: 'var(--text-xs)',
+                    fontSize: 11,
                     fontWeight: active ? 700 : 500,
                     color: active ? TEXT : TEXT_MUTED,
                     fontFamily: "var(--font-ar)",
@@ -319,7 +319,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             <LogOut size={16} />
             {!collapsed && (
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap' }}>
                 تسجيل الخروج
               </span>
             )}
@@ -377,7 +377,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Shield size={16} color={ACCENT} />
-              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: TEXT, fontFamily: "var(--font-ar)" }}>لوحة الإدارة</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, fontFamily: "var(--font-ar)" }}>لوحة الإدارة</span>
             </div>
           </div>
         )}

@@ -92,7 +92,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
         layout: {
           background: { color: '#0a0e17' },
           textColor: '#9CA3B5',
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           attributionLogo: false,
         },
         grid: {

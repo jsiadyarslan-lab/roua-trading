@@ -61,7 +61,7 @@ function ActionBadge({ action }: { action: string }) {
   const cfg = map[normAction] ?? map['HOLD']
   return (
     <span style={{
-      fontSize: 'var(--text-xs)', fontWeight: 800, padding: '2px 6px', borderRadius: 'var(--radius-xs)',
+      fontSize: 11, fontWeight: 800, padding: '2px 6px', borderRadius: 'var(--radius-xs)',
       background: cfg.bg, color: cfg.color, fontFamily: "var(--font-ar)",
     }}>
       {t(cfg.key)}
@@ -129,13 +129,13 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div>
             <div style={{
-              fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5',
+              fontSize: 13, fontWeight: 800, color: '#F0F2F5',
               fontFamily: "var(--font-mono)",
             }}>
               {item.symbol}
             </div>
             <div style={{
-              fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600,
+              fontSize: 11, color: '#6B7280', fontWeight: 600,
               fontFamily: "var(--font-ar)",
             }}>
               {getLocalizedAssetName(item.symbol, safeStr(item.name), t, locale)}
@@ -152,10 +152,10 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* Change% */}
       <td style={{ padding: '8px 8px', borderBottom: `1px solid ${'#2A313C'}` }}>
-        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
           {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
         </div>
-        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
           ${item.price > 0 ? item.price.toLocaleString() : '—'}
         </div>
       </td>
@@ -181,7 +181,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* Stoch */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}`, textAlign: 'center' }}>
-        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>
           {item.stochK !== null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'}
         </div>
       </td>
@@ -189,7 +189,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       {/* ADX */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}`, textAlign: 'center' }}>
         <span style={{
-          fontSize: 'var(--text-xs)', fontWeight: 800,
+          fontSize: 11, fontWeight: 800,
           color: (item.adx ?? 0) > 25 ? '#00FFA3' : '#6B7280',
           fontFamily: "var(--font-mono)",
         }}>
@@ -209,14 +209,14 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}`, textAlign: 'center' }}>
         {aiOpinionText ? (
           <div style={{
-            fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00D4FF',
+            fontSize: 11, fontWeight: 700, color: '#00D4FF',
             fontFamily: "var(--font-ar)",
             lineHeight: 1.4,
           }}>
             {safeStr(aiOpinionText)}
           </div>
         ) : (
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>—</span>
+          <span style={{ fontSize: 11, color: '#6B7280' }}>—</span>
         )}
       </td>
 

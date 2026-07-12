@@ -80,7 +80,7 @@ export function PortfolioSparkline({
           alignItems: 'center',
           justifyContent: 'center',
           color: '#6F849C',
-          fontSize: 'var(--text-sm)',
+          fontSize: 13,
           fontFamily: "var(--font-mono)",
         }}
       >

@@ -91,7 +91,7 @@ export function AutonomousAgentTab({ settings, update }: AutonomousAgentTabProps
               width: 200, padding: "4px 8px", borderRadius: 'var(--radius-md)',
               background: "rgba(255,255,255,0.03)",
               border: `1px solid ${COLORS.border}`,
-              color: COLORS.textPrimary, fontSize: 'var(--text-xs)',
+              color: COLORS.textPrimary, fontSize: 11,
               fontFamily: "var(--font-mono)",
               outline: "none",
             }}

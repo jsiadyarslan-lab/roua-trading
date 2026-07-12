@@ -170,8 +170,8 @@ export default function AdminOverviewPage() {
       {/* Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>نظرة عامة على النظام</h1>
-          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>لوحة تحكم الإدارة المركزية</p>
+          <h1 style={{ fontSize: 19, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>نظرة عامة على النظام</h1>
+          <p style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>لوحة تحكم الإدارة المركزية</p>
         </div>
         <button
           onClick={fetchAll}
@@ -179,7 +179,7 @@ export default function AdminOverviewPage() {
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px', borderRadius: 'var(--radius-md)',
             border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-            color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
+            color: COLORS.accent, fontSize: 13, fontWeight: 600,
             fontFamily: "var(--font-ar)", cursor: 'pointer',
             transition: 'all 0.2s',
           }}
@@ -197,7 +197,7 @@ export default function AdminOverviewPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <AlertCircle size={16} color={COLORS.danger} />
-            <span style={{ fontSize: 'var(--text-sm)', color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 13, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
               {error}
             </span>
           </div>
@@ -206,7 +206,7 @@ export default function AdminOverviewPage() {
             style={{
               padding: '4px 10px', borderRadius: 'var(--radius-sm)',
               border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
-              color: COLORS.danger, fontSize: 'var(--text-xs)', fontWeight: 600,
+              color: COLORS.danger, fontSize: 11, fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
@@ -223,7 +223,7 @@ export default function AdminOverviewPage() {
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           <Shield size={16} color={COLORS.amber} />
-          <span style={{ fontSize: 'var(--text-sm)', color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 13, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
             {stats.error} — البيانات المعروضة قد لا تكون مكتملة
           </span>
         </div>
@@ -249,9 +249,9 @@ export default function AdminOverviewPage() {
               }} />
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{card.label}</div>
-                  <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: COLORS.text, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 6 }}>{card.sub}</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{card.label}</div>
+                  <div style={{ fontSize: 27, fontWeight: 800, color: COLORS.text, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 6 }}>{card.sub}</div>
                 </div>
                 <div style={{
                   width: 40, height: 40, borderRadius: 'var(--radius-lg)',
@@ -288,8 +288,8 @@ export default function AdminOverviewPage() {
             }}>
               <Icon size={14} color={item.color} />
               <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{item.label}</div>
-                <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: item.color, fontFamily: "var(--font-mono)" }}>{item.value}</div>
+                <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{item.label}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: item.color, fontFamily: "var(--font-mono)" }}>{item.value}</div>
               </div>
             </div>
           )
@@ -309,11 +309,11 @@ export default function AdminOverviewPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Server size={14} color={COLORS.accent} />
-              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>صحة النظام</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>صحة النظام</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: COLORS.success, boxShadow: `0 0 6px ${COLORS.success}` }} />
-              <span style={{ fontSize: 'var(--text-xs)', color: COLORS.success, fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+              <span style={{ fontSize: 11, color: COLORS.success, fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                 وقت التشغيل: {stats?.system.uptime ?? '—'}
               </span>
             </div>
@@ -335,12 +335,12 @@ export default function AdminOverviewPage() {
                     background: ep.status === 'healthy' ? COLORS.success : ep.status === 'warning' ? COLORS.amber : COLORS.danger,
                     boxShadow: `0 0 6px ${ep.status === 'healthy' ? COLORS.success : ep.status === 'warning' ? COLORS.amber : COLORS.danger}`,
                   }} />
-                  <span style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">{ep.path}</span>
+                  <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">{ep.path}</span>
                 </div>
-                <span style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: COLORS.muted }}>{ep.responseTime}ms</span>
+                <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: COLORS.muted }}>{ep.responseTime}ms</span>
               </div>
             )) : (
-              <div style={{ textAlign: 'center', padding: 20, color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>
+              <div style={{ textAlign: 'center', padding: 20, color: COLORS.muted, fontSize: 13, fontFamily: "var(--font-ar)" }}>
                 {loading ? 'جارٍ التحميل...' : 'لا توجد بيانات'}
               </div>
             )}
@@ -357,7 +357,7 @@ export default function AdminOverviewPage() {
             gap: 8,
           }}>
             <Activity size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>النشاط الأخير</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>النشاط الأخير</span>
           </div>
           <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }} className="custom-scrollbar">
             {activities.length > 0 ? activities.map((item) => {
@@ -372,24 +372,24 @@ export default function AdminOverviewPage() {
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
                 }}>
-                  <div style={{ fontSize: 'var(--text-base)', flexShrink: 0 }}>{act.icon}</div>
+                  <div style={{ fontSize: 15, flexShrink: 0 }}>{act.icon}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.text, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: 11, color: COLORS.text, fontFamily: "var(--font-ar)", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {item.action} — {item.resource}
                       {item.details && <span style={{ color: COLORS.muted }}> {item.details}</span>}
                     </div>
                     {item.userEmail && (
-                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }} dir="ltr">{item.userEmail}</div>
+                      <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }} dir="ltr">{item.userEmail}</div>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                     <Clock size={10} color={COLORS.muted} />
-                    <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{timeAgo(item.createdAt)}</span>
+                    <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{timeAgo(item.createdAt)}</span>
                   </div>
                 </div>
               )
             }) : (
-              <div style={{ textAlign: 'center', padding: 20, color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>
+              <div style={{ textAlign: 'center', padding: 20, color: COLORS.muted, fontSize: 13, fontFamily: "var(--font-ar)" }}>
                 {loading ? 'جارٍ التحميل...' : 'لا يوجد نشاط مسجل بعد'}
               </div>
             )}
@@ -401,7 +401,7 @@ export default function AdminOverviewPage() {
       <div style={{ ...CARD_STYLE, padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <Zap size={14} color={COLORS.amber} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إجراءات سريعة</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إجراءات سريعة</span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[
@@ -423,7 +423,7 @@ export default function AdminOverviewPage() {
                   padding: '8px 14px', borderRadius: 'var(--radius-md)',
                   border: `1px solid ${action.color}25`,
                   background: `${action.color}08`,
-                  color: action.color, fontSize: 'var(--text-xs)', fontWeight: 600,
+                  color: action.color, fontSize: 11, fontWeight: 600,
                   fontFamily: "var(--font-ar)", cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}

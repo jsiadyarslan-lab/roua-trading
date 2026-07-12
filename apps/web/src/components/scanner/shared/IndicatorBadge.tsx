@@ -29,11 +29,11 @@ export function IndicatorBadge({ label, value, status = 'neutral' }: IndicatorBa
       padding: '2px 8px', borderRadius: 'var(--radius-sm)',
       background: s.bg, color: s.color,
       border: `0.5px solid ${s.border}`,
-      fontSize: 'var(--text-xs)', fontWeight: 700,
+      fontSize: 11, fontWeight: 700,
       fontFamily: "var(--font-mono)",
       lineHeight: '16px', whiteSpace: 'nowrap',
     }}>
-      <span style={{ color: '#9CA3B5', fontWeight: 600, fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)' }}>
+      <span style={{ color: '#9CA3B5', fontWeight: 600, fontFamily: "var(--font-ar)", fontSize: 11 }}>
         {label}
       </span>
       {displayValue}

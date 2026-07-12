@@ -182,7 +182,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
           background: 'rgba(0,212,255,0.1)',
           border: '1px solid rgba(0,212,255,0.25)',
           borderRadius: 'var(--radius-sm)', padding: '3px 8px',
-          fontSize: 'var(--text-xs)', fontWeight: 700, color: C.cyan,
+          fontSize: 11, fontWeight: 700, color: C.cyan,
           fontFamily: "var(--font-mono)",
           flexShrink: 0,
         }}>
@@ -200,7 +200,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
               color: replayIndex <= 1 ? C.textMuted : C.text,
-              fontSize: 'var(--text-sm)', cursor: replayIndex <= 1 ? 'not-allowed' : 'pointer',
+              fontSize: 13, cursor: replayIndex <= 1 ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
             title={t('previousBar')}
@@ -216,7 +216,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               background: isPlaying ? 'rgba(251,191,36,0.15)' : 'rgba(0,255,163,0.15)',
               border: `1px solid ${isPlaying ? 'rgba(251,191,36,0.3)' : 'rgba(0,255,163,0.3)'}`,
               color: isPlaying ? C.warning : C.success,
-              fontSize: 'var(--text-sm)', cursor: 'pointer',
+              fontSize: 13, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
               fontWeight: 700,
             }}
@@ -234,7 +234,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
               color: replayIndex >= totalCandles ? C.textMuted : C.text,
-              fontSize: 'var(--text-sm)', cursor: replayIndex >= totalCandles ? 'not-allowed' : 'pointer',
+              fontSize: 13, cursor: replayIndex >= totalCandles ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
             title={t('nextBar')}
@@ -250,7 +250,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               background: 'rgba(255,71,87,0.08)',
               border: '1px solid rgba(255,71,87,0.15)',
               color: C.danger,
-              fontSize: 'var(--text-xs)', cursor: 'pointer',
+              fontSize: 11, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
             title={t('stopShowAll')}
@@ -270,7 +270,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
                 background: speed === s.value ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${speed === s.value ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
                 borderRadius: 'var(--radius-xs)', color: speed === s.value ? C.cyan : C.textDim,
-                fontSize: 'var(--text-xs)', fontWeight: speed === s.value ? 700 : 500,
+                fontSize: 11, fontWeight: speed === s.value ? 700 : 500,
                 cursor: 'pointer', fontFamily: "var(--font-mono)",
                 transition: 'all 0.1s ease',
               }}
@@ -284,7 +284,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
         {currentCandle && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+            fontSize: 11, fontFamily: "var(--font-mono)",
             color: C.textDim, flexShrink: 0,
           }}>
             <span style={{ color: C.cyan }}>{formatDateTime(currentCandle.time)}</span>
@@ -301,7 +301,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
 
         {/* Bar counter */}
         <div style={{
-          fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+          fontSize: 11, fontFamily: "var(--font-mono)",
           color: C.textMuted, flexShrink: 0,
         }}>
           {replayIndex}/{totalCandles}
@@ -313,7 +313,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
           style={{
             width: 22, height: 22, borderRadius: 'var(--radius-sm)',
             background: 'rgba(255,255,255,0.04)', border: 'none',
-            color: C.textMuted, fontSize: 'var(--text-xs)', cursor: 'pointer',
+            color: C.textMuted, fontSize: 11, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
           }}
           title={t('closeReplay')}

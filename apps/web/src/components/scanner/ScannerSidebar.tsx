@@ -47,11 +47,11 @@ export function ScannerSidebar() {
       <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <ScanSearch size={20} color={'#00D4FF'} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
             {t('advancedScanner')}
           </span>
         </div>
-        <p style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.5, fontFamily: "var(--font-ar)", margin: 0 }}>
+        <p style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.5, fontFamily: "var(--font-ar)", margin: 0 }}>
           {t('subtitle')}
         </p>
       </div>
@@ -74,7 +74,7 @@ export function ScannerSidebar() {
             >
               <span style={{ display: 'flex', color: active ? '#00D4FF' : '#6B7280' }}>{item.icon}</span>
               <span style={{
-                fontSize: 'var(--text-xs)', fontWeight: active ? 700 : 600,
+                fontSize: 11, fontWeight: active ? 700 : 600,
                 fontFamily: "var(--font-ar)",
               }}>
                 {item.label}
@@ -96,12 +96,12 @@ export function ScannerSidebar() {
               width: 6, height: 6, borderRadius: '50%', background: '#00FFA3',
               boxShadow: `0 0 6px ${'#00FFA3'}60`,
             }} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00FFA3', fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#00FFA3', fontFamily: "var(--font-ar)" }}>
               {t('live')}
             </span>
           </div>
           <span style={{
-            fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5',
+            fontSize: 11, fontWeight: 700, color: '#9CA3B5',
             fontFamily: "var(--font-mono)",
           }}>
             {mins}:{secs.toString().padStart(2, '0')}
@@ -114,7 +114,7 @@ export function ScannerSidebar() {
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '6px 0', borderRadius: 'var(--radius-sm)', border: `0.5px solid ${'#2A313C'}`,
-            background: '#151A22', color: '#9CA3B5', cursor: 'pointer', fontSize: 'var(--text-xs)',
+            background: '#151A22', color: '#9CA3B5', cursor: 'pointer', fontSize: 11,
             fontFamily: "var(--font-ar)", fontWeight: 700, transition: 'all 0.2s',
           }}
         >
@@ -123,7 +123,7 @@ export function ScannerSidebar() {
 
         {/* Last update */}
         {lastUpdate && (
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", textAlign: 'center' }}>
+          <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-ar)", textAlign: 'center' }}>
             {t('lastUpdate')} {formatTime(lastUpdate)}
           </span>
         )}
@@ -131,7 +131,7 @@ export function ScannerSidebar() {
         {/* Badge */}
         <span style={{
           display: 'inline-block', textAlign: 'center', padding: '3px 8px',
-          borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 800,
+          borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 800,
           fontFamily: "var(--font-ar)", color: '#00D4FF',
           background: `${'#00D4FF'}10`, border: `0.5px solid ${'#3A4150'}`,
         }}>

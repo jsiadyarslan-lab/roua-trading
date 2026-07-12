@@ -41,8 +41,8 @@ export function SectionCard({
             </div>
           )}
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.textPrimary, letterSpacing: "-0.01em" }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, marginTop: 2 }}>{subtitle}</div>}
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.textPrimary, letterSpacing: "-0.01em" }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{subtitle}</div>}
           </div>
         </div>
       )}
@@ -67,8 +67,8 @@ export function SettingRow({
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
         {icon && <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{icon}</div>}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.textPrimary }}>{label}</div>
-          {description && <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textPrimary }}>{label}</div>
+          {description && <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
         </div>
       </div>
       {children && <div style={{ flexShrink: 0 }}>{children}</div>}
@@ -169,13 +169,13 @@ export function NumberInput({
           width: 60, padding: "4px 8px", borderRadius: 'var(--radius-md)',
           background: "rgba(255,255,255,0.03)",
           border: `1px solid ${COLORS.border}`,
-          color: COLORS.textPrimary, fontSize: 'var(--text-sm)',
+          color: COLORS.textPrimary, fontSize: 13,
           fontFamily: "var(--font-mono)",
           textAlign: "center", outline: "none",
         }}
         dir="ltr"
       />
-      {suffix && <span style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, fontWeight: 600 }}>{suffix}</span>}
+      {suffix && <span style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: 600 }}>{suffix}</span>}
     </div>
   );
 }
@@ -196,7 +196,7 @@ export function SaveStatusBar({ status }: { status: "idle" | "saving" | "saved" 
       padding: "2px 8px", borderRadius: 'var(--radius-sm)',
       background: `${config.color}15`,
       border: `1px solid ${config.color}30`,
-      color: config.color, fontSize: 'var(--text-xs)', fontWeight: 700,
+      color: config.color, fontSize: 11, fontWeight: 700,
     }}>
       {config.text}
     </div>

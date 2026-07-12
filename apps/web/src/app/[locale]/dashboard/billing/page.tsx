@@ -108,7 +108,7 @@ function StatusBadge({ status, label }: { status: BillingRecord['status']; label
     <span style={{
       padding: '2px 8px', borderRadius: 'var(--radius-sm)',
       background: c.bg, color: c.text,
-      fontSize: 'var(--text-xs)', fontWeight: 700,
+      fontSize: 11, fontWeight: 700,
       fontFamily: "var(--font-ar)",
       border: `1px solid ${c.border}`,
       display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -230,10 +230,10 @@ export default function BillingPage() {
             <CreditCard size={18} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5' }}>
+            <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: '#F0F2F5' }}>
               {t('title')}
             </h1>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+            <p style={{ margin: 0, fontSize: 11, color: '#6B7280' }}>
               {t('subtitleFull')}
             </p>
           </div>
@@ -246,7 +246,7 @@ export default function BillingPage() {
             {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={13} color={roleInfo.color} /> :
              userTier === 'PRO' ? <Star size={13} color={roleInfo.color} /> :
              <Crown size={13} color={roleInfo.color} />}
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: roleInfo.color, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: roleInfo.color, fontFamily: "var(--font-ar)" }}>
               {tc(roleInfo.labelKey)}
             </span>
           </div>
@@ -285,17 +285,17 @@ export default function BillingPage() {
                  <Crown size={24} color="#fff" />}
               </div>
               <div style={{ flex: 1, minWidth: 120 }}>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 19, fontWeight: 900, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8 }}>
                   {t('currentPlanLabel', { plan: tc(roleInfo.labelKey) })}
                   {userTier === 'FREE' && (
                     <span style={{
-                      fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
+                      fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-lg)',
                       background: `${'#00D4FF'}12`, color: '#00D4FF',
                       fontFamily: "var(--font-ar)", fontWeight: 700,
                     }}>{tc('upgradeAvailable')}</span>
                   )}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', marginTop: 4, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4, lineHeight: 1.6 }}>
                   {tc(roleInfo.descriptionKey)} — {t('currentlyOnPlan', { plan: tc(roleInfo.labelKey) })}
                   {userTier !== 'INSTITUTIONAL' && t('upgradeAnytime')}
                   {userTier === 'INSTITUTIONAL' && t('highestServiceLevel')}
@@ -303,12 +303,12 @@ export default function BillingPage() {
               </div>
               <div style={{ textAlign: 'center', flexShrink: 0 }}>
                 <div style={{
-                  fontSize: 'var(--text-2xl)', fontWeight: 900, color: roleInfo.color,
+                  fontSize: 27, fontWeight: 900, color: roleInfo.color,
                   fontFamily: "var(--font-mono)",
                 }}>
                   {PLANS.find(p => p.id === userTier)?.price || 0}
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>
                   {tc('perMonth')}
                 </div>
               </div>
@@ -322,7 +322,7 @@ export default function BillingPage() {
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
                 <Clock size={14} color={roleInfo.color} />
-                <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.5 }}>
                   <span style={{ fontWeight: 700, color: '#F0F2F5' }}>{t('nextPayment')}</span>
                   {' '}{t('nextPaymentDate')} — {t('autoRenewAt')}{' '}
                   <span style={{ color: roleInfo.color, fontFamily: "var(--font-mono)", fontWeight: 700 }}>
@@ -345,8 +345,8 @@ export default function BillingPage() {
               <Sparkles size={14} color={'#B388FF'} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('plansTitle')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('plansSubtitleFull')}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>{t('plansTitle')}</div>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>{t('plansSubtitleFull')}</div>
             </div>
           </div>
 
@@ -374,7 +374,7 @@ export default function BillingPage() {
                       position: 'absolute', top: 12, left: 12,
                       padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                       background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`,
-                      color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800,
+                      color: '#000', fontSize: 11, fontWeight: 800,
                       fontFamily: "var(--font-ar)",
                       boxShadow: `0 0 12px ${'#00D4FF'}30`,
                     }}>
@@ -388,7 +388,7 @@ export default function BillingPage() {
                       position: 'absolute', top: 12, left: 12,
                       padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                       background: `linear-gradient(135deg, ${'#FFB800'}, #FF8C00)`,
-                      color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800,
+                      color: '#000', fontSize: 11, fontWeight: 800,
                       fontFamily: "var(--font-ar)",
                     }}>
                       {plan.badge}
@@ -407,7 +407,7 @@ export default function BillingPage() {
                         {plan.icon}
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 15, fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           {plan.name}
                         </div>
                       </div>
@@ -416,19 +416,19 @@ export default function BillingPage() {
                     {/* Price */}
                     <div style={{ marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 4 }}>
                       <span style={{
-                        fontSize: 'var(--text-2xl)', fontWeight: 900, color: plan.color,
+                        fontSize: 27, fontWeight: 900, color: plan.color,
                         fontFamily: "var(--font-mono)", lineHeight: 1,
                       }}>
                         ${plan.price}
                       </span>
-                      <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>
                         /{plan.period}
                       </span>
                     </div>
 
                     {/* Description */}
                     <div style={{
-                      fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.7,
+                      fontSize: 11, color: '#6B7280', lineHeight: 1.7,
                       marginBottom: 14, minHeight: 55,
                     }}>
                       {plan.description.slice(0, 100)}...
@@ -439,7 +439,7 @@ export default function BillingPage() {
                       {plan.features.map((feat, fi) => (
                         <div key={fi} style={{
                           display: 'flex', alignItems: 'center', gap: 6,
-                          fontSize: 'var(--text-xs)', color: feat.included ? '#9CA3B5' : '#6B7280',
+                          fontSize: 11, color: feat.included ? '#9CA3B5' : '#6B7280',
                           textDecoration: feat.included ? 'none' : 'line-through',
                           opacity: feat.included ? 1 : 0.5,
                         }}>
@@ -458,7 +458,7 @@ export default function BillingPage() {
                       <div style={{
                         padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                         background: `${plan.color}10`, border: `1px solid ${plan.color}20`,
-                        color: plan.color, fontSize: 'var(--text-sm)', fontWeight: 700,
+                        color: plan.color, fontSize: 13, fontWeight: 700,
                         textAlign: 'center', fontFamily: "var(--font-ar)",
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       }}>
@@ -474,7 +474,7 @@ export default function BillingPage() {
                           background: isDowngrade ? '#151A22' : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
                           border: isDowngrade ? `1px solid ${'#3A4150'}` : 'none',
                           color: isDowngrade ? '#00D4FF' : '#000',
-                          fontSize: 'var(--text-sm)', fontWeight: 800, cursor: upgrading === plan.id ? 'wait' : 'pointer',
+                          fontSize: 13, fontWeight: 800, cursor: upgrading === plan.id ? 'wait' : 'pointer',
                           fontFamily: "var(--font-ar)",
                           transition: 'all 0.2s',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -509,8 +509,8 @@ export default function BillingPage() {
               <Wallet size={14} color={'#00FFA3'} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('paymentMethods')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>{t('paymentMethods')}</div>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>
                 {t('paymentMethodsSubtitle')}
               </div>
             </div>
@@ -536,11 +536,11 @@ export default function BillingPage() {
                     transition: 'all 0.3s',
                   }} />
                   <CreditCard size={16} color={selectedPayment === 'card' ? '#00D4FF' : '#6B7280'} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'card' ? '#F0F2F5' : '#6B7280' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: selectedPayment === 'card' ? '#F0F2F5' : '#6B7280' }}>
                     {t('creditDebit')}
                   </span>
                   <span style={{
-                    marginRight: 'auto', fontSize: 'var(--text-xs)', padding: '2px 7px',
+                    marginRight: 'auto', fontSize: 11, padding: '2px 7px',
                     borderRadius: 'var(--radius-lg)', background: `${'#00FFA3'}12`, color: '#00FFA3',
                     fontWeight: 600, fontFamily: "var(--font-mono)",
                   }}>
@@ -566,13 +566,13 @@ export default function BillingPage() {
                     }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <div style={{
-                        fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00D4FF',
+                        fontSize: 11, fontWeight: 700, color: '#00D4FF',
                         fontFamily: "var(--font-mono)",
                       }}>VISA</div>
                       <Lock size={12} color={'#6B7280'} />
                     </div>
                     <div style={{
-                      fontSize: 'var(--text-base)', fontWeight: 600, color: '#F0F2F5',
+                      fontSize: 15, fontWeight: 600, color: '#F0F2F5',
                       fontFamily: "var(--font-mono)",
                       letterSpacing: 2, marginBottom: 12,
                       direction: 'ltr', textAlign: 'left',
@@ -581,12 +581,12 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{t('cardHolder')}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 600 }}>{user?.displayName || 'ROUA USER'}</div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>{t('cardHolder')}</div>
+                        <div style={{ fontSize: 11, color: '#9CA3B5', fontWeight: 600 }}>{user?.displayName || 'ROUA USER'}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{t('expiry')}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>{cardExpiry}</div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>{t('expiry')}</div>
+                        <div style={{ fontSize: 11, color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>{cardExpiry}</div>
                       </div>
                     </div>
                   </div>
@@ -594,7 +594,7 @@ export default function BillingPage() {
                   {/* Card Form (visual only) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4, display: 'block' }}>{t('cardNumber')}</label>
+                      <label style={{ fontSize: 11, color: '#6B7280', marginBottom: 4, display: 'block' }}>{t('cardNumber')}</label>
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         background: '#151A22', border: `1px solid ${'#2A313C'}`,
@@ -606,7 +606,7 @@ export default function BillingPage() {
                           onChange={e => setCardNumber(e.target.value)}
                           style={{
                             flex: 1, background: 'none', border: 'none',
-                            color: '#F0F2F5', fontSize: 'var(--text-sm)',
+                            color: '#F0F2F5', fontSize: 13,
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -622,7 +622,7 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4, display: 'block' }}>{t('expiryDate')}</label>
+                        <label style={{ fontSize: 11, color: '#6B7280', marginBottom: 4, display: 'block' }}>{t('expiryDate')}</label>
                         <input
                           type="text"
                           value={cardExpiry}
@@ -630,7 +630,7 @@ export default function BillingPage() {
                           style={{
                             width: '100%', background: '#151A22',
                             border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)',
-                            padding: '8px 12px', color: '#F0F2F5', fontSize: 'var(--text-sm)',
+                            padding: '8px 12px', color: '#F0F2F5', fontSize: 13,
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -638,7 +638,7 @@ export default function BillingPage() {
                         />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4, display: 'block' }}>CVC</label>
+                        <label style={{ fontSize: 11, color: '#6B7280', marginBottom: 4, display: 'block' }}>CVC</label>
                         <input
                           type="text"
                           value={cardCvc}
@@ -646,7 +646,7 @@ export default function BillingPage() {
                           style={{
                             width: '100%', background: '#151A22',
                             border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)',
-                            padding: '8px 12px', color: '#F0F2F5', fontSize: 'var(--text-sm)',
+                            padding: '8px 12px', color: '#F0F2F5', fontSize: 13,
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -676,11 +676,11 @@ export default function BillingPage() {
                     transition: 'all 0.3s',
                   }} />
                   <Bitcoin size={16} color={selectedPayment === 'crypto' ? '#FFB800' : '#6B7280'} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'crypto' ? '#F0F2F5' : '#6B7280' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: selectedPayment === 'crypto' ? '#F0F2F5' : '#6B7280' }}>
                     {t('cryptoPay')}
                   </span>
                   <span style={{
-                    marginRight: 'auto', fontSize: 'var(--text-xs)', padding: '2px 7px',
+                    marginRight: 'auto', fontSize: 11, padding: '2px 7px',
                     borderRadius: 'var(--radius-lg)', background: `${'#FFB800'}12`, color: '#FFB800',
                     fontWeight: 600,
                   }}>
@@ -696,7 +696,7 @@ export default function BillingPage() {
                     background: `${'#FFB800'}06`, border: `1px solid ${'#FFB800'}12`,
                     marginBottom: 14,
                   }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.7 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.7 }}>
                       {t('cryptoPayDesc')}
                     </div>
                   </div>
@@ -726,8 +726,8 @@ export default function BillingPage() {
                           {coin.icon}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5' }}>{coin.name}</div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>{coin.symbol}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5' }}>{coin.name}</div>
+                          <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>{coin.symbol}</div>
                         </div>
                         <ArrowUpRight size={14} color={'#6B7280'} />
                       </div>
@@ -750,8 +750,8 @@ export default function BillingPage() {
               <Receipt size={14} color={'#0A84FF'} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('invoiceHistory')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>{t('invoiceHistory')}</div>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>
                 {t('invoiceSubtitle')}
               </div>
             </div>
@@ -762,13 +762,13 @@ export default function BillingPage() {
             borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             <div className="billing-table-wrap">
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${'#2A313C'}` }}>
                     {[t('tableDate'), t('tableDescription'), t('tableAmount'), t('tableStatus'), ''].map(h => (
                       <th key={h} style={{
                         padding: '12px 16px', textAlign: 'right',
-                        fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280',
+                        fontSize: 11, fontWeight: 700, color: '#6B7280',
                         fontFamily: "var(--font-ar)",
                         letterSpacing: '0.05em',
                       }}>
@@ -787,19 +787,19 @@ export default function BillingPage() {
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 11, color: '#9CA3B5', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.date}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', fontWeight: 600 }}>{record.description}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 11, color: '#F0F2F5', fontWeight: 600 }}>{record.description}</div>
+                        <div style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.id}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span style={{
-                          fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5',
+                          fontSize: 13, fontWeight: 700, color: '#F0F2F5',
                           fontFamily: "var(--font-mono)",
                         }}>
                           {record.amount}
@@ -814,7 +814,7 @@ export default function BillingPage() {
                             style={{
                               background: 'none', border: `1px solid ${'#2A313C'}`,
                               borderRadius: 'var(--radius-sm)', padding: '4px 8px',
-                              color: '#6B7280', fontSize: 'var(--text-xs)', cursor: 'pointer',
+                              color: '#6B7280', fontSize: 11, cursor: 'pointer',
                               display: 'flex', alignItems: 'center', gap: 4,
                               fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
@@ -840,10 +840,10 @@ export default function BillingPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               background: `${'#151A22'}30`,
             }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>
                 {t('lastTransactions', { n: billingHistory.length })}
               </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 11, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FileText size={10} />
                 {t('totalPayments')}: <span style={{ color: '#F0F2F5', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                   ${billingHistory.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.amount.replace('$', '')), 0).toFixed(2)}
@@ -868,8 +868,8 @@ export default function BillingPage() {
                 <Gift size={18} color={'#F472B6'} />
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('promoCode')}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>{t('promoCode')}</div>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>
                   {t('promoDesc')}
                 </div>
               </div>
@@ -894,7 +894,7 @@ export default function BillingPage() {
                   maxLength={20}
                   style={{
                     flex: 1, background: 'none', border: 'none',
-                    color: '#F0F2F5', fontSize: 'var(--text-sm)',
+                    color: '#F0F2F5', fontSize: 13,
                     fontFamily: "var(--font-mono)",
                     outline: 'none', padding: '8px 0',
                     direction: 'ltr', textAlign: 'right',
@@ -910,7 +910,7 @@ export default function BillingPage() {
                   padding: '10px 24px', borderRadius: 'var(--radius-lg)',
                   background: `linear-gradient(135deg, ${'#F472B6'}, ${'#B388FF'})`,
                   border: 'none', color: '#fff',
-                  fontSize: 'var(--text-sm)', fontWeight: 800, cursor: promoApplying ? 'wait' : 'pointer',
+                  fontSize: 13, fontWeight: 800, cursor: promoApplying ? 'wait' : 'pointer',
                   fontFamily: "var(--font-ar)",
                   transition: 'all 0.2s',
                   boxShadow: `0 0 16px ${'#F472B6'}20`,
@@ -924,7 +924,7 @@ export default function BillingPage() {
 
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Shield size={12} color={'#6B7280'} />
-              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+              <span style={{ fontSize: 11, color: '#6B7280' }}>
                 {t('allEncrypted')}
               </span>
             </div>
@@ -956,8 +956,8 @@ export default function BillingPage() {
                 {item.icon}
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5', marginBottom: 2 }}>{item.label}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.5 }}>{item.desc}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#F0F2F5', marginBottom: 2 }}>{item.label}</div>
+                <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.5 }}>{item.desc}</div>
               </div>
             </div>
           ))}

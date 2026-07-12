@@ -254,11 +254,11 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 'var(--text-xs)' }}>📈</span>
-          <span style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 11 }}>📈</span>
+          <span style={{ fontSize: 11, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {tc('patternProgress')}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 11, color: C.textMuted, fontFamily: "var(--font-mono)" }}>
             {symbol}
           </span>
         </div>
@@ -269,7 +269,7 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
               background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-xs)',
               color: C.textMuted, width: 16, height: 16, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 'var(--text-xs)', padding: 0,
+              fontSize: 11, padding: 0,
             }}
           >
             ✕
@@ -285,13 +285,13 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
             <div key={p.name} style={{
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span style={{ fontSize: 'var(--text-xs)', flexShrink: 0 }}>{p.icon}</span>
+              <span style={{ fontSize: 11, flexShrink: 0 }}>{p.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 11, color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                     {p.nameAr}
                   </span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: getDirectionColor(p.direction), fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                  <span style={{ fontSize: 11, color: getDirectionColor(p.direction), fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                     {p.expectedMove}
                   </span>
                 </div>
@@ -309,7 +309,7 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
                 </div>
               </div>
               <span style={{
-                fontSize: 'var(--text-xs)', color: progressColor, fontWeight: 800,
+                fontSize: 11, color: progressColor, fontWeight: 800,
                 fontFamily: "var(--font-mono)",
                 minWidth: 28, textAlign: 'left', flexShrink: 0,
               }}>

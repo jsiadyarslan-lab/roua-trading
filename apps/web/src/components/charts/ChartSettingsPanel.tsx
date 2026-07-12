@@ -75,7 +75,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
   });
 
   const sectionTitle: React.CSSProperties = {
-    fontSize: 'var(--text-xs)',
+    fontSize: 11,
     color: COLORS.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -93,7 +93,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
   };
 
   const settingLabel: React.CSSProperties = {
-    fontSize: 'var(--text-xs)',
+    fontSize: 11,
     color: COLORS.textSecondary,
     fontFamily: "var(--font-ar)",
   };
@@ -133,11 +133,11 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLORS.cyan} strokeWidth="2">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span style={{ fontSize: 'var(--text-sm)', color: COLORS.text, fontWeight: 800, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 800, fontFamily: "var(--font-ar)" }}>
             {t('chartSettings')}
           </span>
         </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 'var(--text-base)', lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>✕</button>
       </div>
 
       {/* Tabs */}
@@ -161,8 +161,8 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               gap: 2,
             }}
           >
-            <span style={{ fontSize: 'var(--text-sm)' }}>{tab.icon}</span>
-            <span style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", fontWeight: 700 }}>{tab.label}</span>
+            <span style={{ fontSize: 13 }}>{tab.icon}</span>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-ar)", fontWeight: 700 }}>{tab.label}</span>
           </button>
         ))}
       </div>
@@ -196,7 +196,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.up }} />
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.down }} />
                   </div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textSecondary, fontFamily: "var(--font-ar)", fontWeight: 600 }}>{theme.name}</div>
+                  <div style={{ fontSize: 11, color: COLORS.textSecondary, fontFamily: "var(--font-ar)", fontWeight: 600 }}>{theme.name}</div>
                 </button>
               ))}
             </div>
@@ -303,7 +303,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
             ].map(opt => (
               <div key={opt.key} style={settingRow}>
                 <span style={{ ...settingLabel, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 'var(--text-base)' }}>{opt.icon}</span>
+                  <span style={{ fontSize: 15 }}>{opt.icon}</span>
                   {opt.label}
                 </span>
                 <div
@@ -327,7 +327,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         {activeTab === 'behavior' && (
           <>
             <div style={sectionTitle}>{t('keyboardShortcuts')}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, lineHeight: 1.8, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 11, color: COLORS.textMuted, lineHeight: 1.8, fontFamily: "var(--font-mono)" }}>
               <div><span style={{ color: COLORS.cyan }}>Space</span> {t('toggleUpdates')}</div>
               <div><span style={{ color: COLORS.cyan }}>+ / -</span> {t('zoomInOut')}</div>
               <div><span style={{ color: COLORS.cyan }}>R</span> {t('resetView')}</div>
@@ -348,7 +348,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <span style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
           ROUA Chart v5
         </span>
         <button
@@ -373,7 +373,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
             border: `1px solid ${COLORS.danger}`,
             borderRadius: 'var(--radius-sm)',
             color: COLORS.danger,
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             cursor: 'pointer',
             fontFamily: "var(--font-ar)",
             fontWeight: 700,

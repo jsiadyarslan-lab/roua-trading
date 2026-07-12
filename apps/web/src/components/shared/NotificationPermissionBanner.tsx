@@ -108,13 +108,13 @@ export default function NotificationPermissionBanner() {
           {/* Content */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{
-              fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5',
+              fontSize: 13, fontWeight: 800, color: '#F0F2F5',
               margin: 0, lineHeight: 1.4,
             }}>
               {tn('enableDeviceNotifications')}
             </p>
             <p style={{
-              fontSize: 'var(--text-xs)', color: 'rgba(235,235,245,0.5)',
+              fontSize: 11, color: 'rgba(235,235,245,0.5)',
               margin: '2px 0 0 0', lineHeight: 1.4,
             }}>
               {tn('receiveAlertsInstantly')}
@@ -131,7 +131,7 @@ export default function NotificationPermissionBanner() {
                 borderRadius: 'var(--radius-lg)',
                 color: '#00D4FF',
                 padding: '6px 14px',
-                fontSize: 'var(--text-xs)',
+                fontSize: 11,
                 fontWeight: 800,
                 cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
@@ -162,7 +162,7 @@ export default function NotificationPermissionBanner() {
         }}>
           <Shield size={10} color="rgba(235,235,245,0.3)" />
           <span style={{
-            fontSize: 'var(--text-xs)', color: 'rgba(235,235,245,0.3)',
+            fontSize: 11, color: 'rgba(235,235,245,0.3)',
           }}>
             {tn('secureNote')}
           </span>

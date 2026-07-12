@@ -131,7 +131,7 @@ export function BotMini() {
           />
           <span
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 800,
               color: 'var(--foreground)',
               whiteSpace: 'nowrap',
@@ -143,7 +143,7 @@ export function BotMini() {
           </span>
           <span
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               padding: '1px 5px',
               borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,184,0,0.15)',
@@ -157,7 +157,7 @@ export function BotMini() {
           </span>
           <span
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               padding: '1px 5px',
               borderRadius: 'var(--radius-sm)',
               background: 'rgba(0,212,255,0.12)',
@@ -177,7 +177,7 @@ export function BotMini() {
             onClick={() => setIsOn(!isOn)}
             className={isOn ? 'btn-danger-active' : 'btn-cyan-active'}
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               minHeight: 26,
               minWidth: 54,
               padding: '4px 8px',
@@ -200,7 +200,7 @@ export function BotMini() {
             flex: 1,
             minHeight: 20,
             padding: '3px 5px',
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             background: activeTab === 'log' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${activeTab === 'log' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
             borderRadius: 'var(--radius-sm)',
@@ -219,7 +219,7 @@ export function BotMini() {
             flex: 1,
             minHeight: 20,
             padding: '3px 5px',
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             background: activeTab === 'config' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${activeTab === 'config' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
             borderRadius: 'var(--radius-sm)',
@@ -249,16 +249,16 @@ export function BotMini() {
             }}
           >
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)' }}>{tb('trades')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>{tb('trades')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
             </div>
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)' }}>{tb('profit')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>{tb('profit')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
             </div>
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)' }}>{tb('winRate')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>{tb('winRate')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
             </div>
           </div>
 
@@ -274,16 +274,16 @@ export function BotMini() {
             }}
           >
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)' }}>{tb('openPositions')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>{tb('openPositions')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
             </div>
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)' }}>{tb('winsLosses')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>{tb('winsLosses')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
             </div>
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)' }}>{tb('sessionLoss')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>{tb('sessionLoss')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
                 ${stats.sessionLoss}
               </div>
             </div>
@@ -304,11 +304,11 @@ export function BotMini() {
             }}
           >
             {logs.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', opacity: 0.3, fontSize: 'var(--text-xs)' }}>{tb('emptyLog')}</div>
+              <div style={{ padding: 30, textAlign: 'center', opacity: 0.3, fontSize: 11 }}>{tb('emptyLog')}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {logs.map((log, i) => (
-                  <div key={`${log.time}-${log.type}-${i}`} className="card" style={{ fontSize: 'var(--text-xs)', padding: '5px 6px', lineHeight: 1.4 }}>
+                  <div key={`${log.time}-${log.type}-${i}`} className="card" style={{ fontSize: 11, padding: '5px 6px', lineHeight: 1.4 }}>
                     <span style={{ color: 'var(--text4)', marginInlineEnd: 5 }}>[{log.time}]</span>
                     <span
                       style={{
@@ -333,7 +333,7 @@ export function BotMini() {
       ) : (
         <div className="bot-mini-config" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('strategy')}</label>
+            <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('strategy')}</label>
             <select
               value={settings.strategy}
               onChange={(e) => updateSettings({ strategy: e.target.value })}
@@ -345,7 +345,7 @@ export function BotMini() {
                 color: '#fff',
                 padding: '12px 10px',
                 borderRadius: 'var(--radius-md)',
-                fontSize: 'var(--text-sm)',
+                fontSize: 13,
                 touchAction: 'manipulation',
               }}
             >
@@ -358,7 +358,7 @@ export function BotMini() {
           </div>
 
           <div>
-            <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('riskPerTrade')}</label>
+            <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('riskPerTrade')}</label>
             <input
               type="range"
               min="1"
@@ -368,11 +368,11 @@ export function BotMini() {
               onChange={(e) => updateSettings({ riskPct: parseFloat(e.target.value) })}
               style={{ width: '100%', minHeight: 48, touchAction: 'pan-x' }}
             />
-            <div style={{ textAlign: 'right', fontSize: 'var(--text-sm)', color: 'var(--accent)' }}>{settings.riskPct}%</div>
+            <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--accent)' }}>{settings.riskPct}%</div>
           </div>
 
           <div>
-            <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('minConfidence')}</label>
+            <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('minConfidence')}</label>
             <input
               type="range"
               min="50"
@@ -382,11 +382,11 @@ export function BotMini() {
               onChange={(e) => updateSettings({ confLimit: parseInt(e.target.value, 10) })}
               style={{ width: '100%', minHeight: 48, touchAction: 'pan-x' }}
             />
-            <div style={{ textAlign: 'right', fontSize: 'var(--text-sm)', color: 'var(--amber)' }}>{settings.confLimit}%</div>
+            <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--amber)' }}>{settings.confLimit}%</div>
           </div>
 
           <div>
-            <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('aiConsensusMode')}</label>
+            <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('aiConsensusMode')}</label>
             <div
               onClick={() => updateSettings({ useAIConsensus: !settings.useAIConsensus })}
               role="button"
@@ -414,11 +414,11 @@ export function BotMini() {
                 textAlign: 'center',
               }}
             >
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: settings.useAIConsensus ? 'var(--accent)' : 'var(--text3)' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: settings.useAIConsensus ? 'var(--accent)' : 'var(--text3)' }}>
                 {settings.useAIConsensus ? tb('aiConsensusOn') : tb('aiConsensusOff')}
               </span>
             </div>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text4)', marginTop: 4, lineHeight: 1.4 }}>
+            <p style={{ fontSize: 11, color: 'var(--text4)', marginTop: 4, lineHeight: 1.4 }}>
               {tb('aiConsensusNote')}
             </p>
           </div>

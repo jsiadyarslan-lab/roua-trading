@@ -58,14 +58,14 @@ export default function SocialPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Users size={20} color={'#00D4FF'} />
-          <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{sl('pageTitle')}</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>{sl('pageTitle')}</h1>
           <span style={{
-            fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
+            fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
             background: `${'#00D4FF'}18`, color: '#00D4FF',
             fontFamily: "var(--font-mono)",
           }}>COMING SOON</span>
         </div>
-        <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+        <p style={{ margin: 0, fontSize: 13, color: '#9CA3B5' }}>
           {sl('pageSubtitle')}
         </p>
       </div>
@@ -98,17 +98,17 @@ export default function SocialPage() {
           }}>
             <Users size={28} color={'#00D4FF'} />
           </div>
-          <h2 style={{ color: '#F0F2F5', fontSize: 'var(--text-xl)', fontWeight: 900, margin: '0 0 12px' }}>
+          <h2 style={{ color: '#F0F2F5', fontSize: 22, fontWeight: 900, margin: '0 0 12px' }}>
             {sl('heroTitle')}
           </h2>
-          <p style={{ color: '#9CA3B5', fontSize: 'var(--text-base)', lineHeight: 1.8, maxWidth: 480, margin: '0 auto 24px' }}>
+          <p style={{ color: '#9CA3B5', fontSize: 15, lineHeight: 1.8, maxWidth: 480, margin: '0 auto 24px' }}>
             {sl('heroDesc')}
           </p>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '8px 20px', borderRadius: 'var(--radius-2xl)',
             background: `${'#00D4FF'}15`, border: `1px solid ${'#00D4FF'}40`,
-            color: '#00D4FF', fontSize: 'var(--text-sm)', fontWeight: 700,
+            color: '#00D4FF', fontSize: 13, fontWeight: 700,
           }}>
             <ArrowUpRight size={13} /> {sl('inDevelopment')}
           </div>
@@ -116,7 +116,7 @@ export default function SocialPage() {
       </div>
 
       {/* Feature Preview Cards */}
-      <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <h3 style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
         <TrendingUp size={16} color={'#00D4FF'} />
         {sl('upcomingFeatures')}
       </h3>
@@ -140,10 +140,10 @@ export default function SocialPage() {
             }}>
               <feature.icon size={20} color={feature.color} />
             </div>
-            <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: '0 0 8px' }}>
+            <h4 style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', margin: '0 0 8px' }}>
               {feature.title}
             </h4>
-            <p style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', lineHeight: 1.7, margin: 0 }}>
+            <p style={{ fontSize: 13, color: '#9CA3B5', lineHeight: 1.7, margin: 0 }}>
               {feature.desc}
             </p>
           </div>
@@ -166,10 +166,10 @@ export default function SocialPage() {
           <Mail size={20} color={'#00FFA3'} />
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#F0F2F5', marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#F0F2F5', marginBottom: 4 }}>
             {sl('signupTitle')}
           </div>
-          <div style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+          <div style={{ fontSize: 13, color: '#9CA3B5' }}>
             {sl('signupDesc')}
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function SocialPage() {
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 20px', borderRadius: 'var(--radius-lg)',
             background: `${'#00FFA3'}15`, border: `1px solid ${'#00FFA3'}30`,
-            color: '#00FFA3', fontSize: 'var(--text-sm)', fontWeight: 700,
+            color: '#00FFA3', fontSize: 13, fontWeight: 700,
           }}>
             <CheckCircle size={16} /> {sl('registeredSuccess')}
           </div>
@@ -195,7 +195,7 @@ export default function SocialPage() {
               style={{
                 flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                 background: '#151A22', border: `1px solid ${'#2A313C'}`,
-                color: '#F0F2F5', fontSize: 'var(--text-sm)', outline: 'none',
+                color: '#F0F2F5', fontSize: 13, outline: 'none',
                 fontFamily: "var(--font-mono)",
               }}
             />
@@ -204,7 +204,7 @@ export default function SocialPage() {
               style={{
                 padding: '10px 20px', borderRadius: 'var(--radius-lg)',
                 background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`,
-                color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800, border: 'none',
+                color: '#fff', fontSize: 13, fontWeight: 800, border: 'none',
                 cursor: 'pointer', whiteSpace: 'nowrap',
                 fontFamily: "var(--font-ar)",
                 transition: 'all 0.2s',

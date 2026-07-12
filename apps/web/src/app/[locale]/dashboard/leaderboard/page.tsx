@@ -102,7 +102,7 @@ function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
         ) : (
           <Medal size={18} color={colors.main} />
         )}
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: colors.main, fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: colors.main, fontFamily: "var(--font-mono)" }}>
           #{rank}
         </span>
       </div>
@@ -139,7 +139,7 @@ function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
         <div style={{ fontSize: isFirst ? 16 : 14, fontWeight: 900, color: '#F0F2F5', marginBottom: 3 }}>
           {trader.name}
         </div>
-        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{trader.type}</div>
+        <div style={{ fontSize: 11, color: '#6B7280' }}>{trader.type}</div>
       </div>
 
       {/* Return */}
@@ -149,7 +149,7 @@ function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
         background: `${returnTypeColor(trader.returnPct)}10`,
         border: `1px solid ${returnTypeColor(trader.returnPct)}20`,
       }}>
-        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{t('returnLabel')}</div>
+        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>{t('returnLabel')}</div>
         <div style={{
           fontSize: isFirst ? 20 : 17, fontWeight: 900,
           color: returnTypeColor(trader.returnPct),
@@ -162,14 +162,14 @@ function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
       {/* Win Rate & Followers */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div style={{ background: '#151A22', borderRadius: 'var(--radius-md)', padding: '8px 4px', textAlign: 'center' }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{t('winRateLabel')}</div>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>
+          <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>{t('winRateLabel')}</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>
             {trader.winRate.toFixed(1)}%
           </div>
         </div>
         <div style={{ background: '#151A22', borderRadius: 'var(--radius-md)', padding: '8px 4px', textAlign: 'center' }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{t('followers')}</div>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>
+          <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>{t('followers')}</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>
             {formatNumber(trader.followers)}
           </div>
         </div>
@@ -214,16 +214,16 @@ function BadgeCard({ badge }: { badge: Badge }) {
       }}>
         <badge.icon size={20} color={badge.unlocked ? badge.color : '#6B7280'} />
       </div>
-      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: badge.unlocked ? '#F0F2F5' : '#6B7280' }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: badge.unlocked ? '#F0F2F5' : '#6B7280' }}>
         {badge.name}
       </div>
       {!badge.unlocked && (
-        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}>
+        <div style={{ fontSize: 11, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}>
           <Lock size={8} /> {tc('locked')}
         </div>
       )}
       {badge.unlocked && (
-        <div style={{ fontSize: 'var(--text-xs)', color: badge.color, display: 'flex', alignItems: 'center', gap: 3 }}>
+        <div style={{ fontSize: 11, color: badge.color, display: 'flex', alignItems: 'center', gap: 3 }}>
           <Unlock size={8} /> {tc('unlocked')}
         </div>
       )}
@@ -336,7 +336,7 @@ export default function LeaderboardPage() {
             borderRadius: '50%', animation: 'spin 0.8s linear infinite',
             margin: '0 auto 12px',
           }} />
-          <div style={{ fontSize: 'var(--text-sm)' }}>{t('loading')}</div>
+          <div style={{ fontSize: 13 }}>{t('loading')}</div>
         </div>
       </div>
     )
@@ -361,9 +361,9 @@ export default function LeaderboardPage() {
               }}>
                 <Trophy size={20} color={'#FFB800'} />
               </div>
-              <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{t('title')}</h1>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>{t('title')}</h1>
             </div>
-            <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#9CA3B5' }}>
               {t('subtitle')}
             </p>
           </div>
@@ -375,10 +375,10 @@ export default function LeaderboardPage() {
           textAlign: 'center',
         }}>
           <Trophy size={36} style={{ color: '#FFB800', marginBottom: 12, opacity: 0.5 }} />
-          <p style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#F0F2F5', margin: '0 0 8px' }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#F0F2F5', margin: '0 0 8px' }}>
             {error ? t('errorTitle') : t('emptyTitle')}
           </p>
-          <p style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', margin: 0 }}>
+          <p style={{ fontSize: 13, color: '#9CA3B5', margin: 0 }}>
             {error || t('emptyDesc')}
           </p>
         </div>
@@ -403,9 +403,9 @@ export default function LeaderboardPage() {
             }}>
               <Trophy size={20} color={'#FFB800'} />
             </div>
-            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{t('title')}</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>{t('title')}</h1>
           </div>
-          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#9CA3B5' }}>
             {t('subtitle')}
           </p>
         </div>
@@ -426,8 +426,8 @@ export default function LeaderboardPage() {
               <s.icon size={22} color={s.color} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 3 }}>{s.label}</div>
-              <div style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{s.val}</div>
+              <div style={{ fontSize: 11, color: '#9CA3B5', marginBottom: 3 }}>{s.label}</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{s.val}</div>
             </div>
           </div>
         ))}
@@ -438,7 +438,7 @@ export default function LeaderboardPage() {
         <div style={{ display: 'flex', gap: 6 }}>
           {timePeriods.map(period => (
             <button key={period.key} onClick={() => setTimePeriod(period.key)} style={{
-              padding: '7px 18px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 700,
+              padding: '7px 18px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 700,
               cursor: 'pointer', transition: 'all 0.2s',
               display: 'flex', alignItems: 'center', gap: 5,
               background: timePeriod === period.key ? `${'#00D4FF'}15` : '#151A22',
@@ -455,7 +455,7 @@ export default function LeaderboardPage() {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {categoryTabs.map(tab => (
             <button key={tab.key} onClick={() => setCategoryFilter(tab.key)} style={{
-              padding: '7px 16px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 700,
+              padding: '7px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 700,
               cursor: 'pointer', transition: 'all 0.2s',
               display: 'flex', alignItems: 'center', gap: 6,
               background: categoryFilter === tab.key ? `${'#00D4FF'}15` : '#151A22',
@@ -490,11 +490,11 @@ export default function LeaderboardPage() {
       {restTraders.length > 0 && (
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <BarChart3 size={16} color={'#00D4FF'} />
             {t('fullRanking')}
           </h2>
-          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
             {sortedTraders.length} {sortedTraders.length === 1 ? t('linkedAccount') : t('linkedAccounts')}
           </span>
         </div>
@@ -524,7 +524,7 @@ export default function LeaderboardPage() {
                     { label: t('colCopyAvailable'), width: 110 },
                   ].map((col, i) => (
                     <th key={i} style={{
-                      padding: '12px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
+                      padding: '12px 14px', fontSize: 11, fontWeight: 800,
                       color: '#6B7280', textAlign: i === 0 ? 'center' : 'right',
                       background: '#151A22', whiteSpace: 'nowrap',
                       width: col.width,
@@ -555,7 +555,7 @@ export default function LeaderboardPage() {
                 >
                   {/* Rank */}
                   <td style={{
-                    padding: '12px 14px', fontSize: 'var(--text-sm)', fontWeight: 800,
+                    padding: '12px 14px', fontSize: 13, fontWeight: 800,
                     color: rank <= 5 ? '#FFB800' : '#6B7280',
                     textAlign: 'center',
                     fontFamily: "var(--font-mono)",
@@ -570,32 +570,32 @@ export default function LeaderboardPage() {
                         width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                         background: `${'#00D4FF'}12`, border: `1px solid ${'#3A4150'}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 'var(--text-base)', fontWeight: 900, color: '#00D4FF',
+                        fontSize: 15, fontWeight: 900, color: '#00D4FF',
                         fontFamily: "var(--font-ar)", flexShrink: 0,
                       }}>
                         {trader.avatar}
                       </div>
                       <div>
                         <div style={{
-                          fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5',
+                          fontSize: 13, fontWeight: 800, color: '#F0F2F5',
                           display: 'flex', alignItems: 'center', gap: 6,
                         }}>
                           {trader.name}
                           {isCurrent && (
                             <span style={{
-                              fontSize: 'var(--text-xs)', padding: '1px 6px', borderRadius: 'var(--radius-lg)',
+                              fontSize: 11, padding: '1px 6px', borderRadius: 'var(--radius-lg)',
                               background: `${'#00D4FF'}18`, color: '#00D4FF', fontWeight: 800,
                             }}>{t('you')}</span>
                           )}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{trader.type}</div>
+                        <div style={{ fontSize: 11, color: '#6B7280' }}>{trader.type}</div>
                       </div>
                     </div>
                   </td>
 
                   {/* Return */}
                   <td style={{
-                    padding: '12px 14px', fontSize: 'var(--text-sm)', fontWeight: 800,
+                    padding: '12px 14px', fontSize: 13, fontWeight: 800,
                     color: returnTypeColor(trader.returnPct),
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
@@ -608,7 +608,7 @@ export default function LeaderboardPage() {
 
                   {/* Win Rate */}
                   <td style={{
-                    padding: '12px 14px', fontSize: 'var(--text-sm)', fontWeight: 800,
+                    padding: '12px 14px', fontSize: 13, fontWeight: 800,
                     color: '#F0F2F5',
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
@@ -618,7 +618,7 @@ export default function LeaderboardPage() {
 
                   {/* Max Drawdown */}
                   <td style={{
-                    padding: '12px 14px', fontSize: 'var(--text-sm)', fontWeight: 800,
+                    padding: '12px 14px', fontSize: 13, fontWeight: 800,
                     color: drawdownColor(trader.maxDrawdown),
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
@@ -628,7 +628,7 @@ export default function LeaderboardPage() {
 
                   {/* AUM */}
                   <td style={{
-                    padding: '12px 14px', fontSize: 'var(--text-sm)', fontWeight: 800,
+                    padding: '12px 14px', fontSize: 13, fontWeight: 800,
                     color: '#9CA3B5',
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
@@ -638,7 +638,7 @@ export default function LeaderboardPage() {
 
                   {/* Followers */}
                   <td style={{
-                    padding: '12px 14px', fontSize: 'var(--text-sm)', fontWeight: 800,
+                    padding: '12px 14px', fontSize: 13, fontWeight: 800,
                     color: '#9CA3B5',
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
@@ -652,7 +652,7 @@ export default function LeaderboardPage() {
                       <button
                         onClick={e => { e.stopPropagation(); toggleFollow(trader.id, trader.name) }}
                         style={{
-                          padding: '5px 14px', borderRadius: 'var(--radius-2xl)', fontSize: 'var(--text-xs)', fontWeight: 800,
+                          padding: '5px 14px', borderRadius: 'var(--radius-2xl)', fontSize: 11, fontWeight: 800,
                           cursor: 'pointer', transition: 'all 0.2s',
                           display: 'inline-flex', alignItems: 'center', gap: 5,
                           background: followingTraders.has(trader.id) ? `${'#FF4757'}12` : `${'#00FFA3'}12`,
@@ -667,7 +667,7 @@ export default function LeaderboardPage() {
                       </button>
                     ) : (
                       <span style={{
-                        fontSize: 'var(--text-xs)', color: '#6B7280',
+                        fontSize: 11, color: '#6B7280',
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         padding: '4px 10px', borderRadius: 'var(--radius-2xl)',
                         background: '#151A22', border: `1px solid ${'#2A313C'}`,
@@ -712,17 +712,17 @@ export default function LeaderboardPage() {
             <Star size={24} color={'#00D4FF'} />
           </div>
           <div>
-            <div style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: '#F0F2F5', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: '#F0F2F5', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
               {t('yourRanking')}
               <span style={{
-                fontSize: 'var(--text-xs)', padding: '2px 10px', borderRadius: 'var(--radius-lg)',
+                fontSize: 11, padding: '2px 10px', borderRadius: 'var(--radius-lg)',
                 background: `${'#00D4FF'}15`, color: '#00D4FF',
                 fontFamily: "var(--font-mono)", fontWeight: 800,
               }}>
                 #{currentUserRank}
               </span>
             </div>
-            <div style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+            <div style={{ fontSize: 13, color: '#9CA3B5' }}>
               {currentUser.name} — {t('returnLabel')} +{currentUser.returnPct.toFixed(1)}% | {t('winRateLabel')} {currentUser.winRate.toFixed(1)}%
             </div>
           </div>
@@ -730,22 +730,22 @@ export default function LeaderboardPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 3 }}>{t('consistency')}</div>
-            <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{t('consistency')}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-mono)" }}>
               {currentUser.consistency}%
             </div>
           </div>
           <div style={{ width: 1, height: 32, background: '#2A313C' }} />
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 3 }}>{t('maxDrawdown')}</div>
-            <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: drawdownColor(currentUser.maxDrawdown), fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{t('maxDrawdown')}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: drawdownColor(currentUser.maxDrawdown), fontFamily: "var(--font-mono)" }}>
               {currentUser.maxDrawdown.toFixed(1)}%
             </div>
           </div>
           <div style={{ width: 1, height: 32, background: '#2A313C' }} />
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 3 }}>{t('followers')}</div>
-            <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{t('followers')}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>
               {formatNumber(currentUser.followers)}
             </div>
           </div>
@@ -758,9 +758,9 @@ export default function LeaderboardPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <Award size={16} color={'#B388FF'} />
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('achievementBadges')}</h2>
+          <h2 style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('achievementBadges')}</h2>
           <span style={{
-            fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
+            fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
             background: `${'#B388FF'}15`, color: '#B388FF',
             fontFamily: "var(--font-mono)",
           }}>

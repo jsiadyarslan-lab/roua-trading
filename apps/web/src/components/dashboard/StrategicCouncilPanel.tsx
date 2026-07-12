@@ -283,7 +283,7 @@ export function StrategicCouncilPanel() {
             boxShadow: `0 0 10px ${'#B388FF'}, 0 0 20px rgba(179,136,255,0.4)`,
             animation: 'agentCtrlPulse 2s ease-in-out infinite'
           }} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5' }}>{ts('title')}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5' }}>{ts('title')}</span>
           
           {/* Scanning Heartbeat */}
           <div style={{ 
@@ -296,13 +296,13 @@ export function StrategicCouncilPanel() {
               boxShadow: `0 0 5px ${'#059669'}`,
               animation: 'agentCtrlPulse 1s ease-in-out infinite'
             }} />
-            <span style={{ fontSize: 'var(--text-xs)', color: '#059669', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 11, color: '#059669', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
               {ts('scanning')} {currentScanSymbol}
             </span>
           </div>
 
           <span style={{
-            fontSize: 'var(--text-xs)', padding: '1px 5px', borderRadius: 'var(--radius-sm)',
+            fontSize: 11, padding: '1px 5px', borderRadius: 'var(--radius-sm)',
             background: 'rgba(179,136,255,0.15)', color: '#B388FF', fontWeight: 700,
           }}>
             {ts('briefsCount', { count: activeBriefs.length })}
@@ -312,7 +312,7 @@ export function StrategicCouncilPanel() {
           onClick={triggerSession}
           disabled={triggerLoading}
           style={{
-            fontSize: 'var(--text-xs)', minHeight: 22, padding: '3px 8px',
+            fontSize: 11, minHeight: 22, padding: '3px 8px',
             borderRadius: 'var(--radius-sm)', border: `1px solid ${triggerStatus === 'processing' ? 'rgba(0,212,255,0.3)' : triggerStatus === 'already_running' ? 'rgba(255,184,0,0.3)' : 'rgba(179,136,255,0.3)'}`,
             cursor: triggerLoading ? 'not-allowed' : 'pointer',
             background: triggerStatus === 'processing' ? 'rgba(0,212,255,0.15)' : triggerStatus === 'already_running' ? 'rgba(255,184,0,0.15)' : 'rgba(179,136,255,0.15)',
@@ -326,7 +326,7 @@ export function StrategicCouncilPanel() {
       {/* Backend Offline Banner */}
       {backendOffline && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: '#FFB800' }}>{ts('serverUnavailable')}</span>
+          <span style={{ fontSize: 11, color: '#FFB800' }}>{ts('serverUnavailable')}</span>
         </div>
       )}
 
@@ -334,7 +334,7 @@ export function StrategicCouncilPanel() {
       {lastSession && (
         <div style={{
           padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
-          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 'var(--text-xs)',
+          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 11,
         }}>
           <span style={{ color: '#6B7280' }}>{ts('lastSession')}</span>
           <span style={{ color: '#F0F2F5', fontWeight: 700 }}>{formatTime(lastSession.timestamp)}</span>
@@ -352,7 +352,7 @@ export function StrategicCouncilPanel() {
         background: '#0B0E14', borderBottom: '1px solid rgba(0,212,255,0.08)',
       }}>
         <button onClick={() => { setTab('active'); fetchActiveBriefs() }} style={{
-          flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 'var(--text-xs)',
+          flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 11,
           background: tab === 'active' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
           border: `1px solid ${tab === 'active' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
           borderRadius: 'var(--radius-sm)', color: tab === 'active' ? '#00D4FF' : '#6B7280', cursor: 'pointer', fontWeight: 700,
@@ -360,7 +360,7 @@ export function StrategicCouncilPanel() {
           {ts('activeTab')} ({activeBriefs.length})
         </button>
         <button onClick={() => { setTab('history'); fetchHistory() }} style={{
-          flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 'var(--text-xs)',
+          flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 11,
           background: tab === 'history' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
           border: `1px solid ${tab === 'history' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
           borderRadius: 'var(--radius-sm)', color: tab === 'history' ? '#00D4FF' : '#6B7280', cursor: 'pointer', fontWeight: 700,
@@ -375,7 +375,7 @@ export function StrategicCouncilPanel() {
         padding: 4, background: 'rgba(11,14,20,0.45)',
       }} className="custom-scrollbar">
         {(tab === 'active' ? activeBriefs : historyBriefs).length === 0 ? (
-          <div style={{ padding: 20, textAlign: 'center', opacity: 0.3, fontSize: 'var(--text-xs)' }}>
+          <div style={{ padding: 20, textAlign: 'center', opacity: 0.3, fontSize: 11 }}>
             {tab === 'active' ? ts('noActiveBriefs') : ts('noLogYet')}
           </div>
         ) : (
@@ -389,29 +389,29 @@ export function StrategicCouncilPanel() {
                 {/* Top Row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
                   <span style={{
-                    padding: '1px 5px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)',
+                    padding: '1px 5px', borderRadius: 'var(--radius-xs)', fontSize: 11,
                     background: `${directionColors[brief.direction]}18`,
                     color: directionColors[brief.direction], fontWeight: 800,
                   }}>
                     {brief.direction === 'BUY' ? tc('buy') : tc('sell')}
                   </span>
-                  <span style={{ color: '#F0F2F5', fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)" }}>
+                  <span style={{ color: '#F0F2F5', fontWeight: 700, fontSize: 11, fontFamily: "var(--font-mono)" }}>
                     {brief.pair}
                   </span>
                   <span style={{
-                    padding: '1px 4px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)',
+                    padding: '1px 4px', borderRadius: 'var(--radius-xs)', fontSize: 11,
                     background: `${timeframeColors[brief.timeframe]}15`,
                     color: timeframeColors[brief.timeframe], fontWeight: 700,
                   }}>
                     {brief.timeframe}
                   </span>
                   <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
+                  <span style={{ fontSize: 11, color: '#6B7280' }}>
                     {formatTime(brief.issuedAt)}
                   </span>
                 </div>
                 {/* Prices */}
-                <div style={{ display: 'flex', gap: 8, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+                <div style={{ display: 'flex', gap: 8, fontSize: 11, color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                   <span>{ts('entryLabel')} <b style={{ color: '#F0F2F5' }}>{brief.entryPrice.toFixed(2)}</b></span>
                   <span>{ts('stopLossShort')}: <b style={{ color: '#FF4757' }}>{brief.stopLoss.toFixed(2)}</b></span>
                   <span>{ts('takeProfitShort')}: <b style={{ color: '#00FFA3' }}>{brief.takeProfit.toFixed(2)}</b></span>
@@ -426,7 +426,7 @@ export function StrategicCouncilPanel() {
                     }} />
                   </div>
                   <span style={{
-                    fontSize: 'var(--text-xs)', fontWeight: 800, fontFamily: "var(--font-mono)",
+                    fontSize: 11, fontWeight: 800, fontFamily: "var(--font-mono)",
                     color: brief.confidence >= 80 ? '#00FFA3' : brief.confidence >= 60 ? '#FFB800' : '#FF4757',
                   }}>
                     {brief.confidence}%
@@ -436,7 +436,7 @@ export function StrategicCouncilPanel() {
                 {brief.reviewStatus !== 'ACTIVE' && (
                   <div style={{ marginTop: 3 }}>
                     <span style={{
-                      fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)',
+                      fontSize: 11, padding: '1px 4px', borderRadius: 'var(--radius-xs)',
                       background: brief.reviewStatus === 'EXECUTED' ? 'rgba(0,255,163,0.12)' :
                         brief.reviewStatus === 'MODIFIED' ? 'rgba(255,184,0,0.12)' :
                           'rgba(255,71,87,0.12)',

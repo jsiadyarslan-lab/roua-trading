@@ -75,8 +75,8 @@ export default function AccountMonitoringPage() {
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
         <AlertTriangle size={18} color={'#FFB800'} />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#FFB800' }}>{tc('demoData')}</span>
-        <span style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFB800' }}>{tc('demoData')}</span>
+        <span style={{ fontSize: 13, color: '#9CA3B5' }}>
           — {tc('disclaimer')}
         </span>
       </div>
@@ -88,8 +88,8 @@ export default function AccountMonitoringPage() {
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
         <Eye size={18} color={'#00D4FF'} />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#00D4FF' }}>{ct('title')}</span>
-        <span style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#00D4FF' }}>{ct('title')}</span>
+        <span style={{ fontSize: 13, color: '#9CA3B5' }}>
           — {ct('subtitle')}
         </span>
       </div>
@@ -99,21 +99,21 @@ export default function AccountMonitoringPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <Eye size={20} color={'#00FFA3'} />
-            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{ct('title')}</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>{ct('title')}</h1>
             <span style={{
-              fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
+              fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
               background: `${'#FFB800'}18`, color: '#FFB800',
               fontFamily: "var(--font-mono)",
             }}>DEMO</span>
           </div>
-          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#9CA3B5' }}>
             {ct('subtitle')}
           </p>
         </div>
         <button
           onClick={() => router.push('/dashboard/portfolio')}
           style={{
-            padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800,
+            padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 800,
             display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
             background: '#151A22', color: '#F0F2F5', border: `1px solid ${'#2A313C'}`,
             transition: 'all 0.2s', fontFamily: "var(--font-ar)",
@@ -140,8 +140,8 @@ export default function AccountMonitoringPage() {
               <f.icon size={24} color={f.color} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 4 }}>{f.label}</div>
-              <div style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{f.val}</div>
+              <div style={{ fontSize: 11, color: '#9CA3B5', marginBottom: 4 }}>{f.label}</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{f.val}</div>
             </div>
           </div>
         ))}
@@ -149,14 +149,14 @@ export default function AccountMonitoringPage() {
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{ct('availableAccounts')}</h2>
+        <h2 style={{ fontSize: 17, fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{ct('availableAccounts')}</h2>
         <div style={{ display: 'flex', gap: 6 }}>
           {filterTabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveFilter(tab.key)}
               style={{
-                padding: '6px 16px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
+                padding: '6px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 6,
                 background: activeFilter === tab.key ? `${'#00D4FF'}15` : '#151A22',
                 border: `1px solid ${activeFilter === tab.key ? `${'#00D4FF'}40` : '#2A313C'}`,
@@ -195,14 +195,14 @@ export default function AccountMonitoringPage() {
                     <Activity size={20} color={isFollowing ? '#00FFA3' : '#00D4FF'} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6 }}>
                       {trader.name}
-                      {isFollowing && <span style={{ fontSize: 'var(--text-xs)', padding: '1px 6px', borderRadius: 'var(--radius-lg)', background: `${'#00FFA3'}18`, color: '#00FFA3', fontWeight: 800 }}>{ct('following')}</span>}
+                      {isFollowing && <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 'var(--radius-lg)', background: `${'#00FFA3'}18`, color: '#00FFA3', fontWeight: 800 }}>{ct('following')}</span>}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{trader.type}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3B5' }}>{trader.type}</div>
                   </div>
                 </div>
-                <span style={{ fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-2xl)', background: `${riskColor(trader.riskKey)}12`, color: riskColor(trader.riskKey), fontWeight: 800 }}>
+                <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 'var(--radius-2xl)', background: `${riskColor(trader.riskKey)}12`, color: riskColor(trader.riskKey), fontWeight: 800 }}>
                   {riskLabel}
                 </span>
               </div>
@@ -210,22 +210,22 @@ export default function AccountMonitoringPage() {
               {/* Stats Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                 <div style={{ background: '#151A22', padding: 10, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4 }}>{ct('winRateLabel')}</div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#00FFA3', fontFamily: "var(--font-mono)" }}>{trader.winRate}</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{ct('winRateLabel')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#00FFA3', fontFamily: "var(--font-mono)" }}>{trader.winRate}</div>
                 </div>
                 <div style={{ background: '#151A22', padding: 10, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4 }}>{ct('returnLabel')}</div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{trader.profit}</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{ct('returnLabel')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{trader.profit}</div>
                 </div>
                 <div style={{ background: '#151A22', padding: 10, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4 }}>{ct('drawdownLabel')}</div>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#FF4757', fontFamily: "var(--font-mono)" }}>{trader.drawdown}</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{ct('drawdownLabel')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#FF4757', fontFamily: "var(--font-mono)" }}>{trader.drawdown}</div>
                 </div>
               </div>
 
               {/* Footer */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>
+                <div style={{ fontSize: 11, color: '#9CA3B5' }}>
                   {ct('assetsLabel')}: <span style={{ color: '#F0F2F5', fontWeight: 700, fontFamily: "var(--font-mono)" }}>{trader.aum}</span>
                   <span style={{ margin: '0 6px', color: '#6B7280' }}>·</span>
                   <span>{ct('followersCount', { count: trader.followers })}</span>
@@ -233,7 +233,7 @@ export default function AccountMonitoringPage() {
                 <button
                   onClick={() => toggleFollow(trader.id, trader.name)}
                   style={{
-                    padding: '6px 16px', borderRadius: 'var(--radius-2xl)', fontSize: 'var(--text-sm)', fontWeight: 800,
+                    padding: '6px 16px', borderRadius: 'var(--radius-2xl)', fontSize: 13, fontWeight: 800,
                     display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
                     background: isFollowing ? `${'#FF4757'}15` : `${'#00FFA3'}15`,
                     border: `1px solid ${isFollowing ? `${'#FF4757'}40` : `${'#00FFA3'}40`}`,

@@ -194,7 +194,7 @@ function renderBlock(block: Block, idx: number, dir: "rtl" | "ltr"): ReactNode {
             background: hexToRgba(COLORS.council, 0.05),
             borderRadius: "0 8px 8px 0",
             color: COLORS.textSecondary,
-            fontSize: 'var(--text-sm)',
+            fontSize: 13,
             lineHeight: 1.6,
             fontStyle: "italic",
           }}
@@ -224,7 +224,7 @@ function renderBlock(block: Block, idx: number, dir: "rtl" | "ltr"): ReactNode {
                 display: "flex",
                 alignItems: "flex-start",
                 gap: 8,
-                fontSize: 'var(--text-sm)',
+                fontSize: 13,
                 lineHeight: 1.6,
                 color: COLORS.textSecondary,
               }}
@@ -271,7 +271,7 @@ function renderBlock(block: Block, idx: number, dir: "rtl" | "ltr"): ReactNode {
                 display: "flex",
                 alignItems: "flex-start",
                 gap: 8,
-                fontSize: 'var(--text-sm)',
+                fontSize: 13,
                 lineHeight: 1.6,
                 color: COLORS.textSecondary,
               }}
@@ -290,7 +290,7 @@ function renderBlock(block: Block, idx: number, dir: "rtl" | "ltr"): ReactNode {
                   background: hexToRgba(COLORS.council, 0.12),
                   border: `1px solid ${hexToRgba(COLORS.council, 0.3)}`,
                   color: COLORS.council,
-                  fontSize: 'var(--text-xs)',
+                  fontSize: 11,
                   fontWeight: 700,
                   fontFamily: "var(--font-mono)",
                 }}
@@ -313,7 +313,7 @@ function renderBlock(block: Block, idx: number, dir: "rtl" | "ltr"): ReactNode {
           dir={dir}
           style={{
             margin: idx === 0 ? "0 0 4px" : "4px 0",
-            fontSize: 'var(--text-sm)',
+            fontSize: 13,
             lineHeight: 1.65,
             color: COLORS.textSecondary,
             wordBreak: "break-word",
@@ -451,7 +451,7 @@ export function FormattedText({
           </div>
           <span
             style={{
-              fontSize: 'var(--text-xs)',
+              fontSize: 11,
               fontWeight: 700,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
@@ -492,7 +492,7 @@ export function FormattedText({
             background: hexToRgba(accent, 0.08),
             border: `1px solid ${hexToRgba(accent, 0.25)}`,
             color: accent,
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             fontWeight: 600,
             cursor: "pointer",
             letterSpacing: "0.04em",
@@ -535,7 +535,7 @@ export function LoadMoreButton({
       <div
         style={{
           textAlign: "center",
-          fontSize: 'var(--text-xs)',
+          fontSize: 11,
           color: COLORS.textDim,
           padding: "12px 0 4px",
           letterSpacing: "0.06em",
@@ -561,7 +561,7 @@ export function LoadMoreButton({
           background: hexToRgba(accent, 0.1),
           border: `1px solid ${hexToRgba(accent, 0.35)}`,
           color: accent,
-          fontSize: 'var(--text-sm)',
+          fontSize: 13,
           fontWeight: 600,
           letterSpacing: "0.06em",
           cursor: "pointer",
@@ -572,7 +572,7 @@ export function LoadMoreButton({
         {moreLabel || t("showMore")}
         <span
           style={{
-            fontSize: 'var(--text-xs)',
+            fontSize: 11,
             padding: "1px 7px",
             borderRadius: 'var(--radius-sm)',
             background: hexToRgba(accent, 0.18),

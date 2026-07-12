@@ -57,10 +57,10 @@ export default function BacktestPage() {
       {/* Scoped styles via useScopedStyle */}<div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Activity size={22} color={'#B388FF'} />
-          <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{bt('pageTitle')}</h1>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 10px', borderRadius: 'var(--radius-2xl)', background: `${'#B388FF'}18`, color: '#B388FF', fontFamily: "var(--font-mono)", fontWeight: 700 }}>BACKTESTING ENGINE</span>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>{bt('pageTitle')}</h1>
+          <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 'var(--radius-2xl)', background: `${'#B388FF'}18`, color: '#B388FF', fontFamily: "var(--font-mono)", fontWeight: 700 }}>BACKTESTING ENGINE</span>
         </div>
-        <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>{bt('pageSubtitle')}</p>
+        <p style={{ margin: 0, fontSize: 13, color: '#9CA3B5' }}>{bt('pageSubtitle')}</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20 }}>
@@ -68,7 +68,7 @@ export default function BacktestPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Strategy picker */}
           <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-xl)', padding: 16 }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#9CA3B5', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{bt('strategySection')}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#9CA3B5', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{bt('strategySection')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {strategies.map(st => (
                 <button key={st.id} onClick={() => setStrategy(st.id)} style={{
@@ -77,8 +77,8 @@ export default function BacktestPage() {
                   border: `1px solid ${strategy === st.id ? st.color + '50' : '#2A313C'}`,
                   borderRadius: 'var(--radius-lg)', cursor: 'pointer', textAlign: 'right', transition: 'all 0.15s',
                 }}>
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: strategy === st.id ? st.color : '#F0F2F5' }}>{st.label}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{st.desc}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: strategy === st.id ? st.color : '#F0F2F5' }}>{st.label}</span>
+                  <span style={{ fontSize: 11, color: '#9CA3B5' }}>{st.desc}</span>
                 </button>
               ))}
             </div>
@@ -86,8 +86,8 @@ export default function BacktestPage() {
 
           {/* Symbol + Interval */}
           <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-xl)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#9CA3B5', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{bt('assetAndTimeframe')}</div>
-            <select value={symbol} onChange={e => setSymbol(e.target.value)} style={{ background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 'var(--text-sm)', padding: '8px 10px', fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#9CA3B5', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{bt('assetAndTimeframe')}</div>
+            <select value={symbol} onChange={e => setSymbol(e.target.value)} style={{ background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 13, padding: '8px 10px', fontFamily: "var(--font-mono)", fontWeight: 700 }}>
               {SYMBOLS.map(sym => <option key={sym} value={sym}>{sym}</option>)}
             </select>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -95,7 +95,7 @@ export default function BacktestPage() {
                 <button key={iv} onClick={() => setInterval(iv)} style={{
                   flex: 1, padding: '6px 4px', borderRadius: 'var(--radius-md)', border: `1px solid ${interval === iv ? '#0A84FF' : '#2A313C'}`,
                   background: interval === iv ? `${'#0A84FF'}18` : 'transparent', color: interval === iv ? '#0A84FF' : '#9CA3B5',
-                  fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer',
+                  fontSize: 11, fontWeight: 800, cursor: 'pointer',
                 }}>{iv}</button>
               ))}
             </div>
@@ -103,14 +103,14 @@ export default function BacktestPage() {
 
           {/* Strategy params */}
           <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-xl)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#9CA3B5', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{bt('parameters')}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#9CA3B5', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{bt('parameters')}</div>
             {strategy !== 'RSI' ? (
               <div style={{ display: 'flex', gap: 10 }}>
                 {[{ label: bt('fast'), val: fastPeriod, set: setFastPeriod }, { label: bt('slow'), val: slowPeriod, set: setSlowPeriod }].map(p => (
                   <div key={p.label} style={{ flex: 1 }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
+                    <label style={{ fontSize: 11, color: '#9CA3B5', fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
                     <input type="number" value={p.val} min={2} max={200} onChange={e => p.set(+e.target.value)}
-                      style={{ width: '100%', background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 'var(--text-sm)', padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
+                      style={{ width: '100%', background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 13, padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
                   </div>
                 ))}
               </div>
@@ -118,9 +118,9 @@ export default function BacktestPage() {
               <div style={{ display: 'flex', gap: 10 }}>
                 {[{ label: bt('overbought'), val: rsiOB, set: setRsiOB }, { label: bt('oversold'), val: rsiOS, set: setRsiOS }].map(p => (
                   <div key={p.label} style={{ flex: 1 }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
+                    <label style={{ fontSize: 11, color: '#9CA3B5', fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
                     <input type="number" value={p.val} min={10} max={90} onChange={e => p.set(+e.target.value)}
-                      style={{ width: '100%', background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 'var(--text-sm)', padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
+                      style={{ width: '100%', background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 13, padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
                   </div>
                 ))}
               </div>
@@ -128,9 +128,9 @@ export default function BacktestPage() {
             <div style={{ display: 'flex', gap: 10 }}>
               {[{ label: bt('capital'), val: capital, set: setCapital, min: 100 }, { label: bt('riskPercentage'), val: riskPct, set: setRiskPct, min: 0.5 }].map(p => (
                 <div key={p.label} style={{ flex: 1 }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
+                  <label style={{ fontSize: 11, color: '#9CA3B5', fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
                   <input type="number" value={p.val} min={p.min} step={p.min} onChange={e => p.set(+e.target.value)}
-                    style={{ width: '100%', background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 'var(--text-sm)', padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
+                    style={{ width: '100%', background: '#0F1117', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 13, padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
                 </div>
               ))}
             </div>
@@ -140,11 +140,11 @@ export default function BacktestPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             height: 48, borderRadius: 'var(--radius-lg)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
             background: loading ? `${'#B388FF'}40` : `linear-gradient(135deg, ${'#B388FF'}, ${'#0A84FF'})`,
-            color: '#fff', fontSize: 'var(--text-base)', fontWeight: 900, fontFamily: "var(--font-ar)",
+            color: '#fff', fontSize: 15, fontWeight: 900, fontFamily: "var(--font-ar)",
           }}>
             {loading ? <><div style={{ width: 16, height: 16, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> {bt('testing')}</> : <><Play size={16} fill="white" /> {bt('runTest')}</>}
           </button>
-          {error && <div style={{ padding: '10px', background: `${'#FF4757'}12`, border: `1px solid ${'#FF4757'}30`, borderRadius: 'var(--radius-md)', color: '#FF4757', fontSize: 'var(--text-xs)' }}>{error}</div>}
+          {error && <div style={{ padding: '10px', background: `${'#FF4757'}12`, border: `1px solid ${'#FF4757'}30`, borderRadius: 'var(--radius-md)', color: '#FF4757', fontSize: 11 }}>{error}</div>}
         </div>
 
         {/* Results Panel */}
@@ -153,7 +153,7 @@ export default function BacktestPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#151A22', border: `1px dashed ${'#2A313C'}`, borderRadius: 'var(--radius-xl)' }}>
               <div style={{ textAlign: 'center', color: '#9CA3B5' }}>
                 <Activity size={48} style={{ opacity: 0.2, marginBottom: 12 }} />
-                <div style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>{bt('configureAndStart')}</div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{bt('configureAndStart')}</div>
               </div>
             </div>
           )}
@@ -173,9 +173,9 @@ export default function BacktestPage() {
                   { label: bt('finalCapital'), value: `$${s.finalEquity.toLocaleString('en', { maximumFractionDigits: 0 })}`, color: '#B388FF', icon: '💎' },
                 ].map(kpi => (
                   <div key={kpi.label} style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-lg)', padding: '14px 16px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 'var(--text-lg)', marginBottom: 4 }}>{kpi.icon}</div>
-                    <div style={{ fontSize: 'var(--text-md)', fontWeight: 900, color: kpi.color, fontFamily: "var(--font-mono)" }}>{kpi.value}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, marginTop: 4 }}>{kpi.label}</div>
+                    <div style={{ fontSize: 19, marginBottom: 4 }}>{kpi.icon}</div>
+                    <div style={{ fontSize: 17, fontWeight: 900, color: kpi.color, fontFamily: "var(--font-mono)" }}>{kpi.value}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3B5', fontWeight: 700, marginTop: 4 }}>{kpi.label}</div>
                   </div>
                 ))}
               </div>
@@ -196,8 +196,8 @@ export default function BacktestPage() {
                 return (
                   <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-xl)', padding: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5' }}>{bt('equityCurveTitle')}</span>
-                      <span style={{ fontSize: 'var(--text-xs)', color: lineColor, fontFamily: "var(--font-mono)", fontWeight: 800 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5' }}>{bt('equityCurveTitle')}</span>
+                      <span style={{ fontSize: 11, color: lineColor, fontFamily: "var(--font-mono)", fontWeight: 800 }}>
                         ${s.finalEquity.toLocaleString('en', { maximumFractionDigits: 0 })}
                       </span>
                     </div>
@@ -219,15 +219,15 @@ export default function BacktestPage() {
               {result.trades?.length > 0 && (
                 <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
                   <div style={{ padding: '12px 16px', borderBottom: `1px solid ${'#2A313C'}`, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5' }}>{bt('recentTrades')}</span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{bt('tradesCount', { count: result.trades.length })}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#F0F2F5' }}>{bt('recentTrades')}</span>
+                    <span style={{ fontSize: 11, color: '#9CA3B5' }}>{bt('tradesCount', { count: result.trades.length })}</span>
                   </div>
                   <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-xs)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                       <thead>
                         <tr style={{ background: '#0F1117' }}>
                           {[bt('entryCol'), bt('exitCol'), bt('pnlCol'), bt('pnlPercentCol'), bt('resultCol')].map(h => (
-                            <th key={h} style={{ padding: '8px 12px', textAlign: 'right', color: '#9CA3B5', fontWeight: 700, fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>{h}</th>
+                            <th key={h} style={{ padding: '8px 12px', textAlign: 'right', color: '#9CA3B5', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -243,7 +243,7 @@ export default function BacktestPage() {
                               {trade.pnlPct.toFixed(2)}%
                             </td>
                             <td style={{ padding: '8px 12px' }}>
-                              <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)', background: trade.isWin ? `${'#00FFA3'}18` : `${'#FF4757'}18`, color: trade.isWin ? '#00FFA3' : '#FF4757', fontWeight: 800 }}>
+                              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-2xl)', background: trade.isWin ? `${'#00FFA3'}18` : `${'#FF4757'}18`, color: trade.isWin ? '#00FFA3' : '#FF4757', fontWeight: 800 }}>
                                 {trade.isWin ? bt('winBadge') : bt('lossBadge')}
                               </span>
                             </td>

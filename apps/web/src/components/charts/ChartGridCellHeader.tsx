@@ -89,7 +89,7 @@ export function ChartGridCellHeader({
         style={{
           background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
           borderRadius: 'var(--radius-xs)', color: '#00D4FF', fontFamily: "var(--font-mono)",
-          fontSize: 'var(--text-xs)', fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
+          fontSize: 11, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
           outline: 'none', maxWidth: 95, flexShrink: 0,
         }}
       >
@@ -111,7 +111,7 @@ export function ChartGridCellHeader({
                 background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                 border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
                 borderRadius: 'var(--radius-xs)', color: active ? '#00D4FF' : '#6B7280',
-                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
+                fontFamily: "var(--font-mono)", fontSize: 11,
                 fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}
@@ -120,7 +120,7 @@ export function ChartGridCellHeader({
         })}
       </div>
       {isPaused && (
-        <span style={{ color: '#FFB800', fontSize: 'var(--text-xs)', fontWeight: 700 }}>⏸</span>
+        <span style={{ color: '#FFB800', fontSize: 11, fontWeight: 700 }}>⏸</span>
       )}
       {feedState === 'waiting' && (
         <div style={{ width: 8, height: 8, border: '2px solid #1E2530',

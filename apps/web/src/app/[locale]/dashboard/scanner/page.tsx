@@ -79,7 +79,7 @@ function ScannerContent() {
             width: 36, height: 36, borderRadius: 'var(--radius-md)',
             background: '#151A22', border: `1px solid ${'#2A313C'}`,
             color: '#F0F2F5', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', fontSize: 'var(--text-base)',
+            cursor: 'pointer', fontSize: 15,
           }}
         >
           ☰

@@ -51,7 +51,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
       borderRadius: 'var(--radius-lg)',
       overflow: 'hidden',
       fontFamily: 'system-ui, -apple-system, sans-serif',
-      fontSize: 'var(--text-xs)',
+      fontSize: 11,
       boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
     }}>
       {/* Header */}
@@ -61,20 +61,20 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
         borderBottom: `1px solid ${'#2A313C'}`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 'var(--text-base)' }}>📊</span>
+          <span style={{ fontSize: 15 }}>📊</span>
           <span style={{ fontWeight: 700, color: '#059669', letterSpacing: 0.5 }}>
             {tc('marketPatterns')}
           </span>
           <span style={{
             background: 'rgba(0,212,255,0.15)', borderRadius: 'var(--radius-md)',
-            padding: '1px 6px', color: '#059669', fontSize: 'var(--text-xs)',
+            padding: '1px 6px', color: '#059669', fontSize: 11,
           }}>
             {filtered.length}
           </span>
         </div>
         <button onClick={onClose} style={{
           background: 'none', border: 'none', color: '#8B92A8',
-          cursor: 'pointer', fontSize: 'var(--text-base)', padding: '0 4px',
+          cursor: 'pointer', fontSize: 15, padding: '0 4px',
         }}>×</button>
       </div>
 
@@ -86,7 +86,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
         {(['all', 'bullish', 'bearish'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             flex: 1, padding: '3px 0', borderRadius: 'var(--radius-sm)', border: 'none',
-            fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
+            fontSize: 11, fontWeight: 600, cursor: 'pointer',
             background: filter === f
               ? f === 'bullish' ? 'rgba(0,255,163,0.2)'
               : f === 'bearish' ? 'rgba(255,71,87,0.2)'
@@ -103,7 +103,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
         ))}
         <button onClick={() => setSortBy(s => s === 'quality' ? 'time' : 'quality')} style={{
           padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: 'none',
-          fontSize: 'var(--text-xs)', cursor: 'pointer',
+          fontSize: 11, cursor: 'pointer',
           background: 'rgba(255,255,255,0.05)', color: '#8B92A8',
         }}>
           {sortBy === 'quality' ? '🏆' : '🕐'}
@@ -133,12 +133,12 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
               {/* Row 1: type + direction + status */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ color: col, fontWeight: 800, fontSize: 'var(--text-xs)' }}>
+                  <span style={{ color: col, fontWeight: 800, fontSize: 11 }}>
                     {DIRECTION_ICON[p.direction]}
                   </span>
                   <span style={{ color: '#F0F2F5', fontWeight: 600 }}>{p.type}</span>
                 </div>
-                <span style={{ color: statusCol, fontSize: 'var(--text-xs)', fontWeight: 700 }}>
+                <span style={{ color: statusCol, fontSize: 11, fontWeight: 700 }}>
                   {p.status === 'forming' ? tc('forming')
                    : p.status === 'breakout' ? tc('breakout')
                    : tc('completed')}
@@ -147,21 +147,21 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
 
               {/* Row 2: quality bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                <span style={{ color: '#8B92A8', fontSize: 'var(--text-xs)' }}>{tc('quality')}</span>
+                <span style={{ color: '#8B92A8', fontSize: 11 }}>{tc('quality')}</span>
                 <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
+                  fontFamily: "var(--font-mono)", fontSize: 11,
                   color: p.quality.overall >= 7 ? '#00FFA3' : p.quality.overall >= 5 ? '#FFD700' : '#8B92A8',
                 }}>
                   {QUALITY_BAR(p.quality.overall)}
                 </span>
-                <span style={{ color: '#059669', fontWeight: 700, fontSize: 'var(--text-xs)' }}>
+                <span style={{ color: '#059669', fontWeight: 700, fontSize: 11 }}>
                   {p.quality.overall}/10
                 </span>
               </div>
 
               {/* Row 3: forecast */}
               {p.forecast && (
-                <div style={{ display: 'flex', gap: 8, fontSize: 'var(--text-xs)' }}>
+                <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
                   <div>
                     <span style={{ color: '#8B92A8' }}>{tc('target')}: </span>
                     <span style={{ color: col, fontWeight: 600 }}>
@@ -187,7 +187,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
       <div style={{
         padding: '5px 10px', borderTop: `1px solid ${'#2A313C'}`,
         display: 'flex', justifyContent: 'space-between',
-        color: '#8B92A8', fontSize: 'var(--text-xs)',
+        color: '#8B92A8', fontSize: 11,
       }}>
         <span>{tc('clickToNavigate')}</span>
         <span>Autochartist-style</span>

@@ -335,7 +335,7 @@ export default function AdminSettingsPage() {
           gap: 10,
         }}>
           <AlertTriangle size={16} color={COLORS.amber} />
-          <span style={{ fontSize: 'var(--text-sm)', color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 13, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
             {loadError} — يتم استخدام القيم الافتراضية
           </span>
         </div>
@@ -353,7 +353,7 @@ export default function AdminSettingsPage() {
           gap: 10,
         }}>
           <AlertTriangle size={16} color={COLORS.danger} />
-          <span style={{ fontSize: 'var(--text-sm)', color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 13, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
             {saveError}
           </span>
         </div>
@@ -362,8 +362,8 @@ export default function AdminSettingsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إعدادات النظام</h1>
-          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>إدارة المفاتيح والتكوين والمخاطر</p>
+          <h1 style={{ fontSize: 19, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إعدادات النظام</h1>
+          <p style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>إدارة المفاتيح والتكوين والمخاطر</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
@@ -373,7 +373,7 @@ export default function AdminSettingsPage() {
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 12px', borderRadius: 'var(--radius-md)',
               border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-              color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
+              color: COLORS.accent, fontSize: 13, fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: loading ? 'wait' : 'pointer',
               opacity: loading ? 0.6 : 1,
             }}
@@ -388,7 +388,7 @@ export default function AdminSettingsPage() {
               padding: '8px 20px', borderRadius: 'var(--radius-md)',
               border: `1px solid ${COLORS.success}25`,
               background: saved ? `${COLORS.success}15` : `${COLORS.success}08`,
-              color: COLORS.success, fontSize: 'var(--text-sm)', fontWeight: 600,
+              color: COLORS.success, fontSize: 13, fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: saving ? 'wait' : 'pointer',
               transition: 'all 0.2s',
               opacity: saving ? 0.7 : 1,
@@ -404,7 +404,7 @@ export default function AdminSettingsPage() {
       {loading ? (
         <div style={{ ...CARD_STYLE, padding: 40, textAlign: 'center' }}>
           <Loader2 size={24} color={COLORS.accent} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>جارٍ تحميل الإعدادات...</div>
+          <div style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>جارٍ تحميل الإعدادات...</div>
         </div>
       ) : (
         <>
@@ -412,7 +412,7 @@ export default function AdminSettingsPage() {
           <div style={{ ...CARD_STYLE, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <Key size={14} color={COLORS.accent} />
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>مفاتيح API</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>مفاتيح API</span>
             </div>
 
             {apiKeys.length > 0 ? (
@@ -435,14 +435,14 @@ export default function AdminSettingsPage() {
                         <Key size={14} color={key.isActive ? COLORS.success : COLORS.muted} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>{key.exchange}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: COLORS.muted }} dir="ltr">
+                        <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>{key.exchange}</div>
+                        <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: COLORS.muted }} dir="ltr">
                           {key.visible ? key.keyPreview.replace(/•/g, 'X') : key.keyPreview}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatLastValidated(key.lastValidated)}</span>
+                      <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatLastValidated(key.lastValidated)}</span>
                       <button
                         onClick={() => toggleKeyVisibility(key.id)}
                         style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer', padding: 4 }}
@@ -466,10 +466,10 @@ export default function AdminSettingsPage() {
                 border: `1px solid ${COLORS.border}`,
                 textAlign: 'center',
               }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                   لا توجد مفاتيح API مسجلة في النظام
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
+                <div style={{ fontSize: 11, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
                   ميزة إدارة المفاتيح قيد التطوير
                 </div>
               </div>
@@ -483,7 +483,7 @@ export default function AdminSettingsPage() {
                 padding: '10px', borderRadius: 'var(--radius-md)',
                 border: `1px dashed ${COLORS.border}`,
                 background: 'transparent',
-                color: COLORS.accent, fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)",
+                color: COLORS.accent, fontSize: 11, fontFamily: "var(--font-ar)",
                 cursor: 'pointer', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
@@ -497,7 +497,7 @@ export default function AdminSettingsPage() {
           <div style={{ ...CARD_STYLE, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <Bot size={14} color={COLORS.amber} />
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تكوين البوت</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تكوين البوت</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -509,7 +509,7 @@ export default function AdminSettingsPage() {
                 { key: 'cooldownPeriod', label: 'فترة التبريد (ثانية)', type: 'number' as const },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
                   {field.type === 'toggle' ? (
                     <button
                       onClick={() => setBotConfig(prev => ({ ...prev, [field.key]: !prev[field.key as keyof typeof prev] }))}
@@ -519,7 +519,7 @@ export default function AdminSettingsPage() {
                         border: `1px solid ${botConfig[field.key as keyof typeof botConfig] ? COLORS.success + '25' : COLORS.border}`,
                         background: botConfig[field.key as keyof typeof botConfig] ? `${COLORS.success}08` : 'rgba(255,255,255,0.03)',
                         color: botConfig[field.key as keyof typeof botConfig] ? COLORS.success : COLORS.muted,
-                        fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", cursor: 'pointer',
+                        fontSize: 11, fontFamily: "var(--font-ar)", cursor: 'pointer',
                       }}
                     >
                       {botConfig[field.key as keyof typeof botConfig] ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
@@ -533,7 +533,7 @@ export default function AdminSettingsPage() {
                         padding: '8px 12px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.03)',
                         border: `1px solid ${COLORS.border}`,
-                        color: COLORS.text, fontSize: 'var(--text-xs)',
+                        color: COLORS.text, fontSize: 11,
                         fontFamily: "var(--font-ar)",
                         outline: 'none',
                       }}
@@ -551,7 +551,7 @@ export default function AdminSettingsPage() {
                         padding: '8px 12px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.03)',
                         border: `1px solid ${COLORS.border}`,
-                        color: COLORS.text, fontSize: 'var(--text-xs)',
+                        color: COLORS.text, fontSize: 11,
                         fontFamily: "var(--font-mono)",
                         outline: 'none',
                       }}
@@ -567,7 +567,7 @@ export default function AdminSettingsPage() {
           <div style={{ ...CARD_STYLE, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <Shield size={14} color={COLORS.danger} />
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إدارة المخاطر</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إدارة المخاطر</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -578,7 +578,7 @@ export default function AdminSettingsPage() {
                 { key: 'maxOpenPositions', label: 'الحد الأقصى للمراكز المفتوحة' },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
                   <input
                     type="number"
                     value={riskConfig[field.key as keyof typeof riskConfig]}
@@ -587,7 +587,7 @@ export default function AdminSettingsPage() {
                       padding: '8px 12px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.03)',
                       border: `1px solid ${COLORS.border}`,
-                      color: COLORS.text, fontSize: 'var(--text-xs)',
+                      color: COLORS.text, fontSize: 11,
                       fontFamily: "var(--font-mono)",
                       outline: 'none',
                     }}
@@ -604,16 +604,16 @@ export default function AdminSettingsPage() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <AlertTriangle size={13} color={COLORS.danger} />
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
                   {tn('hardCapsAdminTitle')}
                 </span>
               </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 12, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 12, lineHeight: 1.6 }}>
                 {tn('hardCapsAdminDesc')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                     {tn('hardRiskCapAdminLabel')}
                   </label>
                   <input
@@ -624,18 +624,18 @@ export default function AdminSettingsPage() {
                       padding: '8px 12px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.03)',
                       border: `1px solid ${COLORS.border}`,
-                      color: COLORS.text, fontSize: 'var(--text-xs)',
+                      color: COLORS.text, fontSize: 11,
                       fontFamily: "var(--font-mono)",
                       outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                     {tn('hardRiskCapAdminHint')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                     {tn('maxNotionalAdminLabel')}
                   </label>
                   <input
@@ -646,13 +646,13 @@ export default function AdminSettingsPage() {
                       padding: '8px 12px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.03)',
                       border: `1px solid ${COLORS.border}`,
-                      color: COLORS.text, fontSize: 'var(--text-xs)',
+                      color: COLORS.text, fontSize: 11,
                       fontFamily: "var(--font-mono)",
                       outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                     {tn('maxNotionalAdminHint')}
                   </span>
                 </div>
@@ -664,9 +664,9 @@ export default function AdminSettingsPage() {
           <div style={{ ...CARD_STYLE, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <Bot size={14} color={COLORS.accent} />
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إعدادات الوكيل والمنفذ</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إعدادات الوكيل والمنفذ</span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 14, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 14, lineHeight: 1.6 }}>
               تحكم بعدد الصفقات المفتوحة وإعدادات المخاطر لكل من الوكيل (التحليل التلقائي) والمنفذ (التنفيذ الذكي).
               <br />
               <span style={{ color: COLORS.amber }}>تنبيه:</span> الحد الأقصى العام للمراكز المفتوحة (في إدارة المخاطر أعلاه) سيتم تحديثه تلقائياً ليكون أكبر من أو يساوي مجموع حد الوكيل وحد المنفذ.
@@ -686,7 +686,7 @@ export default function AdminSettingsPage() {
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}>
                   <AlertTriangle size={14} color={COLORS.amber} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 11, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
                     الحد العام ({globalMax}) أقل من مجموع المنفذ+الوكيل ({totalNeeded}). سيتم تحديثه تلقائياً إلى {totalNeeded} عند الحفظ.
                   </span>
                 </div>
@@ -695,7 +695,7 @@ export default function AdminSettingsPage() {
 
             {/* Executor Section */}
             <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(0,229,255,0.04)', border: `1px solid ${COLORS.accent}15` }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.accent, fontFamily: "var(--font-ar)", marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent, fontFamily: "var(--font-ar)", marginBottom: 10 }}>
                 ⚔️ المنفذ الذكي (Smart Executor)
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -706,7 +706,7 @@ export default function AdminSettingsPage() {
                   { key: 'executorTickIntervalSec', label: 'فاصل الفحص (ثانية)', min: 5, max: 120 },
                 ].map(field => (
                   <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
+                    <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input
                         type="range"
@@ -728,7 +728,7 @@ export default function AdminSettingsPage() {
                           width: 60, padding: '6px 8px', borderRadius: 'var(--radius-sm)',
                           background: 'rgba(255,255,255,0.03)',
                           border: `1px solid ${COLORS.border}`,
-                          color: COLORS.text, fontSize: 'var(--text-xs)',
+                          color: COLORS.text, fontSize: 11,
                           fontFamily: "var(--font-mono)",
                           outline: 'none', textAlign: 'center',
                         }}
@@ -742,7 +742,7 @@ export default function AdminSettingsPage() {
 
             {/* Agent Section */}
             <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.1)' }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-ar)", marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-ar)", marginBottom: 10 }}>
                 🤖 الوكيل (Agent)
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -751,7 +751,7 @@ export default function AdminSettingsPage() {
                   { key: 'agentAnalysisIntervalMin', label: 'فاصل التحليل (دقيقة)', min: 5, max: 240 },
                 ].map(field => (
                   <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
+                    <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input
                         type="range"
@@ -772,7 +772,7 @@ export default function AdminSettingsPage() {
                           width: 60, padding: '6px 8px', borderRadius: 'var(--radius-sm)',
                           background: 'rgba(255,255,255,0.03)',
                           border: `1px solid ${COLORS.border}`,
-                          color: COLORS.text, fontSize: 'var(--text-xs)',
+                          color: COLORS.text, fontSize: 11,
                           fontFamily: "var(--font-mono)",
                           outline: 'none', textAlign: 'center',
                         }}
@@ -789,9 +789,9 @@ export default function AdminSettingsPage() {
           <div style={{ ...CARD_STYLE, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <Brain size={14} color={COLORS.purple} />
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>🏛️ إعدادات مجلس الذكاء</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>🏛️ إعدادات مجلس الذكاء</span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 14, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 14, lineHeight: 1.6 }}>
               تحكم في معلمات مجلس الذكاء: عتبة الإجماع، حد الثقة، تكلفة AI، وتردد الجلسات.
               <br />
               <span style={{ color: COLORS.amber }}>ملاحظة:</span> التغييرات تُطبق على الجلسة القادمة للمجلس.
@@ -807,7 +807,7 @@ export default function AdminSettingsPage() {
                 { key: 'maxPairsPerSession', label: 'الحد الأقصى للأزواج لكل جلسة', min: 3, max: 30 },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input
                       type="range"
@@ -829,7 +829,7 @@ export default function AdminSettingsPage() {
                         width: 60, padding: '6px 8px', borderRadius: 'var(--radius-sm)',
                         background: 'rgba(255,255,255,0.03)',
                         border: `1px solid ${COLORS.border}`,
-                        color: COLORS.text, fontSize: 'var(--text-xs)',
+                        color: COLORS.text, fontSize: 11,
                         fontFamily: "var(--font-mono)",
                         outline: 'none', textAlign: 'center',
                       }}
@@ -845,7 +845,7 @@ export default function AdminSettingsPage() {
           <div style={{ ...CARD_STYLE, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <Globe size={14} color={COLORS.accent} />
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إعدادات المنصة</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إعدادات المنصة</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -857,7 +857,7 @@ export default function AdminSettingsPage() {
                 { key: 'sessionTimeout', label: 'مدة الجلسة (ساعة)', type: 'number' as const },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{field.label}</label>
                   {field.type === 'toggle' ? (
                     <button
                       onClick={() => setPlatformConfig(prev => ({ ...prev, [field.key]: !prev[field.key as keyof typeof prev] }))}
@@ -867,7 +867,7 @@ export default function AdminSettingsPage() {
                         border: `1px solid ${platformConfig[field.key as keyof typeof platformConfig] ? (field.color || COLORS.success) + '25' : COLORS.border}`,
                         background: platformConfig[field.key as keyof typeof platformConfig] ? `${field.color || COLORS.success}08` : 'rgba(255,255,255,0.03)',
                         color: platformConfig[field.key as keyof typeof platformConfig] ? (field.color || COLORS.success) : COLORS.muted,
-                        fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", cursor: 'pointer',
+                        fontSize: 11, fontFamily: "var(--font-ar)", cursor: 'pointer',
                       }}
                     >
                       {platformConfig[field.key as keyof typeof platformConfig] ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
@@ -882,7 +882,7 @@ export default function AdminSettingsPage() {
                         padding: '8px 12px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.03)',
                         border: `1px solid ${COLORS.border}`,
-                        color: COLORS.text, fontSize: 'var(--text-xs)',
+                        color: COLORS.text, fontSize: 11,
                         fontFamily: "var(--font-mono)",
                         outline: 'none',
                       }}
@@ -915,7 +915,7 @@ export default function AdminSettingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Key size={16} color={COLORS.accent} />
-                <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إضافة مفتاح API جديد</span>
+                <span style={{ fontSize: 17, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إضافة مفتاح API جديد</span>
               </div>
               <button
                 onClick={() => setShowAddKeyModal(false)}
@@ -931,14 +931,14 @@ export default function AdminSettingsPage() {
               border: `1px solid ${COLORS.amber}20`,
               marginBottom: 16,
             }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
+              <span style={{ fontSize: 11, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
                 ⚠️ ميزة قيد التطوير — سيتم حفظ المفتاح محلياً فقط
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>المنصة / وسطاء الربط</label>
+                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>المنصة / وسطاء الربط</label>
                 <select
                   value={newKeyForm.exchange}
                   onChange={e => setNewKeyForm(prev => ({ ...prev, exchange: e.target.value }))}
@@ -946,7 +946,7 @@ export default function AdminSettingsPage() {
                     padding: '10px 12px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 'var(--text-sm)',
+                    color: COLORS.text, fontSize: 13,
                     fontFamily: "var(--font-ar)",
                     outline: 'none',
                   }}
@@ -961,7 +961,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>API Key</label>
+                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>API Key</label>
                 <input
                   type="text"
                   value={newKeyForm.apiKey}
@@ -971,7 +971,7 @@ export default function AdminSettingsPage() {
                     padding: '10px 12px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 'var(--text-sm)',
+                    color: COLORS.text, fontSize: 13,
                     fontFamily: "var(--font-mono)",
                     outline: 'none',
                   }}
@@ -980,7 +980,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>API Secret</label>
+                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>API Secret</label>
                 <input
                   type="password"
                   value={newKeyForm.apiSecret}
@@ -990,7 +990,7 @@ export default function AdminSettingsPage() {
                     padding: '10px 12px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 'var(--text-sm)',
+                    color: COLORS.text, fontSize: 13,
                     fontFamily: "var(--font-mono)",
                     outline: 'none',
                   }}
@@ -999,7 +999,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>تسمية (اختياري)</label>
+                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>تسمية (اختياري)</label>
                 <input
                   type="text"
                   value={newKeyForm.label}
@@ -1009,7 +1009,7 @@ export default function AdminSettingsPage() {
                     padding: '10px 12px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 'var(--text-sm)',
+                    color: COLORS.text, fontSize: 13,
                     fontFamily: "var(--font-ar)",
                     outline: 'none',
                   }}
@@ -1024,7 +1024,7 @@ export default function AdminSettingsPage() {
                     padding: '10px', borderRadius: 'var(--radius-md)',
                     border: `1px solid ${COLORS.border}`,
                     background: 'transparent',
-                    color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)",
+                    color: COLORS.muted, fontSize: 13, fontFamily: "var(--font-ar)",
                     cursor: 'pointer',
                   }}
                 >
@@ -1038,7 +1038,7 @@ export default function AdminSettingsPage() {
                     padding: '10px', borderRadius: 'var(--radius-md)',
                     border: `1px solid ${COLORS.success}25`,
                     background: `${COLORS.success}10`,
-                    color: COLORS.success, fontSize: 'var(--text-sm)', fontWeight: 600,
+                    color: COLORS.success, fontSize: 13, fontWeight: 600,
                     fontFamily: "var(--font-ar)",
                     cursor: (!newKeyForm.exchange || !newKeyForm.apiKey || addKeyLoading) ? 'not-allowed' : 'pointer',
                     opacity: (!newKeyForm.exchange || !newKeyForm.apiKey || addKeyLoading) ? 0.5 : 1,

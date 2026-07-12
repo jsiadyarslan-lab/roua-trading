@@ -56,9 +56,9 @@ const SIGNAL_COLORS: Record<string, string> = {
 }
 
 const SIZE_MAP: Record<TagSize, { px: number; py: number; fontSize: number }> = {
-  sm: { px: 4, py: 1, fontSize: 'var(--text-xs)' },
-  md: { px: 6, py: 2, fontSize: 'var(--text-xs)' },
-  lg: { px: 8, py: 3, fontSize: 'var(--text-xs)' },
+  sm: { px: 4, py: 1, fontSize: 11 },
+  md: { px: 6, py: 2, fontSize: 11 },
+  lg: { px: 8, py: 3, fontSize: 11 },
 }
 
 export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionTagProps) {

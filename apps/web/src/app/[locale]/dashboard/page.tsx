@@ -1990,11 +1990,41 @@ export default function DashboardPage() {
 
               {/* تبويبان */}
               <div style={{ display:'flex', margin:'0 12px 4px', background:'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', padding:2, gap:2 }}>
-                <button type="button"
-                    style={{ flex:1, padding:'5px 0', borderRadius: 'var(--radius-sm)', border:'none', cursor:'default', background:'rgba(0,212,255,0.1)', color:'#00D4FF', fontSize: 11, fontWeight:700, fontFamily: "var(--font-ar)" }}>
-                  مفتوحة ({positions.length})
-                </button>
+                {(['open','closed'] as const).map(tab => (
+                  <button key={tab} type="button" onClick={() => { setM2PositionsTab(tab); if(tab==='closed') fetchClosedPositions(closedDateFilter); }}
+                    style={{ flex:1, padding:'5px 0', borderRadius: 'var(--radius-sm)', border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#7A8A9A', fontSize: 11, fontWeight:700, fontFamily: "var(--font-ar)", touchAction:'manipulation' }}>
+                    {tab==='open' ? `مفتوحة (${positions.length})` : `مغلقة (${closedPositions.length})`}
+                  </button>
+                ))}
               </div>
+
+              {/* أزرار فلتر المغلقة + إجمالي Profit/Loss */}
+              {m2PositionsTab === 'closed' && (
+                <div style={{ margin:'0 12px 4px' }}>
+                  <div style={{ display:'flex', gap:3, marginBottom:4 }}>
+                    {(['day','week','month','year','all'] as const).map(f => {
+                      const labels = {day:'يومي',week:'أسبوعي',month:'شهري',year:'سنوي',all:'All'}
+                      return (
+                        <button key={f} type="button"
+                          onClick={() => { setClosedDateFilter(f); fetchClosedPositions(f); }}
+                          style={{ flex:1, padding:'3px 0', borderRadius: 'var(--radius-sm)', border:`1px solid ${closedDateFilter===f?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.06)'}`, background: closedDateFilter===f?'rgba(0,212,255,0.08)':'transparent', color: closedDateFilter===f?'#00D4FF':'#7A8A9A', fontSize: 11, fontFamily: "var(--font-ar)", cursor:'pointer', touchAction:'manipulation' }}>
+                          {labels[f]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {closedPositions.length > 0 && (
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 6px', background:'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border:'1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: 11, color:'#6A7A90', fontFamily: "var(--font-ar)" }}>
+                        إجمالي {closedPositions.length} صفقة
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight:800, fontFamily: "var(--font-mono)", color: closedPnlTotal >= 0 ? '#00FFA3' : '#FF4757' }}>
+                        {closedPnlTotal >= 0 ? '+' : ''}{closedPnlTotal.toFixed(2)}$
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* الصفقات */}
               <div style={{ flex:1, overflow:'auto', padding:'0 12px 16px' }}>
@@ -2046,6 +2076,43 @@ export default function DashboardPage() {
                       );
                     })
                 }
+                {m2PositionsTab === 'closed' && (
+                  <>
+                    {loadingClosed ? (
+                      <div style={{ textAlign:'center', padding:'40px 0', color:'#6B7280', fontSize: 13 }}>جارٍ التحميل...</div>
+                    ) : closedPositions.length === 0 ? (
+                      <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize: 13, fontFamily: "var(--font-ar)" }}>لا توجد صفقات مغلقة</div>
+                    ) : (
+                      closedPositions.slice(0,20).map((pos:any) => {
+                        const pnl = Number(pos.realizedPnl||pos.pnl||0)
+                        const isPos = pnl >= 0
+                        const ep = Number(pos.entryPrice||0)
+                        const dec = ep > 100 ? 2 : 4
+                        return (
+                          <div key={pos.id} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius: 'var(--radius-lg)', padding:'10px 12px', marginBottom:7 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                                <span style={{ fontSize: 13, fontWeight:800, color:'#D0E0F0', fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
+                                <span style={{ fontSize: 11, padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'Buy':'Sell'}</span>
+                                <span style={{ fontSize: 11, color:'#6B7280', fontFamily: "var(--font-mono)" }}>
+                                  {({'STOP_LOSS':'SL وقف','STOP_LOSS_HIT':'SL وقف','TAKE_PROFIT':'TP هدف','TAKE_PROFIT_HIT':'TP هدف','TIME_EXPIRED':'منتهي Time','AUTO_CLOSE':'Close تلقائي','AUTO_STALE':'تلقائي (قديم)','MANUAL':'يدوي','USER_MANUAL':'يدوي','STRATEGY_EXIT':'استراتيجية','EMERGENCY_STOP':'طوارئ','EXCHANGE_SYNC':'مزامنة','FORCE_CLOSE':'Close إجباري','DISPUTED':'متنازع'}[pos.closeReason]||pos.closeReason||'')}</span>
+                              </div>
+                              <div style={{ textAlign:'right' }}>
+                                <div style={{ fontSize: 15, fontWeight:800, color:isPos?'rgba(0,255,163,0.7)':'rgba(255,71,87,0.7)', fontFamily: "var(--font-mono)" }}>{isPos?'+':''}{pnl.toFixed(2)}$</div>
+                                <div style={{ fontSize: 11, color:'#6B7280', fontFamily: "var(--font-mono)" }}>{pos.closedAt?new Date(pos.closedAt).toLocaleDateString('ar',{month:'short',day:'numeric'}):''}</div>
+                              </div>
+                            </div>
+                            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
+                              {[['دخول',ep.toFixed(dec)],['Close',(Number(pos.exitPrice||pos.closePrice||0)).toFixed(dec)],['حجم',Number(pos.quantity||0).toFixed(3)]].map(([l,v])=>(
+                                <div key={l}><div style={{ fontSize: 11, color:'#7A8A9A', fontFamily: "var(--font-mono)" }}>{l}</div><div style={{ fontSize: 11, color:'#A0B4C8', fontFamily: "var(--font-mono)", fontWeight:600 }}>{v}</div></div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}

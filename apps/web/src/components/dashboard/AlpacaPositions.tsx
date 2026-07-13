@@ -682,19 +682,19 @@ export function AlpacaPositions() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(100px,1.2fr) minmax(70px,0.85fr) minmax(58px,0.7fr) 44px minmax(56px,0.75fr) minmax(56px,0.75fr) minmax(62px,0.8fr) minmax(56px,0.7fr) minmax(56px,0.7fr) 26px',
-              gap: 5,
+              gridTemplateColumns: 'minmax(100px,1.2fr) minmax(76px,0.9fr) minmax(62px,0.75fr) 46px minmax(60px,0.8fr) minmax(60px,0.8fr) minmax(58px,0.75fr) minmax(58px,0.75fr) minmax(68px,0.9fr) 30px',
+              gap: 7,
               alignItems: 'center',
-              padding: '4px 8px',
-              color: '#6B7280',
-              fontSize: 9,
+              padding: '5px 8px',
+              color: '#9CA3B5',
+              fontSize: 10,
               fontWeight: 800,
               fontFamily: "var(--font-ar)",
               textTransform: 'uppercase',
               letterSpacing: 0.4,
               background: 'rgba(255,255,255,0.02)',
               borderRadius: '5px',
-              marginBottom: 3,
+              marginBottom: 4,
             }}
           >
             <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
@@ -715,11 +715,11 @@ export function AlpacaPositions() {
             <div onClick={() => handleSort('current')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'current' ? '#00D4FF' : undefined }}>
               {t('current')} {sortKey === 'current' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
+            <div style={{ textAlign: 'center', color: 'rgba(255,71,87,0.8)' }}>SL</div>
+            <div style={{ textAlign: 'center', color: 'rgba(0,255,163,0.8)' }}>TP</div>
             <div onClick={() => handleSort('pnl')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'pnl' ? '#00D4FF' : undefined }}>
               {t('pnl')} {sortKey === 'pnl' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div style={{ textAlign: 'center', color: 'rgba(255,71,87,0.7)' }}>SL</div>
-            <div style={{ textAlign: 'center', color: 'rgba(0,255,163,0.7)' }}>TP</div>
             <div style={{ textAlign: 'center' }}>✕</div>
           </div>
         )}
@@ -788,24 +788,24 @@ export function AlpacaPositions() {
               }}
               style={{
                 borderRadius: '6px',
-                border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.18)' : 'rgba(255,71,87,0.18)'}`,
-                borderRight: `2px solid ${pnlUp ? 'rgba(0,255,163,0.5)' : 'rgba(255,71,87,0.5)'}`,
+                border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
+                borderRight: `2px solid ${pnlUp ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)'}`,
                 background: `linear-gradient(180deg, ${'#151A22'}, ${'#1A1D29'})`,
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 6px rgba(0,0,0,0.15)`,
-                padding: '4px 8px',
+                padding: '5px 8px',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(100px,1.2fr) minmax(70px,0.85fr) minmax(58px,0.7fr) 44px minmax(56px,0.75fr) minmax(56px,0.75fr) minmax(62px,0.8fr) minmax(56px,0.7fr) minmax(56px,0.7fr) 26px',
-                gap: 5,
+                gridTemplateColumns: 'minmax(100px,1.2fr) minmax(76px,0.9fr) minmax(62px,0.75fr) 46px minmax(60px,0.8fr) minmax(60px,0.8fr) minmax(58px,0.75fr) minmax(58px,0.75fr) minmax(68px,0.9fr) 30px',
+                gap: 7,
                 alignItems: 'center',
-                minHeight: 32,
+                minHeight: 36,
                 transition: 'border-color 0.15s',
               }}
             >
-              {/* Symbol + Buy/Sell badge — compact */}
-              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {/* Symbol + Buy/Sell badge */}
+              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <span
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 900,
                     color: '#F0F2F5',
                     fontFamily: "var(--font-mono)",
@@ -820,33 +820,33 @@ export function AlpacaPositions() {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 1,
-                    padding: '1px 4px',
+                    padding: '2px 5px',
                     borderRadius: '3px',
-                    background: isLong ? 'rgba(0,255,163,0.18)' : 'rgba(255,71,87,0.18)',
-                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.4)' : 'rgba(255,71,87,0.4)'}`,
+                    background: isLong ? 'rgba(0,255,163,0.2)' : 'rgba(255,71,87,0.2)',
+                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.45)' : 'rgba(255,71,87,0.45)'}`,
                     color: isLong ? '#00FFA3' : '#FF4757',
-                    fontSize: 8,
+                    fontSize: 9,
                     fontWeight: 900,
                     whiteSpace: 'nowrap',
                     letterSpacing: 0.3,
                   }}
                 >
-                  {isLong ? <TrendingUp size={7} /> : <TrendingDown size={7} />}
+                  {isLong ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
                   {isLong ? 'BUY' : 'SELL'}
                 </span>
               </div>
 
-              {/* Executor badge — compact */}
+              {/* Executor badge */}
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 {sourceBadge && (
                   <span
                     style={{
-                      padding: '1px 5px',
+                      padding: '2px 6px',
                       borderRadius: '8px',
                       background: sourceBadge.bg,
                       border: `1px solid ${sourceBadge.border}`,
                       color: sourceBadge.color,
-                      fontSize: 8,
+                      fontSize: 9,
                       fontWeight: 800,
                       whiteSpace: 'nowrap',
                     }}
@@ -856,69 +856,69 @@ export function AlpacaPositions() {
                 )}
               </div>
 
-              {/* Time — moved here after executor */}
-              <div style={{ fontSize: 9, fontWeight: 600, color: '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
+              {/* Time */}
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#9CA3B5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
                 {openedAt}
               </div>
 
               {/* Qty */}
-              <div style={{ fontSize: 9, fontWeight: 600, color: '#9CA3B5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#9CA3B5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {Number((position as any).qty ?? (position as any).quantity ?? 0).toFixed(2)}
               </div>
 
               {/* Entry */}
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#E6EDF3', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#E6EDF3', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPrice(position.avgEntryPrice, position.symbol)}
               </div>
 
               {/* Current */}
-              <div style={{ fontSize: 10, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPrice(position.currentPrice, position.symbol)}
               </div>
 
-              {/* P&L — prominent */}
-              <div style={{ fontSize: 11, fontWeight: 900, color: pnlUp ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {fmtPnl(position.unrealizedPnl)}
-              </div>
-
               {/* SL — separate column */}
-              <div style={{ fontSize: 10, fontWeight: 700, color: position.sl ? '#FF4757' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: position.sl ? '#FF4757' : '#9CA3B5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
               </div>
 
               {/* TP — separate column */}
-              <div style={{ fontSize: 10, fontWeight: 700, color: position.tp ? '#00FFA3' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: position.tp ? '#00FFA3' : '#9CA3B5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
               </div>
 
-              {/* Close button — compact */}
+              {/* P&L — LAST data column, prominent */}
+              <div style={{ fontSize: 12, fontWeight: 900, color: pnlUp ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {fmtPnl(position.unrealizedPnl)}
+              </div>
+
+              {/* Close button */}
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <button
                   type="button"
                   onClick={() => closePosition(position)}
                   disabled={closing === position.id}
                   style={{
-                    width: 22,
-                    height: 22,
+                    width: 26,
+                    height: 26,
                     borderRadius: '5px',
-                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,71,87,0.5)' : 'rgba(255,71,87,0.28)'}`,
+                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,71,87,0.5)' : 'rgba(255,71,87,0.3)'}`,
                     background: confirmClose === position.id ? 'rgba(255,71,87,0.2)' : 'rgba(255,71,87,0.08)',
                     color: '#FF4757',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 900,
                     transition: 'all 0.15s',
                   }}
                 >
                   {closing === position.id ? (
-                    <RefreshCw size={10} style={{ animation: 'spin 1s linear infinite' }} />
+                    <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />
                   ) : confirmClose === position.id ? (
                     tc('confirm')
                   ) : (
-                    <XIcon size={11} />
+                    <XIcon size={12} />
                   )}
                 </button>
               </div>

@@ -2061,7 +2061,8 @@
       "updating": "Đang cập nhật...",
       "reasonAuto": "Tự động",
       "closeFailed": "Đóng không thành công: XPH0X",
-      "closeAndRemoveAll": "Đóng & Xóa tất cả"
+      "closeAndRemoveAll": "Đóng & Xóa tất cả",
+      "source": "Người thực thi"
     },
     "apiDocs": {
       "rateLimitValue": "100 req/phút",

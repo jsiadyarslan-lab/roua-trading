@@ -2061,7 +2061,8 @@
       "updating": "Mise à jour...",
       "reasonAuto": "Auto",
       "closeFailed": "Échec de fermeture : {error}",
-      "closeAndRemoveAll": "Fermer et supprimer tout"
+      "closeAndRemoveAll": "Fermer et supprimer tout",
+      "source": "Exécuteur"
     },
     "apiDocs": {
       "rateLimitValue": "100 req/min",

@@ -2061,7 +2061,8 @@
       "updating": "Aggiornamento...",
       "reasonAuto": "Automatico",
       "closeFailed": "Chiusura non riuscita: XPH0X",
-      "closeAndRemoveAll": "Chiudi e rimuovi tutto"
+      "closeAndRemoveAll": "Chiudi e rimuovi tutto",
+      "source": "Esecutore"
     },
     "apiDocs": {
       "rateLimitValue": "100 richieste/min",

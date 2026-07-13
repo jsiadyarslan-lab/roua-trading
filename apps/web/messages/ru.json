@@ -2061,7 +2061,8 @@
       "updating": "Обновление...",
       "reasonAuto": "Авто",
       "closeFailed": "Ошибка закрытия: {error}",
-      "closeAndRemoveAll": "Закрыть и удалить все"
+      "closeAndRemoveAll": "Закрыть и удалить все",
+      "source": "Исполнитель"
     },
     "apiDocs": {
       "rateLimitValue": "100 зап/мин",

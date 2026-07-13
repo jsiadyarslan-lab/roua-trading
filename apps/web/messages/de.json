@@ -2954,7 +2954,8 @@
       "exit": "Ausstieg",
       "tp": "TP",
       "sl": "SL",
-      "pnl": "P&L"
+      "pnl": "P&L",
+      "source": "Ausführer"
     },
     "sidebarTabs": {
       "portfolio": "Portfolio",

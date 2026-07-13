@@ -2061,7 +2061,8 @@
       "updating": "Güncelleniyor...",
       "reasonAuto": "Otomatik",
       "closeFailed": "Kapatma başarısız: {error}",
-      "closeAndRemoveAll": "Tümünü Kapat ve Kaldır"
+      "closeAndRemoveAll": "Tümünü Kapat ve Kaldır",
+      "source": "Uygulayıcı"
     },
     "apiDocs": {
       "rateLimitValue": "100 req/dk",

@@ -2061,7 +2061,8 @@
       "updating": "Mengemas kini...",
       "reasonAuto": "Auto",
       "closeFailed": "Tutup gagal: {error}",
-      "closeAndRemoveAll": "Tutup & Alih Keluar Semua"
+      "closeAndRemoveAll": "Tutup & Alih Keluar Semua",
+      "source": "Pelaksana"
     },
     "apiDocs": {
       "rateLimitValue": "100 req/min",

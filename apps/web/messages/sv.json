@@ -2061,7 +2061,8 @@
       "updating": "Uppdaterar...",
       "reasonAuto": "Bil",
       "closeFailed": "Stängning misslyckades: {error}",
-      "closeAndRemoveAll": "Stäng och ta bort alla"
+      "closeAndRemoveAll": "Stäng och ta bort alla",
+      "source": "Utförare"
     },
     "apiDocs": {
       "rateLimitValue": "Gränsvärde",

@@ -2061,7 +2061,8 @@
       "updating": "更新中...",
       "reasonAuto": "自動",
       "closeFailed": "クローズ失敗: {error}",
-      "closeAndRemoveAll": "すべてクローズして削除"
+      "closeAndRemoveAll": "すべてクローズして削除",
+      "source": "実行者"
     },
     "apiDocs": {
       "rateLimitValue": "100リクエスト/分",

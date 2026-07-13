@@ -2061,7 +2061,8 @@
       "updating": "اپ ڈیٹ ہو رہا ہے...",
       "reasonAuto": "آٹو",
       "closeFailed": "بند کرنا ناکام ہو گیا: {error}",
-      "closeAndRemoveAll": "تمام بند کریں اور ہٹائیں"
+      "closeAndRemoveAll": "تمام بند کریں اور ہٹائیں",
+      "source": "ایگزیکیوٹر"
     },
     "apiDocs": {
       "rateLimitValue": "100 Req/منٹ",

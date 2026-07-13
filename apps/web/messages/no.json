@@ -2061,7 +2061,8 @@
       "updating": "Oppdaterer...",
       "reasonAuto": "Auto",
       "closeFailed": "Lukking mislyktes: {feil}",
-      "closeAndRemoveAll": "Lukk og fjern alt"
+      "closeAndRemoveAll": "Lukk og fjern alt",
+      "source": "Utfører"
     },
     "apiDocs": {
       "rateLimitValue": "100 krav/min",

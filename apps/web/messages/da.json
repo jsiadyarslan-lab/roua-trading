@@ -2954,7 +2954,8 @@
       "exit": "Afslut",
       "tp": "TP",
       "sl": "SL",
-      "pnl": "P&L"
+      "pnl": "P&L",
+      "source": "Udfører"
     },
     "sidebarTabs": {
       "portfolio": "Portefølje",

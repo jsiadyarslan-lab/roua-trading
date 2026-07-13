@@ -2061,7 +2061,8 @@
       "updating": "Ina-update...",
       "reasonAuto": "Auto",
       "closeFailed": "Closed position XPH0X",
-      "closeAndRemoveAll": "Isara at Alisin Lahat"
+      "closeAndRemoveAll": "Isara at Alisin Lahat",
+      "source": "Tagasagawa"
     },
     "apiDocs": {
       "rateLimitValue": "Base URL",

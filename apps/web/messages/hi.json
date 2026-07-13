@@ -2061,7 +2061,8 @@
       "updating": "अपडेट हो रहा है...",
       "reasonAuto": "Auto",
       "closeFailed": "बंद करने में विफल: {error}",
-      "closeAndRemoveAll": "बंद करें & हटाएं सभी"
+      "closeAndRemoveAll": "बंद करें & हटाएं सभी",
+      "source": "निष्पादक"
     },
     "apiDocs": {
       "rateLimitValue": "100 req/min",

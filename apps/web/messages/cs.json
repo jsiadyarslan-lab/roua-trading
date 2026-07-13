@@ -1892,7 +1892,8 @@
       "sl": "SL",
       "contract": "Smlouva",
       "opening": "Otevírací",
-      "reasonForce": "Vynucené uzavření"
+      "reasonForce": "Vynucené uzavření",
+      "source": "Vykonavatel"
     },
     "orderBook": {
       "liveDepth": "HLOUBKA ŽIVĚ",

@@ -2061,7 +2061,8 @@
       "updating": "Actualizando...",
       "reasonAuto": "Auto",
       "closeFailed": "Fallo al cerrar: {error}",
-      "closeAndRemoveAll": "Cerrar y Eliminar Todo"
+      "closeAndRemoveAll": "Cerrar y Eliminar Todo",
+      "source": "Ejecutor"
     },
     "apiDocs": {
       "rateLimitValue": "100 solicitudes/min",

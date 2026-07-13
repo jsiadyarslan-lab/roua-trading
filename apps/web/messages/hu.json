@@ -2061,7 +2061,8 @@
       "updating": "Frissítés...",
       "reasonAuto": "Automatikus",
       "closeFailed": "Sikertelen bezárás: {error}",
-      "closeAndRemoveAll": "Összes bezárása és eltávolítása"
+      "closeAndRemoveAll": "Összes bezárása és eltávolítása",
+      "source": "Végrehajtó"
     },
     "apiDocs": {
       "rateLimitValue": "100 rekv/perc",

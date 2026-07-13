@@ -2061,7 +2061,8 @@
       "updating": "업데이트 중...",
       "reasonAuto": "자동",
       "closeFailed": "청산 실패: {error}",
-      "closeAndRemoveAll": "모두 닫기 및 제거"
+      "closeAndRemoveAll": "모두 닫기 및 제거",
+      "source": "실행자"
     },
     "apiDocs": {
       "rateLimitValue": "100 요청/분",

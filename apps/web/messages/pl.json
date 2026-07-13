@@ -2061,7 +2061,8 @@
       "updating": "Aktualizuję...",
       "reasonAuto": "Automatyczny",
       "closeFailed": "Zamknięcie nie powiodło się: XPH0X",
-      "closeAndRemoveAll": "Zamknij i usuń wszystko"
+      "closeAndRemoveAll": "Zamknij i usuń wszystko",
+      "source": "Wykonawca"
     },
     "apiDocs": {
       "rateLimitValue": "100 wym/min",

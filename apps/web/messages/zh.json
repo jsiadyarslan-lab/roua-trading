@@ -2061,7 +2061,8 @@
       "updating": "更新中...",
       "reasonAuto": "自动",
       "closeFailed": "平仓失败：{error}",
-      "closeAndRemoveAll": "关闭并移除全部"
+      "closeAndRemoveAll": "关闭并移除全部",
+      "source": "执行者"
     },
     "apiDocs": {
       "rateLimitValue": "100次请求/分钟",

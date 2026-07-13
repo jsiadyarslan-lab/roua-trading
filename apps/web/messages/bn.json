@@ -1892,7 +1892,8 @@
       "sl": "এসএল",
       "contract": "চুক্তি",
       "opening": "খোলা হচ্ছে",
-      "reasonForce": "জোর করে বন্ধ করুন"
+      "reasonForce": "জোর করে বন্ধ করুন",
+      "source": "এক্সিকিউটর"
     },
     "orderBook": {
       "liveDepth": "লাইভ ডেপথ",

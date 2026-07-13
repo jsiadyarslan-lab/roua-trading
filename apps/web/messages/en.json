@@ -2954,7 +2954,8 @@
       "exit": "Exit",
       "tp": "TP",
       "sl": "SL",
-      "pnl": "P&L"
+      "pnl": "P&L",
+      "source": "Executor"
     },
     "sidebarTabs": {
       "portfolio": "Portfolio",

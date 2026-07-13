@@ -514,24 +514,31 @@ export default function CouncilPage() {
                       const dc = directionColor(b.direction)
                       const won = b.outcomePips !== undefined && b.outcomePips > 0
                       const lost = b.outcomePips !== undefined && b.outcomePips < 0
-                      // Executor label
-                      const execLabel = b.source === 'smart_executor' ? (tc('pair') === 'الزوج' ? 'منفذ ذكي' : 'Smart')
-                        : b.source === 'agent' ? (tc('pair') === 'الزوج' ? 'وكيل' : 'Agent')
+                      // Executor label — show who issued/executed this brief
+                      const isAr = tc('pair') === 'الزوج'
+                      const execLabel = b.source === 'smart_executor' ? (isAr ? 'منفذ ذكي' : 'Smart')
+                        : b.source === 'agent' ? (isAr ? 'وكيل' : 'Agent')
                         : (b.source === 'lazic' || b.source === 'lasic') ? 'Stinger'
-                        : b.source === 'auto_paper' ? (tc('pair') === 'الزوج' ? 'ورقي' : 'Paper')
-                        : b.reviewStatus === 'EXECUTED' ? (tc('pair') === 'الزوج' ? 'يدوي' : 'Manual')
-                        : '—'
+                        : b.source === 'auto_paper' ? (isAr ? 'ورقي' : 'Paper')
+                        : b.source === 'council' ? (isAr ? 'مجلس' : 'Council')
+                        : b.reviewStatus === 'EXECUTED' ? (isAr ? 'يدوي' : 'Manual')
+                        : b.reviewStatus === 'ACTIVE' ? (isAr ? 'مجلس' : 'Council')
+                        : b.reviewStatus === 'CANCELLED' ? (isAr ? 'مجلس' : 'Council')
+                        : (isAr ? 'مجلس' : 'Council')
                       const execColor = b.source === 'smart_executor' ? '#FFB800'
                         : b.source === 'agent' ? '#B388FF'
                         : (b.source === 'lazic' || b.source === 'lasic') ? '#FF6B35'
                         : b.source === 'auto_paper' ? '#00D4FF'
                         : '#9CA3B5'
-                      // Result label
-                      const resultLabel = b.result === 'WIN' ? (tc('pair') === 'الزوج' ? 'ربح' : 'Win')
-                        : b.result === 'LOSS' ? (tc('pair') === 'الزوج' ? 'خسارة' : 'Loss')
-                        : b.result === 'BREAKEVEN' ? (tc('pair') === 'الزوج' ? 'تعادل' : 'BE')
-                        : won ? (tc('pair') === 'الزوج' ? 'ربح' : 'Win')
-                        : lost ? (tc('pair') === 'الزوج' ? 'خسارة' : 'Loss')
+                      // Result label — show based on outcome or status
+                      const resultLabel = b.result === 'WIN' ? (isAr ? 'ربح' : 'Win')
+                        : b.result === 'LOSS' ? (isAr ? 'خسارة' : 'Loss')
+                        : b.result === 'BREAKEVEN' ? (isAr ? 'تعادل' : 'BE')
+                        : won ? (isAr ? 'ربح' : 'Win')
+                        : lost ? (isAr ? 'خسارة' : 'Loss')
+                        : b.reviewStatus === 'EXECUTED' ? (isAr ? 'معلقة' : 'Pending')
+                        : b.reviewStatus === 'ACTIVE' ? (isAr ? 'بانتظار' : 'Waiting')
+                        : b.reviewStatus === 'CANCELLED' ? (isAr ? 'ملغى' : 'N/A')
                         : '—'
                       const resultColor = won || b.result === 'WIN' ? COLORS.buy
                         : lost || b.result === 'LOSS' ? COLORS.sell

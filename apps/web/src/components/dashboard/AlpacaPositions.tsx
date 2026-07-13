@@ -697,7 +697,7 @@ export function AlpacaPositions() {
               marginBottom: 3,
             }}
           >
-            <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
+            <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
               {tc('pair')} {sortKey === 'symbol' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
             <div style={{ textAlign: 'center', color: '#9CA3B5' }}>{t('contract')}</div>
@@ -803,7 +803,7 @@ export function AlpacaPositions() {
               }}
             >
               {/* Symbol only — EURUSD etc */}
-              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+              <div style={{ minWidth: 0, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 <span
                   style={{
                     fontSize: 10,
@@ -812,6 +812,7 @@ export function AlpacaPositions() {
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
                     letterSpacing: 0.2,
+                    display: 'inline-block',
                   }}
                 >
                   {position.symbol}

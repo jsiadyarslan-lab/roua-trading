@@ -682,7 +682,7 @@ export function AlpacaPositions() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(80px,1fr) minmax(60px,0.7fr) minmax(50px,0.6fr) 36px minmax(48px,0.6fr) minmax(48px,0.6fr) minmax(46px,0.6fr) minmax(46px,0.6fr) minmax(54px,0.7fr) 24px',
+              gridTemplateColumns: 'minmax(72px,0.95fr) 40px minmax(54px,0.65fr) minmax(46px,0.55fr) 32px minmax(44px,0.55fr) minmax(44px,0.55fr) minmax(42px,0.5fr) minmax(42px,0.5fr) minmax(50px,0.65fr) 22px',
               gap: 4,
               alignItems: 'center',
               padding: '3px 6px',
@@ -700,6 +700,7 @@ export function AlpacaPositions() {
             <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
               {t('contract')} {sortKey === 'symbol' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
+            <div style={{ textAlign: 'center', color: '#9CA3B5' }}>{tc('type')}</div>
             <div onClick={() => handleSort('executor')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'executor' ? '#00D4FF' : undefined }}>
               {t('source')} {sortKey === 'executor' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
@@ -794,15 +795,15 @@ export function AlpacaPositions() {
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 4px rgba(0,0,0,0.12)`,
                 padding: '3px 6px',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(80px,1fr) minmax(60px,0.7fr) minmax(50px,0.6fr) 36px minmax(48px,0.6fr) minmax(48px,0.6fr) minmax(46px,0.6fr) minmax(46px,0.6fr) minmax(54px,0.7fr) 24px',
+                gridTemplateColumns: 'minmax(72px,0.95fr) 40px minmax(54px,0.65fr) minmax(46px,0.55fr) 32px minmax(44px,0.55fr) minmax(44px,0.55fr) minmax(42px,0.5fr) minmax(42px,0.5fr) minmax(50px,0.65fr) 22px',
                 gap: 4,
                 alignItems: 'center',
                 minHeight: 28,
                 transition: 'border-color 0.15s',
               }}
             >
-              {/* Symbol + Buy/Sell badge */}
-              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {/* Symbol only — EURUSD etc */}
+              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                 <span
                   style={{
                     fontSize: 10,
@@ -815,6 +816,10 @@ export function AlpacaPositions() {
                 >
                   {position.symbol}
                 </span>
+              </div>
+
+              {/* Side badge — BUY/SELL only */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <span
                   style={{
                     display: 'inline-flex',

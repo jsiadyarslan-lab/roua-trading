@@ -446,10 +446,12 @@ export function AlpacaPositions() {
         valA = a.symbol || ''
         valB = b.symbol || ''
         return String(valA).localeCompare(String(valB)) * dir
-      case 'executor':
-        valA = a.source || a.tradeSource || ''
-        valB = b.source || b.tradeSource || ''
-        return String(valA).localeCompare(String(valB)) * dir
+      case 'executor': {
+        // Sort by the DISPLAYED label (e.g. 'Stinger', 'وكيل'), not the raw code
+        const labelA = getTradeSourceLabel(a.isPaper, a.source, a.tradeSource, (a as any).exchange, t)?.label || ''
+        const labelB = getTradeSourceLabel(b.isPaper, b.source, b.tradeSource, (b as any).exchange, t)?.label || ''
+        return String(labelA).localeCompare(String(labelB)) * dir
+      }
       case 'qty':
         valA = Number((a as any).qty ?? (a as any).quantity ?? 0)
         valB = Number((b as any).qty ?? (b as any).quantity ?? 0)
@@ -697,28 +699,28 @@ export function AlpacaPositions() {
               marginBottom: 3,
             }}
           >
-            <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
+            <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
               {tc('pair')} {sortKey === 'symbol' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div style={{ textAlign: 'center', color: '#9CA3B5' }}>{t('contract')}</div>
-            <div onClick={() => handleSort('executor')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'executor' ? '#00D4FF' : undefined }}>
+            <div style={{ textAlign: 'center', whiteSpace: 'nowrap', color: '#9CA3B5' }}>{t('contract')}</div>
+            <div onClick={() => handleSort('executor')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap', color: sortKey === 'executor' ? '#00D4FF' : undefined }}>
               {t('source')} {sortKey === 'executor' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div onClick={() => handleSort('time')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'time' ? '#00D4FF' : undefined }}>
+            <div onClick={() => handleSort('time')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap', color: sortKey === 'time' ? '#00D4FF' : undefined }}>
               {t('opening')} {sortKey === 'time' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div onClick={() => handleSort('qty')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'qty' ? '#00D4FF' : undefined }}>
+            <div onClick={() => handleSort('qty')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap', color: sortKey === 'qty' ? '#00D4FF' : undefined }}>
               {t('qty')} {sortKey === 'qty' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div onClick={() => handleSort('entry')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'entry' ? '#00D4FF' : undefined }}>
+            <div onClick={() => handleSort('entry')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap', color: sortKey === 'entry' ? '#00D4FF' : undefined }}>
               {t('entry')} {sortKey === 'entry' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div onClick={() => handleSort('current')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'current' ? '#00D4FF' : undefined }}>
+            <div onClick={() => handleSort('current')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap', color: sortKey === 'current' ? '#00D4FF' : undefined }}>
               {t('current')} {sortKey === 'current' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div style={{ textAlign: 'center', color: 'rgba(255,71,87,0.8)' }}>SL</div>
-            <div style={{ textAlign: 'center', color: 'rgba(0,255,163,0.8)' }}>TP</div>
-            <div onClick={() => handleSort('pnl')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'pnl' ? '#00D4FF' : undefined }}>
+            <div style={{ textAlign: 'center', whiteSpace: 'nowrap', color: 'rgba(255,71,87,0.8)' }}>SL</div>
+            <div style={{ textAlign: 'center', whiteSpace: 'nowrap', color: 'rgba(0,255,163,0.8)' }}>TP</div>
+            <div onClick={() => handleSort('pnl')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap', color: sortKey === 'pnl' ? '#00D4FF' : undefined }}>
               {t('pnl')} {sortKey === 'pnl' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
             <div style={{ textAlign: 'center' }}>✕</div>

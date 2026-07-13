@@ -634,7 +634,14 @@
       "unknownError": "Unknown error",
       "recentOrders": "Recent Orders",
       "closePositionFull": "Close Position",
-      "cancelOrderFull": "Cancel Order"
+      "cancelOrderFull": "Cancel Order",
+      "brand": "Roua",
+      "chart": "Chart",
+      "positions": "Positions",
+      "scanner": "Scanner",
+      "decision": "Decision",
+      "more": "More",
+      "mt5": "MT5"
     },
     "home": {
       "modeTraderLabel": "Trader Mode",
@@ -661,7 +668,14 @@
       "equity": "Equity",
       "equityTooltip": "Balance + unrealized profit/loss from open positions",
       "freeMarginTooltip": "Available margin to open new positions (equity - used margin)",
-      "usedMarginTooltip": "Margin locked in open positions (cannot be withdrawn)"
+      "usedMarginTooltip": "Margin locked in open positions (cannot be withdrawn)",
+      "brand": "Roua",
+      "chart": "Chart",
+      "positions": "Positions",
+      "scanner": "Scanner",
+      "decision": "Decision",
+      "more": "More",
+      "mt5": "MT5"
     },
     "newsPage": {
       "title": "News Room",

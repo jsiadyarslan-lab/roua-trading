@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "钱包总余额 — 包括头寸中使用的保证金",
       "equityTooltip": "余额 + 未实现P/L — 随价格变动而变化",
       "freeMarginTooltip": "可用于开新仓的金额 = 余额 - 已用保证金 + 未实现P/L",
-      "usedMarginTooltip": "作为未平仓头寸担保而锁定的金额 — 平仓时退还"
+      "usedMarginTooltip": "作为未平仓头寸担保而锁定的金额 — 平仓时退还",
+      "brand": "Roua",
+      "chart": "图表",
+      "positions": "持仓",
+      "scanner": "扫描器",
+      "decision": "决策",
+      "more": "更多",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "货币：",
@@ -2479,7 +2486,14 @@
       "equity": "净值",
       "equityTooltip": "余额 + 未实现盈亏（来自未平仓位）",
       "freeMarginTooltip": "可用于开新仓的保证金（净值 - 已用保证金）",
-      "usedMarginTooltip": "被未平仓位锁定的保证金（不可提取）"
+      "usedMarginTooltip": "被未平仓位锁定的保证金（不可提取）",
+      "brand": "Roua",
+      "chart": "图表",
+      "positions": "持仓",
+      "scanner": "扫描器",
+      "decision": "决策",
+      "more": "更多",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "交易信号",

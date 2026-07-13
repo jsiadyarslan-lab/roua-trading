@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Teljes pénztárca egyenleg — tartalmazza a pozíciókban felhasznált margint",
       "equityTooltip": "Egyenleg + nem realizált P/L — az árváltozásokkal módosul",
       "freeMarginTooltip": "Új pozíciók nyitására rendelkezésre álló összeg = Egyenleg - Felhasznált margin + Nem realizált P/L",
-      "usedMarginTooltip": "Nyitott pozíciók fedezeteként lekötött összeg — záráskor visszatérítve"
+      "usedMarginTooltip": "Nyitott pozíciók fedezeteként lekötött összeg — záráskor visszatérítve",
+      "brand": "Roua",
+      "chart": "Grafikon",
+      "positions": "Pozíciók",
+      "scanner": "Kereső",
+      "decision": "Döntés",
+      "more": "Több",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Valuta:",
@@ -2479,7 +2486,14 @@
       "equity": "Saját tőke",
       "equityTooltip": "Egyenleg + nyitott pozíciók nem realizált nyeresége/vesztesége",
       "freeMarginTooltip": "Új pozíciók nyitásához rendelkezésre álló fedezet (saját tőke - használt fedezet)",
-      "usedMarginTooltip": "Nyitott pozíciókban zárolt fedezet (nem elvehető)"
+      "usedMarginTooltip": "Nyitott pozíciókban zárolt fedezet (nem elvehető)",
+      "brand": "Roua",
+      "chart": "Grafikon",
+      "positions": "Pozíciók",
+      "scanner": "Kereső",
+      "decision": "Döntés",
+      "more": "Több",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Kereskedési jelek",

@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Jumlah baki dompet — termasuk margin yang digunakan dalam posisi",
       "equityTooltip": "Baki + P/L tidak direalisasi — berubah dengan pergerakan harga",
       "freeMarginTooltip": "Jumlah tersedia untuk membuka posisi baharu = Baki - Margin Digunakan + P/L tidak direalisasi",
-      "usedMarginTooltip": "Jumlah dikunci sebagai cagaran untuk posisi terbuka — dikembalikan semasa penutupan"
+      "usedMarginTooltip": "Jumlah dikunci sebagai cagaran untuk posisi terbuka — dikembalikan semasa penutupan",
+      "brand": "Roua",
+      "chart": "Carta",
+      "positions": "Kedudukan",
+      "scanner": "Pengimbas",
+      "decision": "Keputusan",
+      "more": "Lagi",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "mata wang:",
@@ -2479,7 +2486,14 @@
       "equity": "Ekuiti",
       "equityTooltip": "Baki + untung/rugi tidak direalisasikan dari posisi terbuka",
       "freeMarginTooltip": "Margin tersedia untuk posisi baharu (ekuiti - margin digunakan)",
-      "usedMarginTooltip": "Margin terkunci dalam posisi terbuka (tidak boleh dikeluarkan)"
+      "usedMarginTooltip": "Margin terkunci dalam posisi terbuka (tidak boleh dikeluarkan)",
+      "brand": "Roua",
+      "chart": "Carta",
+      "positions": "Kedudukan",
+      "scanner": "Pengimbas",
+      "decision": "Keputusan",
+      "more": "Lagi",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Isyarat Dagangan",

@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Całkowite saldo portfela — obejmuje margines użyty w pozycjach",
       "equityTooltip": "Saldo + niezrealizowany P/L — zmienia się wraz z ruchami cen",
       "freeMarginTooltip": "Kwota dostępna na otwarcie nowych pozycji = Saldo - Użyty margines + Niezrealizowany P/L",
-      "usedMarginTooltip": "Kwota zablokowana jako zabezpieczenie otwartych pozycji — zwracana przy zamknięciu"
+      "usedMarginTooltip": "Kwota zablokowana jako zabezpieczenie otwartych pozycji — zwracana przy zamknięciu",
+      "brand": "Roua",
+      "chart": "Wykres",
+      "positions": "Pozycje",
+      "scanner": "Skaner",
+      "decision": "Decyzja",
+      "more": "Więcej",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Waluta:",
@@ -2479,7 +2486,14 @@
       "equity": "Kapitał",
       "equityTooltip": "Saldo + niezrealizowane zyski/straty z otwartych pozycji",
       "freeMarginTooltip": "Dostępna marża na nowe pozycje (kapitał - użyta marża)",
-      "usedMarginTooltip": "Marża zablokowana w otwartych pozycjach (niewypłacalna)"
+      "usedMarginTooltip": "Marża zablokowana w otwartych pozycjach (niewypłacalna)",
+      "brand": "Roua",
+      "chart": "Wykres",
+      "positions": "Pozycje",
+      "scanner": "Skaner",
+      "decision": "Decyzja",
+      "more": "Więcej",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Sygnały handlowe",

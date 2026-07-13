@@ -634,7 +634,14 @@
       "unknownError": "خطأ غير معروف",
       "recentOrders": "الطلبات الأخيرة",
       "closePositionFull": "إغلاق المركز",
-      "cancelOrderFull": "إلغاء الطلب"
+      "cancelOrderFull": "إلغاء الطلب",
+      "brand": "رؤى",
+      "chart": "الشارت",
+      "positions": "المراكز",
+      "scanner": "الماسح",
+      "decision": "القرار",
+      "more": "المزيد",
+      "mt5": "MT5"
     },
     "home": {
       "modeTraderLabel": "وضع التاجر",
@@ -661,7 +668,14 @@
       "equity": "حقوق الملكية",
       "equityTooltip": "الرصيد + الأرباح/الخسائر غير المحققة من المراكز المفتوحة",
       "freeMarginTooltip": "الهامش المتاح لفتح مراكز جديدة (حقوق الملكية - الهامش المستخدم)",
-      "usedMarginTooltip": "الهامش المقفل في المراكز المفتوحة (لا يمكن سحبه)"
+      "usedMarginTooltip": "الهامش المقفل في المراكز المفتوحة (لا يمكن سحبه)",
+      "brand": "رؤى",
+      "chart": "الشارت",
+      "positions": "المراكز",
+      "scanner": "الماسح",
+      "decision": "القرار",
+      "more": "المزيد",
+      "mt5": "MT5"
     },
     "newsPage": {
       "title": "غرفة الأخبار",

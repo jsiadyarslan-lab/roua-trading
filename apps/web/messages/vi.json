@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Tổng số dư ví — bao gồm ký quỹ được sử dụng trong các vị thế",
       "equityTooltip": "Số dư + P/L chưa thực hiện — thay đổi theo biến động giá",
       "freeMarginTooltip": "Số tiền khả dụng để mở vị thế mới = Số dư - Ký quỹ đã dùng + P/L chưa thực hiện",
-      "usedMarginTooltip": "Số tiền bị khóa làm tài sản đảm bảo cho các vị thế mở — được hoàn trả khi đóng"
+      "usedMarginTooltip": "Số tiền bị khóa làm tài sản đảm bảo cho các vị thế mở — được hoàn trả khi đóng",
+      "brand": "Roua",
+      "chart": "Biểu đồ",
+      "positions": "Vị thế",
+      "scanner": "Quét",
+      "decision": "Quyết định",
+      "more": "Thêm",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Tiền tệ:",
@@ -2479,7 +2486,14 @@
       "equity": "Vốn chủ sở hữu",
       "equityTooltip": "Số dư + lợi nhuận/lỗ chưa thực hiện từ vị thế mở",
       "freeMarginTooltip": "Ký quỹ sẵn sàng cho vị thế mới (vốn chủ sở hữu - ký quỹ đã dùng)",
-      "usedMarginTooltip": "Ký quỹ bị khóa trong vị thế mở (không thể rút)"
+      "usedMarginTooltip": "Ký quỹ bị khóa trong vị thế mở (không thể rút)",
+      "brand": "Roua",
+      "chart": "Biểu đồ",
+      "positions": "Vị thế",
+      "scanner": "Quét",
+      "decision": "Quyết định",
+      "more": "Thêm",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Tín hiệu giao dịch",

@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Total lommeboksaldo — inkluderer margin brukt i posisjoner",
       "equityTooltip": "Saldo + urealisert P/L — endres med prisbevegelser",
       "freeMarginTooltip": "Beløp tilgjengelig for nye posisjoner = Saldo - Brukt margin + Urealisert P/L",
-      "usedMarginTooltip": "Beløp låst som sikkerhet for åpne posisjoner — returneres ved stenget"
+      "usedMarginTooltip": "Beløp låst som sikkerhet for åpne posisjoner — returneres ved stenget",
+      "brand": "Roua",
+      "chart": "Graf",
+      "positions": "Posisjoner",
+      "scanner": "Skanner",
+      "decision": "Beslutning",
+      "more": "Mer",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Valuta:",
@@ -2479,7 +2486,14 @@
       "equity": "Egenkapital",
       "equityTooltip": "Saldo + urealisert gevinst/tap fra åpne posisjoner",
       "freeMarginTooltip": "Tilgjengelig margin for å åpne nye posisjoner (egenkapital − brukt margin)",
-      "usedMarginTooltip": "Margin bundet i åpne posisjoner (kan ikke uttas)"
+      "usedMarginTooltip": "Margin bundet i åpne posisjoner (kan ikke uttas)",
+      "brand": "Roua",
+      "chart": "Graf",
+      "positions": "Posisjoner",
+      "scanner": "Skanner",
+      "decision": "Beslutning",
+      "more": "Mer",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Handelssignaler",

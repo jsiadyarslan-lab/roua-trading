@@ -634,7 +634,14 @@
       "balanceTooltipReal": "Gesamtes Wallet-Guthaben — einschließlich in Positionen verwendeter Margin",
       "equityTooltip": "Guthaben + nicht realisierter P/L — ändert sich mit Preisbewegungen",
       "freeMarginTooltip": "Für neue Positionen verfügbarer Betrag = Guthaben - Verwendete Margin + Nicht realisierter P/L",
-      "usedMarginTooltip": "Als Sicherheit für offene Positionen geblockter Betrag — wird bei Schließung zurückgegeben"
+      "usedMarginTooltip": "Als Sicherheit für offene Positionen geblockter Betrag — wird bei Schließung zurückgegeben",
+      "brand": "Roua",
+      "chart": "Chart",
+      "positions": "Positionen",
+      "scanner": "Scanner",
+      "decision": "Entscheidung",
+      "more": "Mehr",
+      "mt5": "MT5"
     },
     "home": {
       "modeTraderLabel": "Trader-Modus",
@@ -661,7 +668,14 @@
       "equity": "Eigenkapital",
       "equityTooltip": "Guthaben + unrealisierte Gewinne/Verluste aus offenen Positionen",
       "freeMarginTooltip": "Verfügbare Marge für neue Positionen (Eigenkapital - verwendete Marge)",
-      "usedMarginTooltip": "In offenen Positionen gebundene Marge (nicht abhebbar)"
+      "usedMarginTooltip": "In offenen Positionen gebundene Marge (nicht abhebbar)",
+      "brand": "Roua",
+      "chart": "Chart",
+      "positions": "Positionen",
+      "scanner": "Scanner",
+      "decision": "Entscheidung",
+      "more": "Mehr",
+      "mt5": "MT5"
     },
     "newsPage": {
       "title": "Newsroom",

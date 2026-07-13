@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Totalt plånbokssaldo — inkluderar marginal använd i positioner",
       "equityTooltip": "Saldo + orealiserad P/L — ändras med prisrörelser",
       "freeMarginTooltip": "Belopp tillgängligt för nya positioner = Saldo - Använd marginal + Orealiserad P/L",
-      "usedMarginTooltip": "Belopp låst som säkerhet för öppna positioner — återbetalas vid stängning"
+      "usedMarginTooltip": "Belopp låst som säkerhet för öppna positioner — återbetalas vid stängning",
+      "brand": "Roua",
+      "chart": "Diagram",
+      "positions": "Positioner",
+      "scanner": "Skanner",
+      "decision": "Beslut",
+      "more": "Mer",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Valuta:",
@@ -2479,7 +2486,14 @@
       "equity": "Kapital",
       "equityTooltip": "Saldo + orealiserad vinst/förlust från öppna positioner",
       "freeMarginTooltip": "Tillgänglig marginal för nya positioner (kapital - använd marginal)",
-      "usedMarginTooltip": "Marginal låst i öppna positioner (kan inte tas ut)"
+      "usedMarginTooltip": "Marginal låst i öppna positioner (kan inte tas ut)",
+      "brand": "Roua",
+      "chart": "Diagram",
+      "positions": "Positioner",
+      "scanner": "Skanner",
+      "decision": "Beslut",
+      "more": "Mer",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Handelssignaler",

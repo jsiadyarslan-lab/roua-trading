@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Totale walletsaldo — inclusief margin gebruikt in posities",
       "equityTooltip": "Saldo + ongerealiseerde P/L — verandert met prijsbewegingen",
       "freeMarginTooltip": "Bedrag beschikbaar voor nieuwe posities = Saldo - Gebruikte margin + Ongerealiseerde P/L",
-      "usedMarginTooltip": "Als onderpand voor open posities geblokkeerd bedrag — wordt teruggegeven bij sluiting"
+      "usedMarginTooltip": "Als onderpand voor open posities geblokkeerd bedrag — wordt teruggegeven bij sluiting",
+      "brand": "Roua",
+      "chart": "Grafiek",
+      "positions": "Posities",
+      "scanner": "Scanner",
+      "decision": "Beslissing",
+      "more": "Meer",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Valuta:",
@@ -2479,7 +2486,14 @@
       "equity": "Vermogen",
       "equityTooltip": "Saldo + ongerealiseerde winst/verlies uit open posities",
       "freeMarginTooltip": "Beschikbare marge voor nieuwe posities (vermogen - gebruikte marge)",
-      "usedMarginTooltip": "Marge vergrendeld in open posities (niet opneembaar)"
+      "usedMarginTooltip": "Marge vergrendeld in open posities (niet opneembaar)",
+      "brand": "Roua",
+      "chart": "Grafiek",
+      "positions": "Posities",
+      "scanner": "Scanner",
+      "decision": "Beslissing",
+      "more": "Meer",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Handelssignalen",

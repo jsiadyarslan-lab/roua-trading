@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Total saldo dompet — termasuk margin yang digunakan dalam posisi",
       "equityTooltip": "Saldo + P/L terealisasi — berubah seiring pergerakan harga",
       "freeMarginTooltip": "Jumlah tersedia untuk membuka posisi baru = Saldo - Margin Terpakai + P/L terealisasi",
-      "usedMarginTooltip": "Jumlah yang dikunci sebagai jaminan untuk posisi terbuka — dikembalikan saat ditutup"
+      "usedMarginTooltip": "Jumlah yang dikunci sebagai jaminan untuk posisi terbuka — dikembalikan saat ditutup",
+      "brand": "Roua",
+      "chart": "Grafik",
+      "positions": "Posisi",
+      "scanner": "Pemindai",
+      "decision": "Keputusan",
+      "more": "Lainnya",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Mata uang:",
@@ -2479,7 +2486,14 @@
       "equity": "Ekuitas",
       "equityTooltip": "Saldo + keuntungan/kerugian terealisasi dari posisi terbuka",
       "freeMarginTooltip": "Margin tersedia untuk posisi baru (ekuitas - margin terpakai)",
-      "usedMarginTooltip": "Margin terkunci di posisi terbuka (tidak dapat ditarik)"
+      "usedMarginTooltip": "Margin terkunci di posisi terbuka (tidak dapat ditarik)",
+      "brand": "Roua",
+      "chart": "Grafik",
+      "positions": "Posisi",
+      "scanner": "Pemindai",
+      "decision": "Keputusan",
+      "more": "Lainnya",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Sinyal Perdagangan",

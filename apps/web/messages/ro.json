@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Soldul total al portofelului — include marja utilizată în poziții",
       "equityTooltip": "Sold + P/L nerealizat — se modifică cu mișcările prețurilor",
       "freeMarginTooltip": "Sumă disponibilă pentru deschiderea de poziții noi = Sold - Marjă utilizată + P/L nerealizat",
-      "usedMarginTooltip": "Sumă blocată drept garanție pentru pozițiile deschise — returnată la închidere"
+      "usedMarginTooltip": "Sumă blocată drept garanție pentru pozițiile deschise — returnată la închidere",
+      "brand": "Roua",
+      "chart": "Grafic",
+      "positions": "Poziții",
+      "scanner": "Scanner",
+      "decision": "Decizie",
+      "more": "Mai mult",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Moneda:",
@@ -2479,7 +2486,14 @@
       "equity": "Capital",
       "equityTooltip": "Sold + profit/pierdere nerealizat din poziții deschise",
       "freeMarginTooltip": "Marjă disponibilă pentru poziții noi (capital - marjă folosită)",
-      "usedMarginTooltip": "Marjă blocată în poziții deschise (nu se poate retrage)"
+      "usedMarginTooltip": "Marjă blocată în poziții deschise (nu se poate retrage)",
+      "brand": "Roua",
+      "chart": "Grafic",
+      "positions": "Poziții",
+      "scanner": "Scanner",
+      "decision": "Decizie",
+      "more": "Mai mult",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Semnale comerciale",

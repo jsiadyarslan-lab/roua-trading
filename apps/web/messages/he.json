@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "יתרת ארנק כוללת — כוללת מרג'ין בשימוש בפוזיציות",
       "equityTooltip": "יתרה + P/L לא ממומש — משתנה עם תנועות מחיר",
       "freeMarginTooltip": "סכום זמין לפתיחת פוזיציות חדשות = יתרה - מרג'ין בשימוש + P/L לא ממומש",
-      "usedMarginTooltip": "סכום חסום כערבות לפוזיציות פתוחות — מוחזר בסגירה"
+      "usedMarginTooltip": "סכום חסום כערבות לפוזיציות פתוחות — מוחזר בסגירה",
+      "brand": "Roua",
+      "chart": "גרף",
+      "positions": "פוזיציות",
+      "scanner": "סורק",
+      "decision": "החלטה",
+      "more": "עוד",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "מַטְבֵּעַ:",
@@ -2479,7 +2486,14 @@
       "equity": "הון עצמי",
       "equityTooltip": "יתרה + רווח/הפסד לא ממומש מפוזיציות פתוחות",
       "freeMarginTooltip": "מרווח זמין לפתיחת פוזיציות חדשות (הון עצמי - מרווח בשימוש)",
-      "usedMarginTooltip": "מרווח נעול בפוזיציות פתוחות (לא ניתן למשיכה)"
+      "usedMarginTooltip": "מרווח נעול בפוזיציות פתוחות (לא ניתן למשיכה)",
+      "brand": "Roua",
+      "chart": "גרף",
+      "positions": "פוזיציות",
+      "scanner": "סורק",
+      "decision": "החלטה",
+      "more": "עוד",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "אותות מסחר",

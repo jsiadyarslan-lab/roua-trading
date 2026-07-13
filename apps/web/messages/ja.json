@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "ウォレット残高合計 — ポジションで使用中の証拠金を含む",
       "equityTooltip": "残高 + 未実現P/L — 価格変動により変化",
       "freeMarginTooltip": "新しいポジションを開くための利用可能額 = 残高 - 使用証拠金 + 未実現P/L",
-      "usedMarginTooltip": "未決済ポジションの担保としてロックされた金額 — 決済時に返還"
+      "usedMarginTooltip": "未決済ポジションの担保としてロックされた金額 — 決済時に返還",
+      "brand": "Roua",
+      "chart": "チャート",
+      "positions": "ポジション",
+      "scanner": "スキャナー",
+      "decision": "決定",
+      "more": "その他",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Do Not Disturb",
@@ -2479,7 +2486,14 @@
       "equity": "エクイティ",
       "equityTooltip": "残高 + 未実現損益（未決済ポジション）",
       "freeMarginTooltip": "新規ポジションに使用可能な証拠金（エクイティ - 使用証拠金）",
-      "usedMarginTooltip": "未決済ポジションにロックされた証拠金（出金不可）"
+      "usedMarginTooltip": "未決済ポジションにロックされた証拠金（出金不可）",
+      "brand": "Roua",
+      "chart": "チャート",
+      "positions": "ポジション",
+      "scanner": "スキャナー",
+      "decision": "決定",
+      "more": "その他",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "トレード シグナル",

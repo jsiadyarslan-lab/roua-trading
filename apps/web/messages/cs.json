@@ -2024,7 +2024,14 @@
       "balanceTooltipReal": "Celkový zůstatek peněženky — zahrnuje margin použitý v pozicích",
       "equityTooltip": "Zůstatek + nerealizovaný P/L — mění se s pohybem cen",
       "freeMarginTooltip": "Částka dostupná pro otevření nových pozic = Zůstatek - Použitý margin + Nerealizovaný P/L",
-      "usedMarginTooltip": "Částka uzamčená jako zástava pro otevřené pozice — vrácena při uzavření"
+      "usedMarginTooltip": "Částka uzamčená jako zástava pro otevřené pozice — vrácena při uzavření",
+      "brand": "Roua",
+      "chart": "Graf",
+      "positions": "Pozice",
+      "scanner": "Skenér",
+      "decision": "Rozhodnutí",
+      "more": "Více",
+      "mt5": "MT5"
     },
     "chartSettings": {
       "candleTimer": "Časovač svíček",
@@ -2839,7 +2846,14 @@
       "equity": "Kapitál",
       "equityTooltip": "Zůstatek + nerealizovaný zisk/ztráta z otevřených pozic",
       "freeMarginTooltip": "Dostupná marže pro nové pozice (kapitál - použitá marže)",
-      "usedMarginTooltip": "Marže uzamčená v otevřených pozicích (nelze vybrat)"
+      "usedMarginTooltip": "Marže uzamčená v otevřených pozicích (nelze vybrat)",
+      "brand": "Roua",
+      "chart": "Graf",
+      "positions": "Pozice",
+      "scanner": "Skenér",
+      "decision": "Rozhodnutí",
+      "more": "Více",
+      "mt5": "MT5"
     },
     "watchlist": {
       "loading": "Načítání...",

@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Solde total du portefeuille — inclut la marge utilisée dans les positions",
       "equityTooltip": "Solde + P/L non réalisé — évolue avec les mouvements de prix",
       "freeMarginTooltip": "Montant disponible pour ouvrir de nouvelles positions = Solde - Marge utilisée + P/L non réalisé",
-      "usedMarginTooltip": "Montant bloqué en garantie pour les positions ouvertes — restitué à la clôture"
+      "usedMarginTooltip": "Montant bloqué en garantie pour les positions ouvertes — restitué à la clôture",
+      "brand": "Roua",
+      "chart": "Graphique",
+      "positions": "Positions",
+      "scanner": "Scanner",
+      "decision": "Décision",
+      "more": "Plus",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Devise :",
@@ -2479,7 +2486,14 @@
       "equity": "Équité",
       "equityTooltip": "Solde + profits/pertes non réalisés des positions ouvertes",
       "freeMarginTooltip": "Marge disponible pour ouvrir de nouvelles positions (équité - marge utilisée)",
-      "usedMarginTooltip": "Marge bloquée dans les positions ouvertes (non retirable)"
+      "usedMarginTooltip": "Marge bloquée dans les positions ouvertes (non retirable)",
+      "brand": "Roua",
+      "chart": "Graphique",
+      "positions": "Positions",
+      "scanner": "Scanner",
+      "decision": "Décision",
+      "more": "Plus",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Signaux de trading",

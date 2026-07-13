@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Kabuuang balanse ng wallet — kasama ang margin na ginamit sa mga posisyon",
       "equityTooltip": "Balanse + Unrealized P/L — nagbabago sa paggalaw ng presyo",
       "freeMarginTooltip": "Halaga na available para magbukas ng bagong posisyon = Balanse - Ginamit na Margin + Unrealized P/L",
-      "usedMarginTooltip": "Halagang nakalock bilang collateral para sa open positions — ibinalik sa pagsasara"
+      "usedMarginTooltip": "Halagang nakalock bilang collateral para sa open positions — ibinalik sa pagsasara",
+      "brand": "Roua",
+      "chart": "Tsart",
+      "positions": "Posisyon",
+      "scanner": "Scanner",
+      "decision": "Desisyon",
+      "more": "Higit",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Pera:",
@@ -2479,7 +2486,14 @@
       "equity": "Equity",
       "equityTooltip": "Balanse + hindi pa realizadong kita/palya mula sa mga bukas na posisyon",
       "freeMarginTooltip": "Magagamit na margin para magbukas ng bagong posisyon (equity - ginamit na margin)",
-      "usedMarginTooltip": "Margin na nakalagay sa mga bukas na posisyon (hindi mawi-withdraw)"
+      "usedMarginTooltip": "Margin na nakalagay sa mga bukas na posisyon (hindi mawi-withdraw)",
+      "brand": "Roua",
+      "chart": "Tsart",
+      "positions": "Posisyon",
+      "scanner": "Scanner",
+      "decision": "Desisyon",
+      "more": "Higit",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Mga Signal ng Trading",

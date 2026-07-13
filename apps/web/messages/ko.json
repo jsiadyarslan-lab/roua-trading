@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "총 지갑 잔고 — 포지션에 사용된 증거금 포함",
       "equityTooltip": "잔고 + 미실현 P/L — 가격 움직임에 따라 변동",
       "freeMarginTooltip": "신규 포지션 개시 가능 금액 = 잔고 - 사용 증거금 + 미실현 P/L",
-      "usedMarginTooltip": "미결제 포지션의 담보로 잠긴 금액 — 청산 시 반환"
+      "usedMarginTooltip": "미결제 포지션의 담보로 잠긴 금액 — 청산 시 반환",
+      "brand": "Roua",
+      "chart": "차트",
+      "positions": "포지션",
+      "scanner": "스캐너",
+      "decision": "결정",
+      "more": "더보기",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "통화:",
@@ -2479,7 +2486,14 @@
       "equity": "에퀴티",
       "equityTooltip": "잔고 + 미실현 손익 (오픈 포지션)",
       "freeMarginTooltip": "새 포지션 개시에 사용 가능한 증거금 (에퀴티 - 사용 증거금)",
-      "usedMarginTooltip": "오픈 포지션에 잠긴 증거금 (출금 불가)"
+      "usedMarginTooltip": "오픈 포지션에 잠긴 증거금 (출금 불가)",
+      "brand": "Roua",
+      "chart": "차트",
+      "positions": "포지션",
+      "scanner": "스캐너",
+      "decision": "결정",
+      "more": "더보기",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "거래 신호",

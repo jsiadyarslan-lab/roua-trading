@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Saldo total da carteira — inclui margem usada em posições",
       "equityTooltip": "Saldo + P/L não realizado — muda com os movimentos de preço",
       "freeMarginTooltip": "Valor disponível para abrir novas posições = Saldo - Margem usada + P/L não realizado",
-      "usedMarginTooltip": "Valor bloqueado como garantia de posições abertas — devolvido ao fechar"
+      "usedMarginTooltip": "Valor bloqueado como garantia de posições abertas — devolvido ao fechar",
+      "brand": "Roua",
+      "chart": "Gráfico",
+      "positions": "Posições",
+      "scanner": "Scanner",
+      "decision": "Decisão",
+      "more": "Mais",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Moeda:",
@@ -2479,7 +2486,14 @@
       "equity": "Patrimônio",
       "equityTooltip": "Saldo + lucros/perdas não realizados de posições abertas",
       "freeMarginTooltip": "Margem disponível para novas posições (patrimônio - margem usada)",
-      "usedMarginTooltip": "Margem bloqueada em posições abertas (não sacável)"
+      "usedMarginTooltip": "Margem bloqueada em posições abertas (não sacável)",
+      "brand": "Roua",
+      "chart": "Gráfico",
+      "positions": "Posições",
+      "scanner": "Scanner",
+      "decision": "Decisão",
+      "more": "Mais",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Sinais de Trading",

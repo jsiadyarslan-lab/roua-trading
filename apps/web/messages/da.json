@@ -634,7 +634,14 @@
       "balanceTooltipReal": "Total wallet balance — inkluderer margin brugt i positioner",
       "equityTooltip": "Balance + urealiseret P/L — ændrer sig som priserne bevæger sig",
       "freeMarginTooltip": "Beløb tilgængeligt til at åbne nye positioner = Balance - Brugt Margin + Urealiseret P/L",
-      "usedMarginTooltip": "Beløb låst som sikkerhed for åbne positioner — returneres ved lukning"
+      "usedMarginTooltip": "Beløb låst som sikkerhed for åbne positioner — returneres ved lukning",
+      "brand": "Roua",
+      "chart": "Graf",
+      "positions": "Positioner",
+      "scanner": "Scanner",
+      "decision": "Beslutning",
+      "more": "Mere",
+      "mt5": "MT5"
     },
     "home": {
       "modeTraderLabel": "Tilstand: Trader",
@@ -661,7 +668,14 @@
       "equity": "Egenkapital",
       "equityTooltip": "Balance + urealiseret profit/loss fra åbne positioner",
       "freeMarginTooltip": "Tilgængelig margin til at åbne nye positioner (equity - brugt margin)",
-      "usedMarginTooltip": "Margin låst i åbne positioner (kan ikke hæves)"
+      "usedMarginTooltip": "Margin låst i åbne positioner (kan ikke hæves)",
+      "brand": "Roua",
+      "chart": "Graf",
+      "positions": "Positioner",
+      "scanner": "Scanner",
+      "decision": "Beslutning",
+      "more": "Mere",
+      "mt5": "MT5"
     },
     "newsPage": {
       "title": "Nyhedsrum",

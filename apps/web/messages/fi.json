@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Kokonaissaldo — sisältää positioissa käytetyn marginaalin",
       "equityTooltip": "Saldo + realisedoimaton P/L — muuttuu hintojen liikkeiden mukaan",
       "freeMarginTooltip": "Uusien positioiden avaamiseen saatavilla oleva määrä = Saldo - Käytetty marginaali + Realisedoimaton P/L",
-      "usedMarginTooltip": "Avoimien positioiden vakuudeksi lukittu määrä — palautetaan suljettaessa"
+      "usedMarginTooltip": "Avoimien positioiden vakuudeksi lukittu määrä — palautetaan suljettaessa",
+      "brand": "Roua",
+      "chart": "Kaavio",
+      "positions": "Positiot",
+      "scanner": "Skanneri",
+      "decision": "Päätös",
+      "more": "Lisää",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Valuutta:",
@@ -2479,7 +2486,14 @@
       "equity": "Oma pääoma",
       "equityTooltip": "Saldo + realisoitumaton voitto/tappio avoimista positioista",
       "freeMarginTooltip": "Käytettävissä oleva marginaali uusien positioiden avaamiseen (oma pääoma – käytetty marginaali)",
-      "usedMarginTooltip": "Avoimiin positioihin sidottu marginaali (ei nostettavissa)"
+      "usedMarginTooltip": "Avoimiin positioihin sidottu marginaali (ei nostettavissa)",
+      "brand": "Roua",
+      "chart": "Kaavio",
+      "positions": "Positiot",
+      "scanner": "Skanneri",
+      "decision": "Päätös",
+      "more": "Lisää",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "Kaupankäynnin signaalit",

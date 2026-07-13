@@ -2426,7 +2426,14 @@
       "balanceTooltipReal": "Toplam cüzdan bakiyesi — pozisyonlarda kullanılan teminat dahil",
       "equityTooltip": "Bakiye + Gerçekleşmemiş P/L — fiyat hareketleriyle değişir",
       "freeMarginTooltip": "Yeni pozisyon açmak için kullanılabilir tutar = Bakiye - Kullanılan Teminat + Gerçekleşmemiş P/L",
-      "usedMarginTooltip": "Açık pozisyonlar için teminat olarak kilitli tutar — kapanışta iade edilir"
+      "usedMarginTooltip": "Açık pozisyonlar için teminat olarak kilitli tutar — kapanışta iade edilir",
+      "brand": "Roua",
+      "chart": "Grafik",
+      "positions": "Pozisyonlar",
+      "scanner": "Tarayıcı",
+      "decision": "Karar",
+      "more": "Daha",
+      "mt5": "MT5"
     },
     "calendar": {
       "currency": "Para birimi:",
@@ -2479,7 +2486,14 @@
       "equity": "Özsermaye",
       "equityTooltip": "Bakiye + açık pozisyonlardan gerçekleşmemiş kâr/zarar",
       "freeMarginTooltip": "Yeni pozisyonlar için kullanılabilir marjin (özsermaye - kullanılan marjin)",
-      "usedMarginTooltip": "Açık pozisyonlarda kilitli marjin (çekilemez)"
+      "usedMarginTooltip": "Açık pozisyonlarda kilitli marjin (çekilemez)",
+      "brand": "Roua",
+      "chart": "Grafik",
+      "positions": "Pozisyonlar",
+      "scanner": "Tarayıcı",
+      "decision": "Karar",
+      "more": "Daha",
+      "mt5": "MT5"
     },
     "rightPanel": {
       "headlineSignals": "İşlem Sinyalleri",

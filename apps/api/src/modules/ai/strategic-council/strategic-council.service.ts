@@ -1112,13 +1112,12 @@ export class StrategicCouncilService {
           });
 
           for (const brief of unlinkedBriefs) {
-            // Match: same symbol, same direction (BUY=long, SELL=short),
+            // Match: same symbol, same side (BUY/SELL),
             // journal opened after brief issued, closed before brief expiry
-            const briefDir = brief.direction === 'BUY' ? 'long' : 'short';
             const match = allClosedJournals.find(
               (j) =>
                 j.symbol === brief.pair &&
-                j.direction === briefDir &&
+                j.side === brief.direction &&
                 new Date(j.openedAt).getTime() >= new Date(brief.issuedAt).getTime() - 60000 && // 1min tolerance
                 new Date(j.openedAt).getTime() <= new Date(brief.expiresAt).getTime(),
             );
@@ -1138,11 +1137,13 @@ export class StrategicCouncilService {
           dto.outcomePips = journal.pnl !== null ? Number(journal.pnl) : undefined;
           dto.outcomePct = journal.pnlPercent !== null ? Number(journal.pnlPercent) : undefined;
           dto.closedAt = journal.closedAt;
-          dto.durationMs = journal.durationMs;
-          dto.result = journal.result;
-          // Also populate source from journal if brief doesn't have it
-          if (!dto.source && journal.source) {
-            dto.source = journal.source;
+          dto.durationMs = journal.holdingDurationMs ?? undefined;
+          dto.result = journal.result ?? undefined;
+          // Populate source from journal's credential/exchange info if available
+          // TradeJournal doesn't have a direct 'source' field, so we infer
+          // from brief.reviewStatus or leave as undefined
+          if (!dto.source) {
+            dto.source = b.reviewStatus === 'EXECUTED' ? 'council' : undefined;
           }
         }
         return dto;

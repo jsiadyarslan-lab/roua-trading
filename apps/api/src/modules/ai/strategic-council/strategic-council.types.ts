@@ -37,6 +37,7 @@ export interface TradingBriefDTO {
   closedAt?: Date;            // When the executed position was closed
   durationMs?: number;        // How long the position was held
   result?: 'WIN' | 'LOSS' | 'BREAKEVEN';  // Classified result
+  source?: string;  // Who executed the trade (smart_executor, agent, lazic, manual)
 }
 
 export interface CouncilSessionResult {

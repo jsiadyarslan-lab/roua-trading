@@ -682,8 +682,8 @@ export function AlpacaPositions() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(110px,1.3fr) minmax(72px,0.9fr) 48px minmax(60px,0.85fr) minmax(60px,0.85fr) minmax(68px,0.95fr) minmax(80px,1.05fr) minmax(56px,0.75fr) 28px',
-              gap: 6,
+              gridTemplateColumns: 'minmax(100px,1.2fr) minmax(70px,0.85fr) minmax(58px,0.7fr) 44px minmax(56px,0.75fr) minmax(56px,0.75fr) minmax(62px,0.8fr) minmax(56px,0.7fr) minmax(56px,0.7fr) 26px',
+              gap: 5,
               alignItems: 'center',
               padding: '4px 8px',
               color: '#6B7280',
@@ -697,11 +697,14 @@ export function AlpacaPositions() {
               marginBottom: 3,
             }}
           >
-            <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
+            <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
               {t('contract')} {sortKey === 'symbol' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
             <div onClick={() => handleSort('executor')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'executor' ? '#00D4FF' : undefined }}>
               {t('source')} {sortKey === 'executor' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
+            </div>
+            <div onClick={() => handleSort('time')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'time' ? '#00D4FF' : undefined }}>
+              {t('opening')} {sortKey === 'time' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
             <div onClick={() => handleSort('qty')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'qty' ? '#00D4FF' : undefined }}>
               {t('qty')} {sortKey === 'qty' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
@@ -715,10 +718,8 @@ export function AlpacaPositions() {
             <div onClick={() => handleSort('pnl')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'pnl' ? '#00D4FF' : undefined }}>
               {t('pnl')} {sortKey === 'pnl' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div style={{ textAlign: 'center' }}>SL / TP</div>
-            <div onClick={() => handleSort('time')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'time' ? '#00D4FF' : undefined }}>
-              {t('opening')} {sortKey === 'time' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
-            </div>
+            <div style={{ textAlign: 'center', color: 'rgba(255,71,87,0.7)' }}>SL</div>
+            <div style={{ textAlign: 'center', color: 'rgba(0,255,163,0.7)' }}>TP</div>
             <div style={{ textAlign: 'center' }}>✕</div>
           </div>
         )}
@@ -793,15 +794,15 @@ export function AlpacaPositions() {
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 6px rgba(0,0,0,0.15)`,
                 padding: '4px 8px',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(110px,1.3fr) minmax(72px,0.9fr) 48px minmax(60px,0.85fr) minmax(60px,0.85fr) minmax(68px,0.95fr) minmax(80px,1.05fr) minmax(56px,0.75fr) 28px',
-                gap: 6,
+                gridTemplateColumns: 'minmax(100px,1.2fr) minmax(70px,0.85fr) minmax(58px,0.7fr) 44px minmax(56px,0.75fr) minmax(56px,0.75fr) minmax(62px,0.8fr) minmax(56px,0.7fr) minmax(56px,0.7fr) 26px',
+                gap: 5,
                 alignItems: 'center',
                 minHeight: 32,
                 transition: 'border-color 0.15s',
               }}
             >
               {/* Symbol + Buy/Sell badge — compact */}
-              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <span
                   style={{
                     fontSize: 10,
@@ -855,6 +856,11 @@ export function AlpacaPositions() {
                 )}
               </div>
 
+              {/* Time — moved here after executor */}
+              <div style={{ fontSize: 9, fontWeight: 600, color: '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
+                {openedAt}
+              </div>
+
               {/* Qty */}
               <div style={{ fontSize: 9, fontWeight: 600, color: '#9CA3B5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {Number((position as any).qty ?? (position as any).quantity ?? 0).toFixed(2)}
@@ -875,25 +881,14 @@ export function AlpacaPositions() {
                 {fmtPnl(position.unrealizedPnl)}
               </div>
 
-              {/* SL/TP combined — two rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: 7, fontWeight: 900, padding: '0 3px', borderRadius: '2px', background: 'rgba(255,71,87,0.15)', color: '#FF4757', letterSpacing: 0.3 }}>SL</span>
-                  <span style={{ fontWeight: 700, color: position.sl ? '#E6EDF3' : '#6B7280' }}>
-                    {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: 7, fontWeight: 900, padding: '0 3px', borderRadius: '2px', background: 'rgba(0,255,163,0.15)', color: '#00FFA3', letterSpacing: 0.3 }}>TP</span>
-                  <span style={{ fontWeight: 700, color: position.tp ? '#E6EDF3' : '#6B7280' }}>
-                    {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
-                  </span>
-                </div>
+              {/* SL — separate column */}
+              <div style={{ fontSize: 10, fontWeight: 700, color: position.sl ? '#FF4757' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
               </div>
 
-              {/* Time */}
-              <div style={{ fontSize: 9, fontWeight: 600, color: '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
-                {openedAt}
+              {/* TP — separate column */}
+              <div style={{ fontSize: 10, fontWeight: 700, color: position.tp ? '#00FFA3' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
               </div>
 
               {/* Close button — compact */}

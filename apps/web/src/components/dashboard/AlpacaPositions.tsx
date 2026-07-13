@@ -698,12 +698,9 @@ export function AlpacaPositions() {
             }}
           >
             <div onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', color: sortKey === 'symbol' ? '#00D4FF' : undefined }}>
-              {t('contract')} {sortKey === 'symbol' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
+              {tc('pair')} {sortKey === 'symbol' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>
-            <div style={{ textAlign: 'center', color: '#9CA3B5' }}>{tc('type')}</div>
-            <div onClick={() => handleSort('executor')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'executor' ? '#00D4FF' : undefined }}>
-              {t('source')} {sortKey === 'executor' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
-            </div>
+            <div style={{ textAlign: 'center', color: '#9CA3B5' }}>{t('contract')}</div>
             <div onClick={() => handleSort('time')} style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', color: sortKey === 'time' ? '#00D4FF' : undefined }}>
               {t('opening')} {sortKey === 'time' ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
             </div>

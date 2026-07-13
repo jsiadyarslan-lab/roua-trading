@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "Kurumsal",
     "sourceBinanceWS": "Binance Doğrudan",
-    "council": "Stratejik Konsey"
+    "council": "Stratejik Konsey",
+    "pair": "Çift"
   },
   "neuralLab": {
     "buy": "Satın Al",

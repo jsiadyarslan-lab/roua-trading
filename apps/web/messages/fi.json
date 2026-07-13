@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "Yritys",
     "sourceBinanceWS": "Binance Direct",
-    "council": "Strateginen Neuvosto"
+    "council": "Strateginen Neuvosto",
+    "pair": "Pari"
   },
   "neuralLab": {
     "buy": "Ostaa",

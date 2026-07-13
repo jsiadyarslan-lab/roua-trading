@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "एंटरप्राइज़",
     "sourceBinanceWS": "Binance Direct",
-    "council": "सामरिक परिषद"
+    "council": "सामरिक परिषद",
+    "pair": "जोड़ी"
   },
   "neuralLab": {
     "buy": "खरीदें",

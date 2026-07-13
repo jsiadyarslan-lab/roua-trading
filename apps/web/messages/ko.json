@@ -4165,7 +4165,8 @@
     "sourceBinance": "바이낸스",
     "enterprise": "기업용",
     "sourceBinanceWS": "Binance Direct",
-    "council": "전략 평의회"
+    "council": "전략 평의회",
+    "pair": "페어"
   },
   "neuralLab": {
     "buy": "매수",

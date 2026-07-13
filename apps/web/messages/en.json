@@ -245,7 +245,8 @@
     "rolePremiumDesc": "Full access, API & advanced tools",
     "roleInstDesc": "Full institutional permissions",
     "roleAdminDesc": "Full administrative permissions",
-    "council": "Strategic Council"
+    "council": "Strategic Council",
+    "pair": "Pair"
   },
   "landing": {
     "hero": {

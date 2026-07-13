@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "Företag",
     "sourceBinanceWS": "Binance Direkt",
-    "council": "Strategiskt Råd"
+    "council": "Strategiskt Råd",
+    "pair": "Par"
   },
   "neuralLab": {
     "buy": "Köpa",

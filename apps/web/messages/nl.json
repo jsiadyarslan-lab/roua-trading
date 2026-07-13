@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binantie",
     "enterprise": "Onderneming",
     "sourceBinanceWS": "Binance Direct",
-    "council": "Strategische Raad"
+    "council": "Strategische Raad",
+    "pair": "Paar"
   },
   "neuralLab": {
     "buy": "Kopen",

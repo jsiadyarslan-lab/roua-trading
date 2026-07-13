@@ -4165,7 +4165,8 @@
     "sourceBinance": "ไบแนนซ์",
     "enterprise": "องค์กร",
     "sourceBinanceWS": "Binance ไดเร็ค",
-    "council": "สภายุทธศาสตร์"
+    "council": "สภายุทธศาสตร์",
+    "pair": "คู่"
   },
   "neuralLab": {
     "buy": "ซื้อ",

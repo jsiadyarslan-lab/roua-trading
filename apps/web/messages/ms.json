@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "Perusahaan",
     "sourceBinanceWS": "Binance Direct",
-    "council": "Majlis Strategik"
+    "council": "Majlis Strategik",
+    "pair": "Pasangan"
   },
   "neuralLab": {
     "buy": "Beli",

@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "מִפְעָל",
     "sourceBinanceWS": "Binance Direct",
-    "council": "מועצה אסטרטגית"
+    "council": "מועצה אסטרטגית",
+    "pair": "זוג"
   },
   "neuralLab": {
     "buy": "לִקְנוֹת",

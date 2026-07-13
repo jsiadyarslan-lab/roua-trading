@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "Entreprise",
     "sourceBinanceWS": "Binance Direct",
-    "council": "Conseil Stratégique"
+    "council": "Conseil Stratégique",
+    "pair": "Paire"
   },
   "neuralLab": {
     "buy": "Acheter",

@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "Vállalkozás",
     "sourceBinanceWS": "Binance Direct",
-    "council": "Stratégiai Tanács"
+    "council": "Stratégiai Tanács",
+    "pair": "Pár"
   },
   "neuralLab": {
     "buy": "Vétel",

@@ -4165,7 +4165,8 @@
     "sourceBinance": "Binance",
     "enterprise": "підприємство",
     "sourceBinanceWS": "Binance Direct",
-    "council": "Стратегічна Рада"
+    "council": "Стратегічна Рада",
+    "pair": "Пара"
   },
   "neuralLab": {
     "buy": "Купуйте",

@@ -245,7 +245,8 @@
     "rolePremiumDesc": "وصول كامل وAPI وأدوات متقدمة",
     "roleInstDesc": "صلاحيات مؤسسية كاملة",
     "roleAdminDesc": "صلاحيات إدارية كاملة",
-    "council": "المجلس الاستراتيجي"
+    "council": "المجلس الاستراتيجي",
+    "pair": "الزوج"
   },
   "landing": {
     "hero": {

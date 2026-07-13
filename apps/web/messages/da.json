@@ -245,7 +245,8 @@
     "rolePremiumDesc": "Fuld adgang, API og avancerede værktøjer",
     "roleInstDesc": "Fuld institutionelle tilladelser",
     "roleAdminDesc": "Fuld administrative tilladelser",
-    "council": "Strategisk Råd"
+    "council": "Strategisk Råd",
+    "pair": "Par"
   },
   "landing": {
     "hero": {

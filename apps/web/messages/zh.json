@@ -4165,7 +4165,8 @@
     "sourceBinance": "币安",
     "enterprise": "企业版",
     "sourceBinanceWS": "Binance 直连",
-    "council": "战略委员会"
+    "council": "战略委员会",
+    "pair": "货币对"
   },
   "neuralLab": {
     "buy": "买入",

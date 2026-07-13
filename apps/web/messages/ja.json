@@ -4165,7 +4165,8 @@
     "sourceBinance": "バイナンス",
     "enterprise": "エンタープライズ",
     "sourceBinanceWS": "バイナンスダイレクト",
-    "council": "戦略評議会"
+    "council": "戦略評議会",
+    "pair": "ペア"
   },
   "neuralLab": {
     "buy": "買い",

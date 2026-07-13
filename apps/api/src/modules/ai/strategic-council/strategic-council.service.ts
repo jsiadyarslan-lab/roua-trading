@@ -1071,17 +1071,15 @@ export class StrategicCouncilService {
 
       if (briefs.length === 0) return [];
 
-      // V292: Fetch TradeJournal entries linked to these briefs (by briefId).
-      // Only journals with a non-null briefId and a closedAt (closed trades)
-      // contribute outcome data. Open trades show no outcome yet.
-      //
-      // V299: Wrap the TradeJournal query in its own try-catch. If the
-      // TradeJournal table doesn't exist or the query fails (schema mismatch,
-      // connection error, etc.), we still return the briefs without outcome
-      // data — instead of returning an empty array and hiding all history.
+      // V292: Fetch TradeJournal entries linked to these briefs.
+      // Strategy 1: Match by briefId (direct link)
+      // Strategy 2: Match by symbol + direction + timeframe (fallback for
+      //   trades executed by Stinger/Agent/SmartExecutor that weren't
+      //   explicitly linked via briefId)
       const briefIds = briefs.map((b) => b.id);
       const journalByBriefId = new Map<string, any>();
       try {
+        // Strategy 1: Direct briefId match
         const journals = await this.prisma.tradeJournal.findMany({
           where: {
             briefId: { in: briefIds },
@@ -1094,9 +1092,43 @@ export class StrategicCouncilService {
             journalByBriefId.set(j.briefId, j);
           }
         }
+
+        // Strategy 2: Fallback — match by symbol + direction for briefs
+        // that have reviewStatus EXECUTED but no journal linked by briefId.
+        // This catches trades executed by external executors (Stinger, Agent,
+        // SmartExecutor) that created trades without setting briefId.
+        const unlinkedBriefs = briefs.filter(
+          (b) => b.reviewStatus === 'EXECUTED' && !journalByBriefId.has(b.id),
+        );
+        if (unlinkedBriefs.length > 0) {
+          // Build a map of all closed journals by symbol for quick lookup
+          const symbols = [...new Set(unlinkedBriefs.map((b) => b.pair))];
+          const allClosedJournals = await this.prisma.tradeJournal.findMany({
+            where: {
+              symbol: { in: symbols },
+              closedAt: { not: null },
+            },
+            orderBy: { closedAt: 'desc' },
+          });
+
+          for (const brief of unlinkedBriefs) {
+            // Match: same symbol, same direction (BUY=long, SELL=short),
+            // journal opened after brief issued, closed before brief expiry
+            const briefDir = brief.direction === 'BUY' ? 'long' : 'short';
+            const match = allClosedJournals.find(
+              (j) =>
+                j.symbol === brief.pair &&
+                j.direction === briefDir &&
+                new Date(j.openedAt).getTime() >= new Date(brief.issuedAt).getTime() - 60000 && // 1min tolerance
+                new Date(j.openedAt).getTime() <= new Date(brief.expiresAt).getTime(),
+            );
+            if (match) {
+              journalByBriefId.set(brief.id, match);
+            }
+          }
+        }
       } catch (journalErr: any) {
-        // TradeJournal query failed — return briefs without outcome data
-        this.logger.warn(`🏛️ V299: TradeJournal query failed (returning briefs without outcome): ${journalErr?.message}`);
+        this.logger.warn(`🏛️ TradeJournal query failed: ${journalErr?.message}`);
       }
 
       const dtos = briefs.map((b) => {
@@ -1108,6 +1140,10 @@ export class StrategicCouncilService {
           dto.closedAt = journal.closedAt;
           dto.durationMs = journal.durationMs;
           dto.result = journal.result;
+          // Also populate source from journal if brief doesn't have it
+          if (!dto.source && journal.source) {
+            dto.source = journal.source;
+          }
         }
         return dto;
       });

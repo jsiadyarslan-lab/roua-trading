@@ -505,46 +505,82 @@ export default function CouncilPage() {
               </GlassCard>
             ) : (
               <>
-                <GlassCard padding={12} style={{ overflow:'hidden', minWidth:540 }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', gap:12, padding:'8px 14px 10px', fontSize: 11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, borderBottom:`1px solid ${COLORS.border}` }}>
-                    <div>{t('colPair')}</div><div>{t('colDirection')}</div><div>{t('colEntry')}</div><div>{t('colConfidence')}</div><div>{t('colStatus')}</div><div style={{ textAlign:'right' }}>{t('colOutcome')}</div>
+                <GlassCard padding={12} style={{ overflow:'hidden', minWidth:680 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'minmax(100px,1fr) 55px 80px 50px 80px 80px 70px', gap:8, padding:'8px 10px 10px', fontSize: 10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textMuted, borderBottom:`1px solid ${COLORS.border}`, whiteSpace:'nowrap' }}>
+                    <div>{t('colPair')}</div><div>{t('colDirection')}</div><div>{t('colEntry')}</div><div>{t('colConfidence')}</div><div>{t('colStatus')}</div><div>{tc('pair') === 'الزوج' ? 'المنفذ' : 'Executor'}</div><div style={{ textAlign:'right' }}>{t('colOutcome')}</div>
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:6, maxHeight:520, overflowY:'auto', paddingRight:4 }}>
+                  <div style={{ display:'flex', flexDirection:'column', gap:4, marginTop:4, maxHeight:520, overflowY:'auto', paddingRight:4 }}>
                     {visibleHistory.map((b, i) => {
                       const dc = directionColor(b.direction)
                       const won = b.outcomePips !== undefined && b.outcomePips > 0
                       const lost = b.outcomePips !== undefined && b.outcomePips < 0
+                      // Executor label
+                      const execLabel = b.source === 'smart_executor' ? (tc('pair') === 'الزوج' ? 'منفذ ذكي' : 'Smart')
+                        : b.source === 'agent' ? (tc('pair') === 'الزوج' ? 'وكيل' : 'Agent')
+                        : (b.source === 'lazic' || b.source === 'lasic') ? 'Stinger'
+                        : b.source === 'auto_paper' ? (tc('pair') === 'الزوج' ? 'ورقي' : 'Paper')
+                        : b.reviewStatus === 'EXECUTED' ? (tc('pair') === 'الزوج' ? 'يدوي' : 'Manual')
+                        : '—'
+                      const execColor = b.source === 'smart_executor' ? '#FFB800'
+                        : b.source === 'agent' ? '#B388FF'
+                        : (b.source === 'lazic' || b.source === 'lasic') ? '#FF6B35'
+                        : b.source === 'auto_paper' ? '#00D4FF'
+                        : '#9CA3B5'
+                      // Result label
+                      const resultLabel = b.result === 'WIN' ? (tc('pair') === 'الزوج' ? 'ربح' : 'Win')
+                        : b.result === 'LOSS' ? (tc('pair') === 'الزوج' ? 'خسارة' : 'Loss')
+                        : b.result === 'BREAKEVEN' ? (tc('pair') === 'الزوج' ? 'تعادل' : 'BE')
+                        : won ? (tc('pair') === 'الزوج' ? 'ربح' : 'Win')
+                        : lost ? (tc('pair') === 'الزوج' ? 'خسارة' : 'Loss')
+                        : '—'
+                      const resultColor = won || b.result === 'WIN' ? COLORS.buy
+                        : lost || b.result === 'LOSS' ? COLORS.sell
+                        : COLORS.textMuted
                       return (
                         <motion.div key={b.id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:Math.min(i*0.025,0.4) }}
-                          style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', alignItems:'center', gap:12, padding:'12px 14px', borderRadius: 'var(--radius-lg)', background:'rgba(255,255,255,0.022)', border:`1px solid ${COLORS.border}`, transition:'background 200ms' }}
+                          style={{ display:'grid', gridTemplateColumns:'minmax(100px,1fr) 55px 80px 50px 80px 80px 70px', alignItems:'center', gap:8, padding:'8px 10px', borderRadius: 'var(--radius-lg)', background:'rgba(255,255,255,0.022)', border:`1px solid ${COLORS.border}`, transition:'background 200ms' }}
                           onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor=COLORS.borderStrong}}
                           onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.022)';e.currentTarget.style.borderColor=COLORS.border}}>
-                          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
-                            <div style={{ width:28, height:28, borderRadius: 'var(--radius-md)', background:directionSoft(b.direction), border:`1px solid ${hexToRgba(dc,0.3)}`, color:dc, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                              {b.direction==='BUY'?<TrendingUp size={13} strokeWidth={2.5}/>:<TrendingDown size={13} strokeWidth={2.5}/>}
+                          {/* Pair + timeframe */}
+                          <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                            <div style={{ width:24, height:24, borderRadius: 'var(--radius-md)', background:directionSoft(b.direction), border:`1px solid ${hexToRgba(dc,0.3)}`, color:dc, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                              {b.direction==='BUY'?<TrendingUp size={11} strokeWidth={2.5}/>:<TrendingDown size={11} strokeWidth={2.5}/>}
                             </div>
                             <div style={{ minWidth:0 }}>
-                              <div style={{ fontSize: 13, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.pair}</div>
-                              <div style={{ fontSize: 11, color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{b.timeframe}</div>
+                              <div style={{ fontSize: 12, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.pair}</div>
+                              <div style={{ fontSize: 10, color:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{b.timeframe} · {b.issuedAt?relativeTime(b.issuedAt, loc):'—'}</div>
                             </div>
                           </div>
-                          <div style={{ fontSize: 11, fontWeight:700, textTransform:'uppercase', color:dc }}>{t(dirLabelKey[b.direction])}</div>
-                          <div style={{ fontSize: 13, color:COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>{formatPrice(b.entryPrice)}</div>
-                          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                            <div style={{ width:40, height:4, borderRadius: 'var(--radius-2xl)', background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
+                          {/* Direction */}
+                          <div style={{ fontSize: 10, fontWeight:700, textTransform:'uppercase', color:dc, whiteSpace:'nowrap' }}>{t(dirLabelKey[b.direction])}</div>
+                          {/* Entry */}
+                          <div style={{ fontSize: 12, color:COLORS.textSecondary, fontFamily: "var(--font-mono)", whiteSpace:'nowrap' }}>{formatPrice(b.entryPrice)}</div>
+                          {/* Confidence */}
+                          <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                            <div style={{ width:30, height:3, borderRadius: 'var(--radius-2xl)', background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
                               <div style={{ height:'100%', width:`${b.confidence}%`, background:COLORS.council, borderRadius: 'var(--radius-2xl)' }} />
                             </div>
-                            <span style={{ fontSize: 11, color:COLORS.textSecondary, fontFamily: "var(--font-mono)", fontWeight:600 }}>{b.confidence}</span>
+                            <span style={{ fontSize: 10, color:COLORS.textSecondary, fontFamily: "var(--font-mono)", fontWeight:600 }}>{b.confidence}</span>
                           </div>
-                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                            {b.reviewStatus==='EXECUTED'?<CheckCircle2 size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:b.reviewStatus==='CANCELLED'?<XCircle size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:<RefreshCw size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>}
+                          {/* Status */}
+                          <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                            {b.reviewStatus==='EXECUTED'?<CheckCircle2 size={12} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:b.reviewStatus==='CANCELLED'?<XCircle size={12} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:<RefreshCw size={12} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>}
                             <StatusPill status={b.reviewStatus} label={t(stLabelKey[b.reviewStatus])} />
                           </div>
-                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
+                          {/* Executor */}
+                          <div style={{ display:'flex', justifyContent:'center' }}>
+                            <span style={{ padding:'2px 6px', borderRadius:'8px', background:hexToRgba(execColor,0.12), border:`1px solid ${hexToRgba(execColor,0.3)}`, color:execColor, fontSize:9, fontWeight:800, whiteSpace:'nowrap' }}>
+                              {execLabel}
+                            </span>
+                          </div>
+                          {/* Outcome + result */}
+                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:1 }}>
                             {b.outcomePips !== undefined ? (
-                              <span style={{ fontSize: 13, fontWeight:600, color:won?COLORS.buy:lost?COLORS.sell:COLORS.textMuted, fontFamily: "var(--font-mono)" }}>{b.outcomePips>0?'+':''}{b.outcomePips.toFixed(b.outcomePips<1?4:2)}</span>
-                            ) : <span style={{ fontSize: 11, color:COLORS.textDim, fontStyle:'italic' }}>—</span>}
-                            <span style={{ fontSize: 11, color:COLORS.textDim, fontFamily: "var(--font-mono)" }}>{b.closedAt?relativeTime(b.closedAt, loc):'—'}</span>
+                              <span style={{ fontSize: 12, fontWeight:700, color:resultColor, fontFamily: "var(--font-mono)" }}>
+                                {b.outcomePips>0?'+':''}{b.outcomePips.toFixed(2)}$
+                              </span>
+                            ) : <span style={{ fontSize: 10, color:COLORS.textDim, fontStyle:'italic' }}>—</span>}
+                            <span style={{ fontSize: 9, fontWeight:700, color:resultColor, whiteSpace:'nowrap' }}>{resultLabel}</span>
                           </div>
                         </motion.div>
                       )

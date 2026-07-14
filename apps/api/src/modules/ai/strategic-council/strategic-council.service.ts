@@ -1101,8 +1101,13 @@ export class StrategicCouncilService {
         this.logger.warn(`🏛️ TradeJournal query failed: ${e?.message}`);
       }
 
-      // Strategy 2: Position table — match by symbol + side + time window
-      const unmatchedBriefs = briefs.filter((b) => !outcomeByBriefId.has(b.id));
+      // Strategy 2: Position table — match ONLY for EXECUTED briefs
+      // (ACTIVE/CANCELLED briefs should NOT be linked to positions —
+      //  a CANCELLED brief was never executed, and an ACTIVE brief is
+      //  still waiting for execution)
+      const unmatchedBriefs = briefs.filter((b) =>
+        !outcomeByBriefId.has(b.id) && b.reviewStatus === 'EXECUTED'
+      );
       if (unmatchedBriefs.length > 0) {
         const symbols = [...new Set(unmatchedBriefs.flatMap((b) => {
           const raw = (b.pair || '').trim();

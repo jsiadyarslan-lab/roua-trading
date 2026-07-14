@@ -2399,6 +2399,13 @@ export class StrategicCouncilService {
       lastReviewedAt: brief.lastReviewedAt,
       reviewStatus: brief.reviewStatus as any,
       analysisSummary: brief.analysisSummary,
+      // Outcome fields — initialized to undefined, populated by outcome linking
+      outcomePips: undefined,
+      outcomePct: undefined,
+      closedAt: undefined,
+      durationMs: undefined,
+      result: undefined,
+      source: undefined,
     };
   }
 

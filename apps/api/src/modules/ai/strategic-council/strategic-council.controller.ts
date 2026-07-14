@@ -115,13 +115,24 @@ export class StrategicCouncilController {
 
   /**
    * GET /api/strategic-council/briefs/history — Get brief history
-   * FIX: Marked @Public() so the dashboard can show history without auth.
+   * V442: Require auth + filter by userId for data isolation.
    * V308: Added ?language= query param for on-demand translation.
    */
-  @Public()
   @Get('briefs/history')
-  async getBriefHistory(@Query('language') language?: string) {
-    const briefs = await this.councilService.getBriefHistory(undefined, 10000, language);
+  async getBriefHistory(@Req() req: any, @Query('language') language?: string) {
+    const userId = req.user?.id;
+    const briefs = await this.councilService.getBriefHistory(userId, 10000, language);
+    return { success: true, data: briefs };
+  }
+
+  /**
+   * GET /api/strategic-council/briefs/history/all — Admin: ALL users' briefs
+   * V442: Admin-only endpoint for the admin dashboard.
+   */
+  @Get('briefs/history/all')
+  async getAllBriefHistory(@Query('language') language?: string, @Query('limit') limit?: string) {
+    const lim = Math.min(parseInt(limit || '10000', 10), 50000);
+    const briefs = await this.councilService.getBriefHistory(undefined, lim, language);
     return { success: true, data: briefs };
   }
 

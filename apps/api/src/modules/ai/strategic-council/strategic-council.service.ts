@@ -1107,15 +1107,14 @@ export class StrategicCouncilService {
             return [raw, raw.replace('/', '')];
           }))];
 
-          // Query Position table — use select to avoid schema mismatch issues
-          const allPositions: any[] = await this.prisma.$queryRawUnsafe(
-            `SELECT id, symbol, side, status, "realizedPnl", "openedAt", "closedAt", source
-             FROM "Position"
-             WHERE symbol = ANY($1::text[])
-             ORDER BY "openedAt" DESC
-             LIMIT 500`,
-            symbols,
-          ) as any;
+          // Use Prisma client (not raw SQL) to avoid schema mismatch
+          const allPositions = await this.prisma.position.findMany({
+            where: { symbol: { in: symbols } },
+            orderBy: { openedAt: 'desc' },
+            take: 500,
+          });
+
+          this.logger.log(`🏛️ Outcome linking: ${unmatchedBriefs.length} unmatched briefs, ${allPositions.length} positions found for ${symbols.length} symbols`);
 
           for (const brief of unmatchedBriefs) {
             const pairWithSlash = (brief.pair || '').trim();

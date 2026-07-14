@@ -1151,6 +1151,8 @@ export class StrategicCouncilService {
             const durationMs = isClosed && match.closedAt
               ? new Date(match.closedAt).getTime() - new Date(match.openedAt).getTime()
               : undefined;
+            // Use position.source directly — no guessing.
+            // If source is 'user_manual', display it honestly as manual.
             outcomeByBriefId.set(brief.id, {
               pnl,
               closedAt: match.closedAt ?? undefined,

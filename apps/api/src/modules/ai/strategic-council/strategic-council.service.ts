@@ -1091,7 +1091,7 @@ export class StrategicCouncilService {
             outcomeByBriefId.set(j.briefId, {
               pnl: j.pnl !== null ? Number(j.pnl) : undefined,
               closedAt: j.closedAt ?? undefined,
-              durationMs: j.holdingDurationMs ?? undefined,
+              durationMs: (j as any).holdingDurationMs ?? (j as any).durationMs ?? undefined,
               result: j.result ?? undefined,
               source: 'council',
             });

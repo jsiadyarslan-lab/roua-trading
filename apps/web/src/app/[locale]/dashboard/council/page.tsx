@@ -537,7 +537,7 @@ export default function CouncilPage() {
                         : b.result === 'BREAKEVEN' ? (isAr ? 'تعادل' : 'BE')
                         : won ? (isAr ? 'ربح' : 'Win')
                         : lost ? (isAr ? 'خسارة' : 'Loss')
-                        : b.reviewStatus === 'EXECUTED' ? (isAr ? 'معلقة' : 'Pending')
+                        : b.reviewStatus === 'EXECUTED' ? (isAr ? 'مفتوحة' : 'Open')
                         : b.reviewStatus === 'ACTIVE' ? (isAr ? 'بانتظار' : 'Waiting')
                         : b.reviewStatus === 'CANCELLED' ? (isAr ? 'ملغى' : 'N/A')
                         : '—'

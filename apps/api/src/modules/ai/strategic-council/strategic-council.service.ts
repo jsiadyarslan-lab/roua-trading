@@ -1102,14 +1102,12 @@ export class StrategicCouncilService {
         const unmatchedBriefs = briefs.filter((b) => !outcomeByBriefId.has(b.id));
         if (unmatchedBriefs.length > 0) {
           const symbols = [...new Set(unmatchedBriefs.map((b) => b.pair))];
-          // Fetch ALL closed positions for these symbols
-          const closedPositions = await this.prisma.position.findMany({
+          // Fetch BOTH open AND closed positions for these symbols
+          const allPositions = await this.prisma.position.findMany({
             where: {
               symbol: { in: symbols },
-              status: 'CLOSED',
-              closedAt: { not: null },
             },
-            orderBy: { closedAt: 'desc' },
+            orderBy: { openedAt: 'desc' },
           });
 
           for (const brief of unmatchedBriefs) {
@@ -1117,7 +1115,7 @@ export class StrategicCouncilService {
             // position opened within [brief.issuedAt - 5min, brief.expiresAt + 5min]
             const issuedMs = new Date(brief.issuedAt).getTime();
             const expiresMs = new Date(brief.expiresAt).getTime();
-            const match = closedPositions.find(
+            const match = allPositions.find(
               (p) =>
                 p.symbol === brief.pair &&
                 p.side === brief.direction &&
@@ -1125,9 +1123,12 @@ export class StrategicCouncilService {
                 new Date(p.openedAt).getTime() <= expiresMs + 300000,  // 5min after expiry
             );
             if (match) {
-              const pnl = Number(match.realizedPnl) || 0;
-              const result = pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN';
-              const durationMs = match.closedAt
+              const isClosed = match.status === 'CLOSED' && match.closedAt;
+              const pnl = isClosed ? (Number(match.realizedPnl) || 0) : undefined;
+              const result = isClosed
+                ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
+                : undefined;
+              const durationMs = isClosed && match.closedAt
                 ? new Date(match.closedAt).getTime() - new Date(match.openedAt).getTime()
                 : undefined;
               outcomeByBriefId.set(brief.id, {

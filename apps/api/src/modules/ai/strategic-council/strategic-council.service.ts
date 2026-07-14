@@ -1080,8 +1080,8 @@ export class StrategicCouncilService {
       const briefIds = briefs.map((b) => b.id);
       const outcomeByBriefId = new Map<string, { pnl?: number; closedAt?: Date; durationMs?: number; result?: string; source?: string }>();
 
+      // Strategy 1: TradeJournal by briefId
       try {
-        // Strategy 1: TradeJournal by briefId
         const journals = await this.prisma.tradeJournal.findMany({
           where: { briefId: { in: briefIds }, closedAt: { not: null } },
           orderBy: { closedAt: 'desc' },
@@ -1097,61 +1097,64 @@ export class StrategicCouncilService {
             });
           }
         }
+      } catch (e: any) {
+        this.logger.warn(`🏛️ TradeJournal query failed: ${e?.message}`);
+      }
 
-        // Strategy 2+3: Position table — for briefs not yet matched
-        const unmatchedBriefs = briefs.filter((b) => !outcomeByBriefId.has(b.id));
-        if (unmatchedBriefs.length > 0) {
-          // Generate both formats: 'BTC/USDT' and 'BTCUSDT'
-          const symbols = [...new Set(unmatchedBriefs.flatMap((b) => {
-            const raw = (b.pair || '').trim();
-            return [raw, raw.replace('/', '')];
-          }))];
+      // Strategy 2: Position table — match by symbol + side + time window
+      const unmatchedBriefs = briefs.filter((b) => !outcomeByBriefId.has(b.id));
+      if (unmatchedBriefs.length > 0) {
+        const symbols = [...new Set(unmatchedBriefs.flatMap((b) => {
+          const raw = (b.pair || '').trim();
+          return [raw, raw.replace('/', '')];
+        }))];
 
-          // Use Prisma client (not raw SQL) to avoid schema mismatch
-          const allPositions = await this.prisma.position.findMany({
+        let allPositions: any[] = [];
+        try {
+          allPositions = await this.prisma.position.findMany({
             where: { symbol: { in: symbols } },
             orderBy: { openedAt: 'desc' },
             take: 500,
           });
+        } catch (e: any) {
+          this.logger.error(`🏛️ Position query FAILED: ${e?.message}`);
+        }
 
-          this.logger.log(`🏛️ Outcome linking: ${unmatchedBriefs.length} unmatched briefs, ${allPositions.length} positions found for ${symbols.length} symbols`);
+        this.logger.log(`🏛️ Outcome linking: ${unmatchedBriefs.length} unmatched briefs, ${allPositions.length} positions found for ${symbols.length} symbols`);
 
-          for (const brief of unmatchedBriefs) {
-            const pairWithSlash = (brief.pair || '').trim();
-            const pairNoSlash = pairWithSlash.replace('/', '');
-            const issuedMs = new Date(brief.issuedAt).getTime();
-            const expiresMs = new Date(brief.expiresAt).getTime();
-            const briefSide = String(brief.direction).toUpperCase();
+        for (const brief of unmatchedBriefs) {
+          const pairWithSlash = (brief.pair || '').trim();
+          const pairNoSlash = pairWithSlash.replace('/', '');
+          const issuedMs = new Date(brief.issuedAt).getTime();
+          const expiresMs = new Date(brief.expiresAt).getTime();
+          const briefSide = String(brief.direction).toUpperCase();
 
-            const match = allPositions.find((p: any) => {
-              const posSymbol = String(p.symbol || '').trim();
-              const symbolMatch = posSymbol === pairWithSlash || posSymbol === pairNoSlash;
-              const sideMatch = String(p.side).toUpperCase() === briefSide;
-              const openedMs = new Date(p.openedAt).getTime();
-              const timeMatch = openedMs >= issuedMs - 300000 && openedMs <= expiresMs + 300000;
-              return symbolMatch && sideMatch && timeMatch;
+          const match = allPositions.find((p: any) => {
+            const posSymbol = String(p.symbol || '').trim();
+            const symbolMatch = posSymbol === pairWithSlash || posSymbol === pairNoSlash;
+            const sideMatch = String(p.side).toUpperCase() === briefSide;
+            const openedMs = new Date(p.openedAt).getTime();
+            const timeMatch = openedMs >= issuedMs - 300000 && openedMs <= expiresMs + 300000;
+            return symbolMatch && sideMatch && timeMatch;
+          });
+          if (match) {
+            const isClosed = match.status === 'CLOSED' && match.closedAt;
+            const pnl = isClosed ? (Number(match.realizedPnl) || 0) : undefined;
+            const result = isClosed && pnl !== undefined
+              ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
+              : undefined;
+            const durationMs = isClosed && match.closedAt
+              ? new Date(match.closedAt).getTime() - new Date(match.openedAt).getTime()
+              : undefined;
+            outcomeByBriefId.set(brief.id, {
+              pnl,
+              closedAt: match.closedAt ?? undefined,
+              durationMs,
+              result,
+              source: match.source ?? 'user_manual',
             });
-            if (match) {
-              const isClosed = match.status === 'CLOSED' && match.closedAt;
-              const pnl = isClosed ? (Number(match.realizedPnl) || 0) : undefined;
-              const result = isClosed && pnl !== undefined
-                ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
-                : undefined;
-              const durationMs = isClosed && match.closedAt
-                ? new Date(match.closedAt).getTime() - new Date(match.openedAt).getTime()
-                : undefined;
-              outcomeByBriefId.set(brief.id, {
-                pnl,
-                closedAt: match.closedAt ?? undefined,
-                durationMs,
-                result,
-                source: match.source ?? 'user_manual',
-              });
-            }
           }
         }
-      } catch (err: any) {
-        this.logger.error(`🏛️ Outcome linking FAILED: ${err?.message} | stack: ${err?.stack?.substring(0, 500)}`);
       }
 
       const dtos = briefs.map((b) => {

@@ -1125,7 +1125,7 @@ export class StrategicCouncilService {
             if (match) {
               const isClosed = match.status === 'CLOSED' && match.closedAt;
               const pnl = isClosed ? (Number(match.realizedPnl) || 0) : undefined;
-              const result = isClosed
+              const result = isClosed && pnl !== undefined
                 ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
                 : undefined;
               const durationMs = isClosed && match.closedAt

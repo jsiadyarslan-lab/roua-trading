@@ -1055,7 +1055,10 @@ export class StrategicCouncilService {
   async getBriefHistory(userId?: string, limit: number = 100, language?: string): Promise<TradingBriefDTO[]> {
     try {
       const where: any = {};
-      if (userId) where.userId = userId;
+      if (userId) {
+        // Show user's own briefs + system briefs (userId = null)
+        where.OR = [{ userId }, { userId: null }];
+      }
 
       // V299: Include ALL briefs — active AND inactive. The history table
       // shows the full timeline with status badges (ACTIVE/MODIFIED/CANCELLED/

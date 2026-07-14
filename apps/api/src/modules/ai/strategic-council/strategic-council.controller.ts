@@ -128,7 +128,10 @@ export class StrategicCouncilController {
   /**
    * GET /api/strategic-council/briefs/history/all — Admin: ALL users' briefs
    * V442: Admin-only endpoint for the admin dashboard.
+   * V443: Keep @Public() so the proxy can access it (admin auth handled by proxy).
+   * The admin page is behind the admin route guard in Next.js.
    */
+  @Public()
   @Get('briefs/history/all')
   async getAllBriefHistory(@Query('language') language?: string, @Query('limit') limit?: string) {
     const lim = Math.min(parseInt(limit || '10000', 10), 50000);

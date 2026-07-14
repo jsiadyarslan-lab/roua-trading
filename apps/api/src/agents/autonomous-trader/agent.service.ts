@@ -18,6 +18,7 @@ import { SignalEvaluatorService } from './services/signal-evaluator.service';
 // REMOVED: RiskCalculatorService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from '../../modules/trading/services/unified-risk.service';
 import { OrderExecutorService } from './services/order-executor.service';
+import { TradeJournalService } from '../../modules/ai/council-intelligence/trade-journal.service'; // V441
 import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
 import { TradingBriefDTO, AGENT_TIMEFRAMES, TIMEFRAME_RR, isAgentTimeframe, isSymbolSupportedByExchange } from '../../modules/ai/strategic-council/strategic-council.types';
 
@@ -117,6 +118,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     private readonly orderExecutor: OrderExecutorService,
     private readonly councilService: StrategicCouncilService,  // V145: No longer @Optional — module imports StrategicCouncilModule
     @Optional() private readonly tradeCoordination: TradeCoordinationService,  // #18: Trade coordination service
+    @Optional() private readonly journal?: TradeJournalService,  // V441: Record trades for council history
   ) {
     // FIX: Lazy readiness check — try to connect to dependencies on first use
     // instead of permanently blocking if they're unavailable at constructor time.
@@ -1870,6 +1872,29 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             signalsExecuted++;
             state.dailyTradesCount++;
             state.dailyPnL -= (execution.fee || 0);
+
+            // V441: Record trade in TradeJournal — same as SmartExecutor
+            // This ensures Agent trades show up in council history with
+            // executor='agent' and P&L when the position closes.
+            try {
+              if (this.journal) {
+                await this.journal.recordTradeOpen({
+                  userId,
+                  positionId: execution.orderId || 'unknown',
+                  symbol: brief.pair,
+                  side: brief.direction,
+                  entryPrice: execution.averagePrice || signal.entryPrice,
+                  quantity: risk.positionSize || 0,
+                  councilVotes: { agent: brief.direction },
+                  consensusScore: brief.confidence ?? 70,
+                  source: 'agent',
+                  isPaper: false,
+                  briefId: brief.id,
+                });
+              }
+            } catch (journalErr: any) {
+              this.logger.debug(`V441 Journal: Failed to record agent trade: ${journalErr.message}`);
+            }
 
             // V440: Mark brief as EXECUTED so the council history table shows
             // executed briefs with their outcome. SmartExecutor does this (V310)

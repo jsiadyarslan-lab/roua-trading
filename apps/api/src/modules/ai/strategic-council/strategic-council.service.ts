@@ -1143,7 +1143,9 @@ export class StrategicCouncilService {
             const symbolMatch = posSymbol === pairWithSlash || posSymbol === pairNoSlash;
             const sideMatch = String(p.side).toUpperCase() === briefSide;
             const openedMs = new Date(p.openedAt).getTime();
-            const timeMatch = openedMs >= issuedMs - 300000 && openedMs <= expiresMs + 300000;
+            // Wider time window: 5min before issue to 30min after expiry
+            // (SmartExecutor may execute slightly after brief expires)
+            const timeMatch = openedMs >= issuedMs - 300000 && openedMs <= expiresMs + 1800000;
             return symbolMatch && sideMatch && timeMatch;
           });
           if (match) {

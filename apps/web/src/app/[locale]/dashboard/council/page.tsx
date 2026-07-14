@@ -522,7 +522,6 @@ export default function CouncilPage() {
                         : b.source === 'auto_paper' ? (isAr ? 'ورقي' : 'Paper')
                         : b.source === 'council' ? (isAr ? 'مجلس' : 'Council')
                         : b.source === 'user_manual' ? (isAr ? 'يدوي' : 'Manual')
-                        : b.reviewStatus === 'EXECUTED' ? (isAr ? 'يدوي' : 'Manual')
                         : (isAr ? '—' : '—')
                       const execColor = b.source === 'smart_executor' ? '#FFB800'
                         : b.source === 'agent' ? '#B388FF'

@@ -1054,11 +1054,14 @@ export class StrategicCouncilService {
    */
   async getBriefHistory(userId?: string, limit: number = 100, language?: string): Promise<TradingBriefDTO[]> {
     try {
-      const where: any = {};
-      if (userId) {
-        // Show user's own briefs + system briefs (userId = null)
-        where.OR = [{ userId }, { userId: null }];
-      }
+      // V444: Use RLS bypass because TradingBriefs have userId=null (system briefs)
+      // and RLS would filter them out for guest/authenticated users.
+      return await this.prisma.withRlsBypass(async () => {
+        const where: any = {};
+        if (userId) {
+          // Show user's own briefs + system briefs (userId = null)
+          where.OR = [{ userId }, { userId: null }];
+        }
 
       // V299: Include ALL briefs — active AND inactive. The history table
       // shows the full timeline with status badges (ACTIVE/MODIFIED/CANCELLED/
@@ -1205,6 +1208,7 @@ export class StrategicCouncilService {
       }
 
       return dtos;
+      }); // end withRlsBypass
     } catch (error: any) {
       this.logger.error(`🏛️ getBriefHistory failed: ${error.message}`);
       return [];

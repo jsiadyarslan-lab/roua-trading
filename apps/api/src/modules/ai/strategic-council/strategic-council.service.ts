@@ -1071,80 +1071,88 @@ export class StrategicCouncilService {
 
       if (briefs.length === 0) return [];
 
-      // V292: Fetch TradeJournal entries linked to these briefs.
-      // Strategy 1: Match by briefId (direct link)
-      // Strategy 2: Match by symbol + direction + timeframe (fallback for
-      //   trades executed by Stinger/Agent/SmartExecutor that weren't
-      //   explicitly linked via briefId)
+      // V292+V414: Link briefs to actual executed trades to get P&L and executor.
+      // Strategy 1: Match by briefId in TradeJournal (direct link)
+      // Strategy 2: Match by briefId in Position (if Position has briefId column)
+      // Strategy 3: Fallback — match by symbol + side + time window in Position table.
+      //   This catches trades executed by Stinger/Agent/SmartExecutor that
+      //   weren't explicitly linked via briefId.
       const briefIds = briefs.map((b) => b.id);
-      const journalByBriefId = new Map<string, any>();
+      const outcomeByBriefId = new Map<string, { pnl?: number; closedAt?: Date; durationMs?: number; result?: string; source?: string }>();
+
       try {
-        // Strategy 1: Direct briefId match
+        // Strategy 1: TradeJournal by briefId
         const journals = await this.prisma.tradeJournal.findMany({
-          where: {
-            briefId: { in: briefIds },
-            closedAt: { not: null },
-          },
+          where: { briefId: { in: briefIds }, closedAt: { not: null } },
           orderBy: { closedAt: 'desc' },
         });
         for (const j of journals) {
-          if (j.briefId && !journalByBriefId.has(j.briefId)) {
-            journalByBriefId.set(j.briefId, j);
+          if (j.briefId && !outcomeByBriefId.has(j.briefId)) {
+            outcomeByBriefId.set(j.briefId, {
+              pnl: j.pnl !== null ? Number(j.pnl) : undefined,
+              closedAt: j.closedAt ?? undefined,
+              durationMs: j.holdingDurationMs ?? undefined,
+              result: j.result ?? undefined,
+              source: 'council',
+            });
           }
         }
 
-        // Strategy 2: Fallback — match by symbol + direction for briefs
-        // that have reviewStatus EXECUTED but no journal linked by briefId.
-        // This catches trades executed by external executors (Stinger, Agent,
-        // SmartExecutor) that created trades without setting briefId.
-        const unlinkedBriefs = briefs.filter(
-          (b) => b.reviewStatus === 'EXECUTED' && !journalByBriefId.has(b.id),
-        );
-        if (unlinkedBriefs.length > 0) {
-          // Build a map of all closed journals by symbol for quick lookup
-          const symbols = [...new Set(unlinkedBriefs.map((b) => b.pair))];
-          const allClosedJournals = await this.prisma.tradeJournal.findMany({
+        // Strategy 2+3: Position table — for briefs not yet matched
+        const unmatchedBriefs = briefs.filter((b) => !outcomeByBriefId.has(b.id));
+        if (unmatchedBriefs.length > 0) {
+          const symbols = [...new Set(unmatchedBriefs.map((b) => b.pair))];
+          // Fetch ALL closed positions for these symbols
+          const closedPositions = await this.prisma.position.findMany({
             where: {
               symbol: { in: symbols },
+              status: 'CLOSED',
               closedAt: { not: null },
             },
             orderBy: { closedAt: 'desc' },
           });
 
-          for (const brief of unlinkedBriefs) {
+          for (const brief of unmatchedBriefs) {
             // Match: same symbol, same side (BUY/SELL),
-            // journal opened after brief issued, closed before brief expiry
-            const match = allClosedJournals.find(
-              (j) =>
-                j.symbol === brief.pair &&
-                j.side === brief.direction &&
-                new Date(j.openedAt).getTime() >= new Date(brief.issuedAt).getTime() - 60000 && // 1min tolerance
-                new Date(j.openedAt).getTime() <= new Date(brief.expiresAt).getTime(),
+            // position opened within [brief.issuedAt - 5min, brief.expiresAt + 5min]
+            const issuedMs = new Date(brief.issuedAt).getTime();
+            const expiresMs = new Date(brief.expiresAt).getTime();
+            const match = closedPositions.find(
+              (p) =>
+                p.symbol === brief.pair &&
+                p.side === brief.direction &&
+                new Date(p.openedAt).getTime() >= issuedMs - 300000 && // 5min before
+                new Date(p.openedAt).getTime() <= expiresMs + 300000,  // 5min after expiry
             );
             if (match) {
-              journalByBriefId.set(brief.id, match);
+              const pnl = Number(match.realizedPnl) || 0;
+              const result = pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN';
+              const durationMs = match.closedAt
+                ? new Date(match.closedAt).getTime() - new Date(match.openedAt).getTime()
+                : undefined;
+              outcomeByBriefId.set(brief.id, {
+                pnl,
+                closedAt: match.closedAt ?? undefined,
+                durationMs,
+                result,
+                source: match.source ?? 'user_manual',
+              });
             }
           }
         }
-      } catch (journalErr: any) {
-        this.logger.warn(`🏛️ TradeJournal query failed: ${journalErr?.message}`);
+      } catch (err: any) {
+        this.logger.warn(`🏛️ Outcome linking failed: ${err?.message}`);
       }
 
       const dtos = briefs.map((b) => {
         const dto = this._toDTO(b);
-        const journal = journalByBriefId.get(b.id);
-        if (journal) {
-          dto.outcomePips = journal.pnl !== null ? Number(journal.pnl) : undefined;
-          dto.outcomePct = journal.pnlPercent !== null ? Number(journal.pnlPercent) : undefined;
-          dto.closedAt = journal.closedAt;
-          dto.durationMs = journal.holdingDurationMs ?? undefined;
-          dto.result = journal.result ?? undefined;
-          // Populate source from journal's credential/exchange info if available
-          // TradeJournal doesn't have a direct 'source' field, so we infer
-          // from brief.reviewStatus or leave as undefined
-          if (!dto.source) {
-            dto.source = b.reviewStatus === 'EXECUTED' ? 'council' : undefined;
-          }
+        const outcome = outcomeByBriefId.get(b.id);
+        if (outcome) {
+          dto.outcomePips = outcome.pnl;
+          dto.closedAt = outcome.closedAt;
+          dto.durationMs = outcome.durationMs;
+          dto.result = outcome.result as any;
+          dto.source = outcome.source;
         }
         return dto;
       });

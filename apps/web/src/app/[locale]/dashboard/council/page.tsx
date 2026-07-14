@@ -521,14 +521,15 @@ export default function CouncilPage() {
                         : (b.source === 'lazic' || b.source === 'lasic') ? 'Stinger'
                         : b.source === 'auto_paper' ? (isAr ? 'ورقي' : 'Paper')
                         : b.source === 'council' ? (isAr ? 'مجلس' : 'Council')
+                        : b.source === 'user_manual' ? (isAr ? 'يدوي' : 'Manual')
                         : b.reviewStatus === 'EXECUTED' ? (isAr ? 'يدوي' : 'Manual')
-                        : b.reviewStatus === 'ACTIVE' ? (isAr ? 'مجلس' : 'Council')
-                        : b.reviewStatus === 'CANCELLED' ? (isAr ? 'مجلس' : 'Council')
-                        : (isAr ? 'مجلس' : 'Council')
+                        : (isAr ? '—' : '—')
                       const execColor = b.source === 'smart_executor' ? '#FFB800'
                         : b.source === 'agent' ? '#B388FF'
                         : (b.source === 'lazic' || b.source === 'lasic') ? '#FF6B35'
                         : b.source === 'auto_paper' ? '#00D4FF'
+                        : b.source === 'council' ? '#9CA3B5'
+                        : b.source === 'user_manual' ? '#9CA3B5'
                         : '#9CA3B5'
                       // Result label — show based on outcome or status
                       const resultLabel = b.result === 'WIN' ? (isAr ? 'ربح' : 'Win')

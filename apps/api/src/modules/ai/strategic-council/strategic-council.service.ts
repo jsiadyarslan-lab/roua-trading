@@ -1080,20 +1080,24 @@ export class StrategicCouncilService {
       const briefIds = briefs.map((b) => b.id);
       const outcomeByBriefId = new Map<string, { pnl?: number; closedAt?: Date; durationMs?: number; result?: string; source?: string }>();
 
-      // Strategy 1: TradeJournal by briefId
+      // Strategy 1: TradeJournal by briefId — this is the PRIMARY link.
+      // SmartExecutor creates TradeJournal with briefId + source='smart_executor'
+      // when it opens a position. Search for ALL journals (open AND closed).
       try {
         const journals = await this.prisma.tradeJournal.findMany({
-          where: { briefId: { in: briefIds }, closedAt: { not: null } },
-          orderBy: { closedAt: 'desc' },
+          where: { briefId: { in: briefIds } },
+          orderBy: { openedAt: 'desc' },
         });
         for (const j of journals) {
           if (j.briefId && !outcomeByBriefId.has(j.briefId)) {
+            const isClosed = !!j.closedAt;
+            const pnl = isClosed && j.pnl !== null ? Number(j.pnl) : undefined;
             outcomeByBriefId.set(j.briefId, {
-              pnl: j.pnl !== null ? Number(j.pnl) : undefined,
+              pnl,
               closedAt: j.closedAt ?? undefined,
               durationMs: (j as any).holdingDurationMs ?? (j as any).durationMs ?? undefined,
               result: j.result ?? undefined,
-              source: 'council',
+              source: j.source || 'COUNCIL',
             });
           }
         }

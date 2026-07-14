@@ -1156,7 +1156,7 @@ export class StrategicCouncilService {
               closedAt: match.closedAt ?? undefined,
               durationMs,
               result,
-              source: (!match.source || match.source === 'user_manual') ? 'smart_executor' : match.source,
+              source: match.source ?? 'user_manual',
             });
           }
         }

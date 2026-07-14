@@ -1101,26 +1101,47 @@ export class StrategicCouncilService {
         // Strategy 2+3: Position table — for briefs not yet matched
         const unmatchedBriefs = briefs.filter((b) => !outcomeByBriefId.has(b.id));
         if (unmatchedBriefs.length > 0) {
-          const symbols = [...new Set(unmatchedBriefs.map((b) => b.pair))];
+          // Normalize symbols: brief.pair uses 'BTC/USDT' but Position.symbol
+          // might use 'BTCUSDT' or 'BTC/USDT' — match both formats
+          const symbols = [...new Set(unmatchedBriefs.flatMap((b) => {
+            const raw = b.pair || '';
+            const noSlash = raw.replace('/', '');
+            return [raw, noSlash, raw.replace('/', '')];
+          }))];
           // Fetch BOTH open AND closed positions for these symbols
           const allPositions = await this.prisma.position.findMany({
             where: {
-              symbol: { in: symbols },
+              OR: [
+                { symbol: { in: symbols } },
+                { exchangeSymbol: { in: symbols } },
+              ],
             },
             orderBy: { openedAt: 'desc' },
           });
 
           for (const brief of unmatchedBriefs) {
-            // Match: same symbol, same side (BUY/SELL),
-            // position opened within [brief.issuedAt - 5min, brief.expiresAt + 5min]
+            // Normalize pair for matching (try both with and without slash)
+            const pairWithSlash = brief.pair || '';
+            const pairNoSlash = pairWithSlash.replace('/', '');
             const issuedMs = new Date(brief.issuedAt).getTime();
             const expiresMs = new Date(brief.expiresAt).getTime();
             const match = allPositions.find(
-              (p) =>
-                p.symbol === brief.pair &&
-                p.side === brief.direction &&
-                new Date(p.openedAt).getTime() >= issuedMs - 300000 && // 5min before
-                new Date(p.openedAt).getTime() <= expiresMs + 300000,  // 5min after expiry
+              (p) => {
+                // Match symbol (try both formats)
+                const posSymbol = p.symbol || '';
+                const posExchange = (p as any).exchangeSymbol || '';
+                const symbolMatch = posSymbol === pairWithSlash ||
+                  posSymbol === pairNoSlash ||
+                  posExchange === pairWithSlash ||
+                  posExchange === pairNoSlash;
+                // Match side (Position.side is enum BUY/SELL, brief.direction is BUY/SELL)
+                const sideMatch = p.side === brief.direction ||
+                  String(p.side).toUpperCase() === String(brief.direction).toUpperCase();
+                // Match time window
+                const openedMs = new Date(p.openedAt).getTime();
+                const timeMatch = openedMs >= issuedMs - 300000 && openedMs <= expiresMs + 300000;
+                return symbolMatch && sideMatch && timeMatch;
+              }
             );
             if (match) {
               const isClosed = match.status === 'CLOSED' && match.closedAt;

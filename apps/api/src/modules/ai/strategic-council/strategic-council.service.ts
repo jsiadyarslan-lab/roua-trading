@@ -1152,7 +1152,7 @@ export class StrategicCouncilService {
           }
         }
       } catch (err: any) {
-        this.logger.warn(`🏛️ Outcome linking failed: ${err?.message}`);
+        this.logger.error(`🏛️ Outcome linking FAILED: ${err?.message} | stack: ${err?.stack?.substring(0, 500)}`);
       }
 
       const dtos = briefs.map((b) => {

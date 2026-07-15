@@ -56,6 +56,10 @@ export default function Home() {
 
   return (
     <div className="landing-page">
+      {/* V500-REDESIGN: glassmorphism background layers */}
+      <div className="space-bg" aria-hidden="true" />
+      <div className="aurora-overlay" aria-hidden="true" />
+
       <CosmicCanvas />
       <MarketPulse />
       <CosmicNavbar />

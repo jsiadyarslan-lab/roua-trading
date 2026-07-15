@@ -701,3 +701,8 @@
   right: 0;
   border-radius: 0 0 0 8px;
 }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   V500-REDESIGN: Glassmorphism Design System (Robinhood-inspired)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@import '../styles/glassmorphism.css';

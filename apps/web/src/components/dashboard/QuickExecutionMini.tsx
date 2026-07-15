@@ -8,6 +8,7 @@ import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { haptic } from '@/lib/haptics'
 import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
 
 function formatCashValue(value: unknown) {
@@ -242,6 +243,7 @@ export function QuickExecutionMini({
           type: 'success',
         })
         setExecutionState('filled')
+        haptic.success()
         addNotification({
           source: 'trade',
           priority: 'high',
@@ -278,11 +280,13 @@ export function QuickExecutionMini({
         // NestJS rejected the order — show the actual reason from the backend
         const reason = j.message || j.error || j.reason || t('executionFailed')
         setExecutionState('rejected')
+        haptic.error()
         setStatus({ msg: `❌ ${reason}`, type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 6000)
       }
     } catch (err: any) {
       setExecutionState('rejected')
+      haptic.error()
       setStatus({ msg: t('networkError') + ': ' + (err?.message || err), type: 'error' })
       setTimeout(() => setStatus({ msg: '', type: '' }), 6000)
     } finally {

@@ -260,15 +260,7 @@
       "fullDescription": "منصة ربط الحسابات المدعومة بالذكاء الاصطناعي الأكثر تقدماً في المنطقة. حيث تلتقي شبكة الكون المالي بعقل آلة يتنبأ قبل أن يحدث.",
       "setupSeconds": "ثانية للإعداد",
       "dailyMonitoring": "ساعة مراقبة يومية",
-      "ctaSecondary": "Learn More",
-      "punchLine": "تداول بذكاء.",
-      "punchSub": "منصة مدعومة بثمانية نماذج ذكاء اصطناعي تتنبأ قبل أن يحدث.",
-      "chartSymbol": "BTC/USD",
-      "chartPrice": "$67,420.55",
-      "chartChange": "+2.34%",
-      "chartChangeLabel": "اليوم",
-      "liveTag": "مباشر",
-      "tickerLabel": "أسعار مباشرة"
+      "ctaSecondary": "Learn More"
     },
     "navbar": {
       "models": "النماذج",

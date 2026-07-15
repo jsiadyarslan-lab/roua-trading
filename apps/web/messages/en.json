@@ -260,15 +260,7 @@
       "fullDescription": "The most advanced AI-powered account linking platform in the region. Where the financial universe meets a machine mind that predicts before it happens.",
       "setupSeconds": "Seconds to Setup",
       "dailyMonitoring": "Hours Daily Monitoring",
-      "ctaSecondary": "Learn More",
-      "punchLine": "Trade smart.",
-      "punchSub": "Platform powered by eight AI models that predict before it happens.",
-      "chartSymbol": "BTC/USD",
-      "chartPrice": "$67,420.55",
-      "chartChange": "+2.34%",
-      "chartChangeLabel": "today",
-      "liveTag": "LIVE",
-      "tickerLabel": "Live prices"
+      "ctaSecondary": "Learn More"
     },
     "navbar": {
       "models": "Models",

@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Sign of Weakness",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Ikaw ay offline",
+    "description": "Mukhang hindi ka konektado sa internet. Maaari ka pa ring mag-browse ng mga pahinang nabisita mo na.",
+    "retry": "Subukang muli"
   }
 }

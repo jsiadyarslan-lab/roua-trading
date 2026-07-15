@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Gyengeség jele",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Offline módban van",
+    "description": "Úgy tűnik, nincs internetkapcsolata. Továbbra is böngészheti a korábban meglátogatott oldalakat.",
+    "retry": "Újrapróbálás"
   }
 }

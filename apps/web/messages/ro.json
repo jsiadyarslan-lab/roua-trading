@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Semn de Slăbiciune",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Ești offline",
+    "description": "Se pare că nu ești conectat la internet. Poți încă să navighezi paginile vizitate anterior.",
+    "retry": "Încearcă din nou"
   }
 }

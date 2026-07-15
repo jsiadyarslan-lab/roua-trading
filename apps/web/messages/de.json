@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Zeichen der Schwäche",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Sie sind offline",
+    "description": "Sie sind anscheinend nicht mit dem Internet verbunden. Sie können zuvor besuchte Seiten weiterhin durchsuchen.",
+    "retry": "Erneut versuchen"
   }
 }

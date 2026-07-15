@@ -23,6 +23,10 @@ const serwist = new Serwist({
 });
 
 // ── Navigation: Network-first with offline fallback ──
+// V469-PWA: When offline, the SW serves /ar/offline (Next.js route)
+// instead of /offline.html (which doesn't exist in Next.js App Router).
+// We rely on the user's last locale to pick the right /{locale}/offline URL.
+// Fallback chain: try /ar/offline first (most common), then /en/offline.
 registerRoute(
   new NavigationRoute(
     new NetworkFirst({
@@ -31,7 +35,7 @@ registerRoute(
       plugins: [
         new CacheableResponsePlugin({ statuses: [0, 200] }),
         new PrecacheFallbackPlugin({
-          fallbackUrls: [{ url: "/offline.html" }] as any,
+          fallbackUrls: [{ url: "/ar/offline" }] as any,
           serwist,
         } as any),
       ],

@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Znamení slabosti",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Jste offline",
+    "description": "Zdá se, že nejste připojeni k internetu. Stále můžete procházet dříve navštívené stránky.",
+    "retry": "Zkusit znovu"
   }
 }

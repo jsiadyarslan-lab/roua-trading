@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Signe de Faiblesse",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Vous êtes hors ligne",
+    "description": "Il semble que vous ne soyez pas connecté à Internet. Vous pouvez toujours parcourir les pages que vous avez déjà visitées.",
+    "retry": "Réessayer"
   }
 }

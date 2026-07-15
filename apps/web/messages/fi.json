@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Heikkouden merkki",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Olet offline-tilassa",
+    "description": "Näyttää siltä, ettet ole yhteydessä internetiin. Voit edelleen selata aiemmin vierailtuja sivuja.",
+    "retry": "Yritä uudelleen"
   }
 }

@@ -1,4 +1,7 @@
-import { getTranslations } from 'next-intl/server';
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { useParams } from 'next/navigation';
 
 /**
  * Offline fallback page.
@@ -12,33 +15,15 @@ import { getTranslations } from 'next-intl/server';
  *   - /fr/offline
  *   - ... (any supported locale)
  *
- * The SW uses PrecacheFallbackPlugin with fallbackUrls: [{ url: "/offline.html" }]
- * but since this is a Next.js app, /offline.html doesn't exist. Instead,
- * the SW will fall back to the cached version of /{locale}/offline
- * if we cache it during precaching. For now, this page is reachable
- * directly at /ar/offline etc., and the SW will serve it from cache
- * when offline.
+ * Implemented as a client component (like not-found.tsx) to avoid
+ * dynamic server usage errors during static prerendering.
  */
 
-export const dynamic = 'force-static';
-
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'offline' });
-
-  return {
-    title: t('title'),
-    robots: { index: false, follow: false },
-  };
-}
-
-export default async function OfflinePage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'offline' });
+export default function OfflinePage() {
+  const t = useTranslations('offline');
+  const params = useParams<{ locale: string }>();
+  const locale = params?.locale || 'ar';
+  const isRtl = locale === 'ar' || locale === 'he' || locale === 'fa' || locale === 'ur';
 
   return (
     <div
@@ -48,12 +33,14 @@ export default async function OfflinePage({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1.5rem',
+        paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
         background:
           'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 50%), #06090f',
         color: '#9CA3B5',
         textAlign: 'center',
         fontFamily: 'var(--font-ar, "Cairo", sans-serif)',
-        direction: locale === 'ar' || locale === 'he' || locale === 'fa' || locale === 'ur' ? 'rtl' : 'ltr',
+        direction: isRtl ? 'rtl' : 'ltr',
       }}
     >
       <div style={{ maxWidth: '28rem' }}>
@@ -120,6 +107,8 @@ export default async function OfflinePage({
             color: '#fff',
             boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)',
             transition: 'opacity 0.2s',
+            // Apple HIG: minimum 44px touch target
+            minHeight: '44px',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}

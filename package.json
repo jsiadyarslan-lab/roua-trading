@@ -19,6 +19,7 @@
     "settings:audit": "npx ts-node -P apps/api/tsconfig.json scripts/settings-audit.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@serwist/cacheable-response": "^9.5.11",
     "@serwist/expiration": "^9.5.11",
     "@serwist/precaching": "^9.5.11",

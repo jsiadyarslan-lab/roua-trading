@@ -1,0 +1,94 @@
+# Roua Trading — Lighthouse CI for PWA
+#
+# Runs Lighthouse audits on every PR and push to main.
+# Fails the build if any of these thresholds are not met:
+#   - Performance ≥ 75 (mobile)
+#   - Accessibility ≥ 90
+#   - Best Practices ≥ 90
+#   - SEO ≥ 90
+#   - PWA = 100 (must be installable)
+#
+# Also enforces a bundle budget:
+#   - Total JS ≤ 600 KB (gzipped)
+#   - Total CSS ≤ 150 kb (gzipped)
+#   - Max 20 JS resources
+#
+# Artifacts:
+#   - HTML report uploaded to workflow run (kept 14 days)
+
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/lighthouse-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/lighthouse-ci.yml'
+
+jobs:
+  lighthouse:
+    name: Audit PWA + Performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: .
+        run: bun install --frozen-lockfile
+
+      - name: Build web app
+        working-directory: apps/web
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: bun run build
+
+      - name: Start production server
+        working-directory: apps/web
+        env:
+          PORT: '3000'
+          NODE_ENV: 'production'
+        run: |
+          bun run start &
+          # Wait for server to be ready
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/ar > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            http://localhost:3000/ar
+            http://localhost:3000/en
+            http://localhost:3000/ar/login
+            http://localhost:3000/ar/offline
+          budgetPath: ./.github/lighthouse-budget.json
+          configPath: ./.github/lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Stop server
+        if: always()
+        run: pkill -f "next start" || true

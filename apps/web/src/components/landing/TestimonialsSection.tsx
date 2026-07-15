@@ -89,7 +89,7 @@ export default function TestimonialsSection() {
       <div className="section-header fade-in">
         <div className="section-label">TESTIMONIALS</div>
         <h2 className="section-title">
-          {t('titlePart1')}<br /><span className="highlight">{t('titleHighlight')}</span>
+          {t('titlePart1')}<br />{' '}<span className="highlight">{t('titleHighlight')}</span>
         </h2>
         <p className="section-desc">
           {t('sectionDesc')}

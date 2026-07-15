@@ -57,7 +57,8 @@ export const dynamic = 'force-dynamic';
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // V469-a11y: removed maximumScale + userScalable to comply with WCAG 2.1 SC 1.4.4
+  // Users must be able to zoom the page on iOS/Android for accessibility.
   viewportFit: 'cover',
   themeColor: '#0B0E14',
   // V465: interactiveWidget='resizes-visual' lets the visual viewport
@@ -111,8 +112,9 @@ export async function generateMetadata({
     title,
     description,
     // V267: Locale-aware manifest — each user gets a PWA manifest with their
-    // own language's app name + dir attribute. Previously the hardcoded
-    // /manifest.json showed Arabic app name for ALL users.
+    // own language's app name + dir attribute. The dynamic route at
+    // /manifest/[locale]/manifest.json generates per-locale manifests.
+    // If the live site returns 404, the production build needs redeployment.
     manifest: `/manifest/${locale}/manifest.json`,
     appleWebApp: {
       capable: true,
@@ -230,7 +232,13 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <GlobalStyleRegistry />
           <PWARegistrar />
-          {children}
+          {/* V469-a11y: skip-link for keyboard users to bypass nav */}
+          <a href="#main-content" className="skip-link">
+            تخطَّ إلى المحتوى الرئيسي
+          </a>
+          <main id="main-content">
+            {children}
+          </main>
           <Toaster />
           {/* V469: مساعد التداول الذكي العائم — متاح في كل الصفحات */}
           <AssistantChatWidgetClient />

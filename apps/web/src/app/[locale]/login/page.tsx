@@ -456,6 +456,10 @@ function LoginForm() {
               <Mail className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9CA3B5' }} />
               <input
                 type="email"
+                id="login-email"
+                name="email"
+                autoComplete="email"
+                aria-label={t('emailPlaceholder')}
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); if (otpSent) { setOtpSent(false); setOtp(['', '', '', '', '', '']) } }}
                 onKeyDown={(e) => {
@@ -467,7 +471,7 @@ function LoginForm() {
                 placeholder={t('emailPlaceholder')}
                 dir="ltr"
                 disabled={otpSent}
-                className="w-full py-3.5 pe-10 ps-4 rounded-xl text-sm outline-none transition-all duration-200 placeholder:text-white/20 disabled:opacity-50"
+                className="w-full py-3.5 pe-10 ps-4 rounded-xl text-base outline-none transition-all duration-200 placeholder:text-white/20 disabled:opacity-50"
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',

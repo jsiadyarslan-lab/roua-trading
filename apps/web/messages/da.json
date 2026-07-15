@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Tegn på svaghed",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Du er offline",
+    "description": "Det ser ud til, at du ikke er forbundet til internettet. Du kan stadig browse sider, du har besøgt før.",
+    "retry": "Prøv igen"
   }
 }

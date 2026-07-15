@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Teken van Zwakte",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Je bent offline",
+    "description": "Het lijkt erop dat je geen internetverbinding hebt. Je kunt nog steeds pagina's bekijken die je eerder hebt bezocht.",
+    "retry": "Opnieuw proberen"
   }
 }

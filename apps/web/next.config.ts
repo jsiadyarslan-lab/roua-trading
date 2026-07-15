@@ -1,7 +1,24 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';
+import withSerwistInit from "@serwist/next";
 
 const withNextIntl = createNextIntlPlugin('./i18n/i18n/request.ts');
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// V469-PWA: Serwist configuration — compiles src/sw/sw.ts → public/sw.js
+// The previous public/sw.js was hand-written and bypassed navigation
+// requests (no offline support). The new SW uses NetworkFirst with
+// /offline fallback for navigation, CacheFirst for static assets.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const withSerwist = withSerwistInit({
+  swSrc: "src/sw/sw.ts",
+  swDest: "public/sw.js",
+  // Disable SW in development — prevents stale cache during HMR
+  disable: process.env.NODE_ENV === "development",
+  // Don't reload on dev changes (only relevant when not disabled)
+  reloadOnOnline: true,
+  cacheOnNavigation: true,
+});
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CRITICAL FIX: API_INTERNAL_URL must NEVER be "http://api:3001"
@@ -196,4 +213,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+export default withSerwist(withNextIntl(nextConfig));

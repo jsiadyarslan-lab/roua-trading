@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Tegn på svakhet",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Du er frakoblet",
+    "description": "Det ser ut til at du ikke er koblet til internett. Du kan fortsatt bla gjennom sider du har besøkt før.",
+    "retry": "Prøv igjen"
   }
 }

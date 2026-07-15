@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "弱勢シグナル",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "オフラインです",
+    "description": "インターネットに接続されていないようです。以前に訪れたページは引き続き表示できます。",
+    "retry": "再試行"
   }
 }

@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Tanda Kelemahan",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Anda luar talian",
+    "description": "Nampaknya anda tidak disambungkan ke internet. Anda masih boleh melayari halaman yang telah dilawati sebelum ini.",
+    "retry": "Cuba lagi"
   }
 }

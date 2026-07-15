@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Svaghetstecken",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Du är offline",
+    "description": "Det verkar som att du inte är ansluten till internet. Du kan fortfarande bläddra bland sidor du har besökt tidigare.",
+    "retry": "Försök igen"
   }
 }

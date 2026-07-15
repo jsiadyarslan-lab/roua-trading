@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Señal de Debilidad",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Estás sin conexión",
+    "description": "Parece que no estás conectado a Internet. Aún puedes navegar por las páginas que ya has visitado.",
+    "retry": "Reintentar"
   }
 }

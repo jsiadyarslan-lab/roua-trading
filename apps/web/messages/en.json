@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Sign of Weakness",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "You're Offline",
+    "description": "It looks like you're not connected to the internet. You can still browse pages you've visited before.",
+    "retry": "Try Again"
   }
 }

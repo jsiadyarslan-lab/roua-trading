@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "약세 신호",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "오프라인 상태입니다",
+    "description": "인터넷에 연결되어 있지 않은 것 같습니다. 이전에 방문한 페이지는 계속 탐색할 수 있습니다.",
+    "retry": "다시 시도"
   }
 }

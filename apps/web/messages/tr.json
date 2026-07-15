@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Zayıflık İşareti",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Çevrimdışısınız",
+    "description": "İnternete bağlı değilsiniz gibi görünüyor. Daha önce ziyaret ettiğiniz sayfaları hala görüntüleyebilirsiniz.",
+    "retry": "Tekrar Dene"
   }
 }

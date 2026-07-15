@@ -5968,5 +5968,10 @@
     "wyckoffSOW": "Dấu hiệu suy yếu",
     "misc": "—",
     "stinger": "Stinger"
+  },
+  "offline": {
+    "title": "Bạn đang ngoại tuyến",
+    "description": "Có vẻ như bạn không kết nối với internet. Bạn vẫn có thể duyệt các trang đã xem trước đó.",
+    "retry": "Thử lại"
   }
 }

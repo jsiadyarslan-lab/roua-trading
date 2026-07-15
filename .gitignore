@@ -15,3 +15,5 @@ tsconfig.tsbuildinfo
 !db-backups/
 db-backups/*.json
 !db-backups/backup-*.json
+test-results/
+playwright-report/

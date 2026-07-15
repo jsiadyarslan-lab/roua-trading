@@ -5973,5 +5973,12 @@
     "title": "Du er frakoblet",
     "description": "Det ser ut til at du ikke er koblet til internett. Du kan fortsatt bla gjennom sider du har besøkt før.",
     "retry": "Prøv igjen"
+  },
+  "pwaInstall": {
+    "title": "Installer Roua på telefonen din",
+    "description": "Raskere tilgang + varsler + fungerer frakoblet",
+    "install": "Installer",
+    "later": "Senere",
+    "iosHint": "For å installere: trykk på Del-knappen og velg \"Legg til på startskjermen\""
   }
 }

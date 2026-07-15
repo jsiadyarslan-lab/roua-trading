@@ -5973,5 +5973,12 @@
     "title": "Je bent offline",
     "description": "Het lijkt erop dat je geen internetverbinding hebt. Je kunt nog steeds pagina's bekijken die je eerder hebt bezocht.",
     "retry": "Opnieuw proberen"
+  },
+  "pwaInstall": {
+    "title": "Installeer Roua op je telefoon",
+    "description": "Snellere toegang + meldingen + werkt offline",
+    "install": "Installeren",
+    "later": "Later",
+    "iosHint": "Om te installeren: tik op de knop Delen en kies \"Toevoegen aan beginscherm\""
   }
 }

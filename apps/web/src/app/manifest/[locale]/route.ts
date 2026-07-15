@@ -66,21 +66,42 @@ export async function GET(
     name: manifest.name,
     short_name: manifest.short_name,
     description: manifest.description,
-    start_url: '/pwa',
+    start_url: `/${locale}`,
     scope: '/',
     display: 'standalone',
-    background_color: '#000000',
+    background_color: '#0B0E14',
     theme_color: '#0B0E14',
     orientation: 'portrait',
-    categories: ['finance', 'business'],
+    categories: ['finance', 'business', 'productivity'],
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     lang: locale,
     dir: manifest.dir,
     display_override: ['standalone', 'minimal-ui'],
+    shortcuts: [
+      {
+        name: locale === 'ar' ? 'الرسم البياني' : 'Chart',
+        short_name: 'Chart',
+        url: `/${locale}/dashboard`,
+        icons: [{ src: '/icon-192.png', sizes: '192x192' }],
+      },
+      {
+        name: locale === 'ar' ? 'المحفظة' : 'Portfolio',
+        short_name: 'Portfolio',
+        url: `/${locale}/dashboard/portfolio`,
+        icons: [{ src: '/icon-192.png', sizes: '192x192' }],
+      },
+      {
+        name: locale === 'ar' ? 'الماسح' : 'Scanner',
+        short_name: 'Scanner',
+        url: `/${locale}/dashboard/scanner`,
+        icons: [{ src: '/icon-192.png', sizes: '192x192' }],
+      },
+    ],
   };
 
   return NextResponse.json(body, {

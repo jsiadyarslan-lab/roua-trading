@@ -5973,5 +5973,12 @@
     "title": "Vous êtes hors ligne",
     "description": "Il semble que vous ne soyez pas connecté à Internet. Vous pouvez toujours parcourir les pages que vous avez déjà visitées.",
     "retry": "Réessayer"
+  },
+  "pwaInstall": {
+    "title": "Installez Roua sur votre téléphone",
+    "description": "Accès plus rapide + notifications + fonctionne hors ligne",
+    "install": "Installer",
+    "later": "Plus tard",
+    "iosHint": "Pour installer : appuyez sur le bouton Partager, puis choisissez \"Ajouter à l'écran d'accueil\""
   }
 }

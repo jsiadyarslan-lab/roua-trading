@@ -5973,5 +5973,12 @@
     "title": "Jste offline",
     "description": "Zdá se, že nejste připojeni k internetu. Stále můžete procházet dříve navštívené stránky.",
     "retry": "Zkusit znovu"
+  },
+  "pwaInstall": {
+    "title": "Nainstalujte si Roua na telefon",
+    "description": "Rychlejší přístup + oznámení + funguje offline",
+    "install": "Nainstalovat",
+    "later": "Později",
+    "iosHint": "Pro instalaci: klepněte na tlačítko Sdílet a vyberte \"Přidat na plochu\""
   }
 }

@@ -5973,5 +5973,12 @@
     "title": "您已离线",
     "description": "您似乎未连接到互联网。您仍然可以浏览之前访问过的页面。",
     "retry": "重试"
+  },
+  "pwaInstall": {
+    "title": "在手机上安装 Roua",
+    "description": "更快的访问 + 通知 + 离线工作",
+    "install": "安装",
+    "later": "稍后",
+    "iosHint": "安装：点击分享按钮，然后选择\"添加到主屏幕\""
   }
 }

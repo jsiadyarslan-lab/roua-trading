@@ -5973,5 +5973,12 @@
     "title": "Offline módban van",
     "description": "Úgy tűnik, nincs internetkapcsolata. Továbbra is böngészheti a korábban meglátogatott oldalakat.",
     "retry": "Újrapróbálás"
+  },
+  "pwaInstall": {
+    "title": "Telepítse a Roua-t telefonjára",
+    "description": "Gyorsabb hozzáférés + értesítések + offline működés",
+    "install": "Telepít",
+    "later": "Később",
+    "iosHint": "Telepítéshez: koppintson a Megosztás gombra, majd válassza \"Főképernyőhöz adás\""
   }
 }

@@ -5973,5 +5973,12 @@
     "title": "Sie sind offline",
     "description": "Sie sind anscheinend nicht mit dem Internet verbunden. Sie können zuvor besuchte Seiten weiterhin durchsuchen.",
     "retry": "Erneut versuchen"
+  },
+  "pwaInstall": {
+    "title": "Installieren Sie Roua auf Ihrem Telefon",
+    "description": "Schnellerer Zugriff + Benachrichtigungen + funktioniert offline",
+    "install": "Installieren",
+    "later": "Später",
+    "iosHint": "Zum Installieren: Tippen Sie auf Teilen und wählen Sie \"Zum Home-Bildschirm hinzufügen\""
   }
 }

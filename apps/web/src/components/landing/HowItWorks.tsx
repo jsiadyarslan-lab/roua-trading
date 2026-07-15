@@ -24,7 +24,7 @@ export default function HowItWorks() {
       <div className="section-header fade-in">
         <div className="section-label">{t('sectionLabel')}</div>
         <h2 className="section-title">
-          {t('titlePart1')}<br /><span className="highlight">{t('titleHighlight')}</span>
+          {t('titlePart1')}<br />{' '}<span className="highlight">{t('titleHighlight')}</span>
         </h2>
         <p className="section-desc">
           {t('subtitle')}

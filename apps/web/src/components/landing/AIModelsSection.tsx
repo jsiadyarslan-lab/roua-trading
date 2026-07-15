@@ -67,7 +67,7 @@ export default function AIModelsSection() {
       <div className="section-header fade-in">
         <div className="section-label">AI ORCHESTRATOR</div>
         <h2 className="section-title">
-          {t('sectionTitlePart1')}<br />{t('sectionTitleMiddle')} <span className="highlight">{t('sectionTitleHighlight')}</span>
+          {t('sectionTitlePart1')}<br />{' '}{t('sectionTitleMiddle')} <span className="highlight">{t('sectionTitleHighlight')}</span>
         </h2>
         <p className="section-desc">
           {t('sectionDesc')}

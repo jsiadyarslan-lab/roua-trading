@@ -97,7 +97,7 @@ export default function FeaturesSection() {
       <div className="section-header fade-in">
         <div className="section-label">{t('sectionLabel')}</div>
         <h2 className="section-title">
-          {t('sectionTitlePart1')}<br /><span className="highlight">{t('sectionTitleHighlight')}</span>
+          {t('sectionTitlePart1')}<br />{' '}<span className="highlight">{t('sectionTitleHighlight')}</span>
         </h2>
         <p className="section-desc">
           {t('sectionDesc')}

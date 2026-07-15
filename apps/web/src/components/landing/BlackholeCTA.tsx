@@ -18,7 +18,7 @@ export default function BlackholeCTA() {
         </div>
       </div>
       <div className="blackhole-caption">
-        <h2>{t('titlePart1')}<br /><span className="highlight">{t('titleHighlight')}</span></h2>
+        <h2>{t('titlePart1')}<br />{' '}<span className="highlight">{t('titleHighlight')}</span></h2>
         <p>{t('joinCaption')}</p>
         <a href="/login" className="btn btn-glow" style={{ fontSize: '1.15rem', padding: '1.1rem 3.5rem' }}>
           🚀 {t('joinFree')}

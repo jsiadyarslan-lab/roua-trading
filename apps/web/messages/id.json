@@ -5973,5 +5973,12 @@
     "title": "Anda sedang offline",
     "description": "Sepertinya Anda tidak terhubung ke internet. Anda masih dapat menelusuri halaman yang telah dikunjungi sebelumnya.",
     "retry": "Coba lagi"
+  },
+  "pwaInstall": {
+    "title": "Pasang Roua di ponsel Anda",
+    "description": "Akses lebih cepat + notifikasi + bekerja offline",
+    "install": "Pasang",
+    "later": "Nanti",
+    "iosHint": "Untuk memasang: ketuk tombol Bagikan, lalu pilih \"Tambahkan ke Layar Utama\""
   }
 }

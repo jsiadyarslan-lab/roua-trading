@@ -5973,5 +5973,12 @@
     "title": "Du er offline",
     "description": "Det ser ud til, at du ikke er forbundet til internettet. Du kan stadig browse sider, du har besøgt før.",
     "retry": "Prøv igen"
+  },
+  "pwaInstall": {
+    "title": "Installer Roua på din telefon",
+    "description": "Hurtigere adgang + meddelelser + fungerer offline",
+    "install": "Installer",
+    "later": "Senere",
+    "iosHint": "For at installere: tryk på Del-knappen og vælg \"Tilføj til startskærm\""
   }
 }

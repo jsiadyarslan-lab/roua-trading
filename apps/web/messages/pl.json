@@ -5973,5 +5973,12 @@
     "title": "Jesteś offline",
     "description": "Wygląda na to, że nie masz połączenia z internetem. Możesz nadal przeglądać wcześniej odwiedzone strony.",
     "retry": "Spróbuj ponownie"
+  },
+  "pwaInstall": {
+    "title": "Zainstaluj Roua na swoim telefonie",
+    "description": "Szybszy dostęp + powiadomienia + działa offline",
+    "install": "Zainstaluj",
+    "later": "Później",
+    "iosHint": "Aby zainstalować: stuknij przycisk Udostępnij i wybierz \"Dodaj do ekranu głównego\""
   }
 }

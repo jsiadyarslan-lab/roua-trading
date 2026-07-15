@@ -5973,5 +5973,12 @@
     "title": "Estás sin conexión",
     "description": "Parece que no estás conectado a Internet. Aún puedes navegar por las páginas que ya has visitado.",
     "retry": "Reintentar"
+  },
+  "pwaInstall": {
+    "title": "Instala Roua en tu teléfono",
+    "description": "Acceso más rápido + notificaciones + funciona sin conexión",
+    "install": "Instalar",
+    "later": "Más tarde",
+    "iosHint": "Para instalar: toca el botón Compartir y elige \"Añadir a pantalla de inicio\""
   }
 }

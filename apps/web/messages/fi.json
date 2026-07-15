@@ -5973,5 +5973,12 @@
     "title": "Olet offline-tilassa",
     "description": "Näyttää siltä, ettet ole yhteydessä internetiin. Voit edelleen selata aiemmin vierailtuja sivuja.",
     "retry": "Yritä uudelleen"
+  },
+  "pwaInstall": {
+    "title": "Asenna Roua puhelimeesi",
+    "description": "Nopeampi pääsy + ilmoitukset + toimii offline-tilassa",
+    "install": "Asenna",
+    "later": "Myöhemmin",
+    "iosHint": "Asenna: napauta Jaa-painiketta ja valitse \"Lisää aloitusnäyttöön\""
   }
 }

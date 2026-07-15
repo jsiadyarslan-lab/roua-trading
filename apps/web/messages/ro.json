@@ -5973,5 +5973,12 @@
     "title": "Ești offline",
     "description": "Se pare că nu ești conectat la internet. Poți încă să navighezi paginile vizitate anterior.",
     "retry": "Încearcă din nou"
+  },
+  "pwaInstall": {
+    "title": "Instalează Roua pe telefonul tău",
+    "description": "Acces mai rapid + notificări + funcționează offline",
+    "install": "Instalează",
+    "later": "Mai târziu",
+    "iosHint": "Pentru instalare: atingeți butonul Distribuie și alegeți \"Adaugă la ecranul principal\""
   }
 }

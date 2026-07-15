@@ -101,6 +101,16 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
+      // ── V469-PWA: Locale-aware manifest URL ──
+      // layout.tsx links to /manifest/{locale}/manifest.json but the route
+      // handler at src/app/manifest/[locale]/route.ts serves /manifest/{locale}.
+      // Rewrite the .json URL to the actual route handler. This keeps the
+      // browser-facing URL conventional (/manifest/ar/manifest.json) while
+      // letting one route handler serve all locales.
+      {
+        source: '/manifest/:locale/manifest.json',
+        destination: '/manifest/:locale',
+      },
       // ── V401: Socket.IO rewrite — always add trailing slash to destination ──
       // Socket.IO's path matching requires a trailing slash in the request URL.
       // Next.js removes trailing slashes (308 redirect), so /socket/ becomes /socket.

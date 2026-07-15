@@ -10,6 +10,7 @@ import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
 import PWARegistrar from "@/components/PWARegistrar";
 // V469: مساعد التداول الذكي — منقول بالكامل من مساعد رؤى المالي
 import AssistantChatWidgetClient from "@/components/assistant/AssistantChatWidgetClient"
+import { InstallPrompt } from "@/components/pwa/InstallPrompt"
 
 // V597: Load fonts properly via next/font/google (was empty objects before)
 // This makes --font-cairo, --font-inter, --font-jetbrains, --font-orbitron
@@ -129,7 +130,7 @@ export async function generateMetadata({
         { url: '/favicon.svg', type: 'image/svg+xml' },
       ],
       apple: [
-        { url: '/apple-touch-icon.png', sizes: '192x192' },
+        { url: '/apple-touch-icon.png', sizes: '180x180' },
         { url: '/icon-512.png', sizes: '512x512' },
       ],
     },
@@ -240,6 +241,8 @@ export default async function LocaleLayout({
             {children}
           </main>
           <Toaster />
+          {/* V469: PWA install prompt — shows after 30s on Chrome Android + iOS hint */}
+          <InstallPrompt />
           {/* V469: مساعد التداول الذكي العائم — متاح في كل الصفحات */}
           <AssistantChatWidgetClient />
         </NextIntlClientProvider>

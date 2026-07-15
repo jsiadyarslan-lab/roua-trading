@@ -5973,5 +5973,12 @@
     "title": "Çevrimdışısınız",
     "description": "İnternete bağlı değilsiniz gibi görünüyor. Daha önce ziyaret ettiğiniz sayfaları hala görüntüleyebilirsiniz.",
     "retry": "Tekrar Dene"
+  },
+  "pwaInstall": {
+    "title": "Roua'yı telefonuna yükleyin",
+    "description": "Daha hızlı erişim + bildirimler + çevrimdışı çalışır",
+    "install": "Yükle",
+    "later": "Daha sonra",
+    "iosHint": "Yüklemek için: Paylaş düğmesine dokunun, ardından \"Ana ekrana ekle\"yi seçin"
   }
 }

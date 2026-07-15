@@ -5973,5 +5973,12 @@
     "title": "Anda luar talian",
     "description": "Nampaknya anda tidak disambungkan ke internet. Anda masih boleh melayari halaman yang telah dilawati sebelum ini.",
     "retry": "Cuba lagi"
+  },
+  "pwaInstall": {
+    "title": "Pasang Roua pada telefon anda",
+    "description": "Akses lebih pantas + pemberitahuan + berfungsi luar talian",
+    "install": "Pasang",
+    "later": "Kemudian",
+    "iosHint": "Untuk memasang: ketik butang Kongsi, kemudian pilih \"Tambah ke Skrin Utama\""
   }
 }

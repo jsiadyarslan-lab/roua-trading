@@ -5973,5 +5973,12 @@
     "title": "Ikaw ay offline",
     "description": "Mukhang hindi ka konektado sa internet. Maaari ka pa ring mag-browse ng mga pahinang nabisita mo na.",
     "retry": "Subukang muli"
+  },
+  "pwaInstall": {
+    "title": "I-install ang Roua sa iyong telepono",
+    "description": "Mas mabilis na access + mga abiso + gumagana offline",
+    "install": "I-install",
+    "later": "Mamaya",
+    "iosHint": "Upang i-install: i-tap ang Share button, pagkatapos ay piliin ang \"Idagdag sa Home Screen\""
   }
 }

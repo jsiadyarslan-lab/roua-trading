@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
 import { fmtPriceLocale } from '@/lib/price-format'
+import { haptic } from '@/lib/haptics'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore'
@@ -2262,6 +2263,7 @@ export default function DashboardPage() {
               return (
                 <button key={item.id} type="button"
                   onClick={() => {
+                    haptic.selection();
                     setM2ActiveTab(item.id)
                     if (item.id === 'menu') setM2ShowMore(true)
                     else if (item.id === 'portfolio') router.push('/dashboard/portfolio')

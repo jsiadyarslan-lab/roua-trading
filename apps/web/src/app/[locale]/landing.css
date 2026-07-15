@@ -26,8 +26,9 @@
   color: #f0f9ff;
   font-family: var(--font-ibm-plex-ar, 'IBM Plex Sans Arabic'), sans-serif;
   overflow-x: hidden;
-  line-height: 1.7;
   position: relative;
+  z-index: 1; /* V500: ensure all landing-page content sits above canvas (z-index: -1) and aurora (-1) */
+  line-height: 1.7;
 }
 
 /* ===== CANVAS BACKGROUND ===== */
@@ -35,8 +36,9 @@
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  z-index: 0;
+  z-index: -1; /* V500: was 0, now behind content but above space-bg (-2) and aurora (-1, fixed) */
   pointer-events: all;
+  opacity: 0.6; /* V500: dim the canvas so aurora+space-bg show through */
 }
 .landing-page #universe { display: block; }
 

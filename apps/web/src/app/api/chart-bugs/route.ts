@@ -290,6 +290,15 @@ function runTests(bugFilter: string | null): TestResult[] {
 // ─── GET Handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
+  // SECURITY: Disable in production — this endpoint runs regression tests via
+  // execSync (DoS surface) and exposes internal file paths. Dev-only tool.
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'This endpoint is available in development mode only.' },
+      { status: 404 }
+    );
+  }
+
   const url = new URL(request.url);
   const verbose = url.searchParams.get('verbose') === '1';
   const bugFilter = url.searchParams.get('bug');

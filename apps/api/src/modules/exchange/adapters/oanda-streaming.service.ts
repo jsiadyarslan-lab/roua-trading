@@ -41,8 +41,40 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   // Active stream connection
   private streamReq: any | null = null;
 
-  // Currently subscribed instruments (OANDA format: EUR_USD)
-  private subscribedInstruments = new Set<string>();
+  // V-AUDIT: Two-tier subscription model — fixes root cause of stream disconnecting
+  // when browser SSE clients disconnect.
+  //
+  // PROBLEM: Previously, a single `subscribedInstruments` Set was shared between
+  // backend-internal subscriptions (added in onModuleInit, must persist forever)
+  // and browser-driven subscriptions (added via SSE/Socket.IO, must end when the
+  // browser disconnects). When a browser disconnected, its cleanup() called
+  // unsubscribe() for each symbol, which deleted it from the Set — including
+  // backend-internal subscriptions. Once the Set was empty, _scheduleReconnect()
+  // returned early (line 810: `if (subscribedInstruments.size === 0) return`),
+  // so the stream was NEVER reconnected until a new browser opened SSE.
+  //
+  // FIX: Split into two layers with different lifecycles:
+  //   - backendSubscriptions: filled once in onModuleInit, never removed
+  //     (except for blacklisted instruments). Keeps the stream alive forever.
+  //   - clientSubscriptions: reference-counted per symbol. Each browser
+  //     subscribe() increments, each unsubscribe() decrements. Removed at 0.
+  //
+  // The active OANDA stream uses the union of both (see `subscribedInstruments` getter).
+  private backendSubscriptions = new Set<string>();
+  private clientSubscriptions = new Map<string, number>(); // oandaSymbol → refcount
+
+  /**
+   * V-AUDIT: Computed union of backend + client subscriptions.
+   * Replaces the old mutable `subscribedInstruments` Set everywhere it was read.
+   * Returns a fresh Set on each access (callers should not mutate it).
+   */
+  private get subscribedInstruments(): Set<string> {
+    const union = new Set<string>(this.backendSubscriptions);
+    for (const sym of this.clientSubscriptions.keys()) {
+      union.add(sym);
+    }
+    return union;
+  }
 
   // Buffer for incomplete JSON chunks
   private lineBuffer = '';
@@ -110,7 +142,8 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`🌊 V361: Adding ${this.AUTO_SUBSCRIBE_PAIRS.length} OANDA instruments...`);
 
-    // Step 1: Add ALL instruments to the set (synchronous — no connections)
+    // V-AUDIT: Populate backendSubscriptions (immutable after init). These persist
+    // for the lifetime of the process — browser connect/disconnect cannot remove them.
     // V368: Skip blacklisted instruments (WTI_USD, BRENT_USD)
     let added = 0;
     for (const pair of this.AUTO_SUBSCRIBE_PAIRS) {
@@ -119,7 +152,7 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         this.logger.debug(`🌊 V368: Skipping blacklisted instrument ${oandaSymbol}`);
         continue;
       }
-      this.subscribedInstruments.add(oandaSymbol);
+      this.backendSubscriptions.add(oandaSymbol);
       added++;
     }
 
@@ -389,6 +422,10 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   /**
    * Subscribe to price updates for a symbol.
    * V367: Reject blacklisted instruments (prevents reconnect loops).
+   * V-AUDIT: Increments client subscription refcount. Does NOT touch backendSubscriptions.
+   * Multiple browsers subscribing the same symbol increment the refcount;
+   * each browser disconnect decrements; the symbol is removed from
+   * clientSubscriptions only when refcount reaches 0.
    */
   subscribe(symbol: string): void {
     if (!this.isAvailable()) {
@@ -404,13 +441,13 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    if (this.subscribedInstruments.has(oandaSymbol)) {
-      this.logger.debug(`🌊 Already subscribed to ${oandaSymbol}`);
-      return;
-    }
-
-    this.subscribedInstruments.add(oandaSymbol);
-    this.logger.log(`🌊 Subscribed to ${oandaSymbol} (total: ${this.subscribedInstruments.size} instruments)`);
+    // V-AUDIT: Reference counting. If the symbol is already in backendSubscriptions
+    // OR already in clientSubscriptions (refcount > 0), the OANDA stream already
+    // includes it — we just bump the refcount for tracking purposes.
+    const prevCount = this.clientSubscriptions.get(oandaSymbol) || 0;
+    this.clientSubscriptions.set(oandaSymbol, prevCount + 1);
+    const total = this.subscribedInstruments.size;
+    this.logger.log(`🌊 Client subscribed to ${oandaSymbol} (refcount: ${prevCount + 1}, total instruments: ${total})`);
 
     // V405: Don't reconnect if stream is already connected and receiving prices.
     // The OANDA stream is a single long-lived HTTP connection for ALL instruments.
@@ -419,11 +456,9 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     // storms because OANDA rejects multiple simultaneous connections from the
     // same account.
     //
-    // The AUTO_SUBSCRIBE_PAIRS list already includes all 21 instruments we need.
-    // New subscribe() calls for those instruments are no-ops (already in the set).
-    // For instruments NOT in AUTO_SUBSCRIBE_PAIRS, they won't be in the active
-    // stream — but reconnecting won't help because the stream was opened with
-    // the initial instrument list.
+    // V-AUDIT: If the symbol is NEW (was not in backendSubscriptions nor had
+    // refcount > 0), the active stream needs to be re-opened with the updated
+    // instrument list. We reconnect only in that case to avoid the storm.
     //
     // Only reconnect if the stream is NOT connected (streamReq is null).
     if (!this.streamReq && !this.isConnecting) {
@@ -433,22 +468,43 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Unsubscribe from price updates for a symbol.
-   * If no subscriptions remain, closes the stream connection.
+   * V-AUDIT: Decrements client subscription refcount. NEVER touches backendSubscriptions.
+   * If the symbol is in backendSubscriptions (auto-subscribed), the stream keeps it.
+   * If the refcount reaches 0 AND the symbol is NOT in backendSubscriptions, the
+   * symbol is removed from the active stream via reconnect.
    */
   unsubscribe(symbol: string): void {
     const oandaSymbol = this.toOandaSymbol(symbol);
-    if (!this.subscribedInstruments.has(oandaSymbol)) {
+
+    // V-AUDIT: Only decrement client refcount. Backend subscriptions are immutable.
+    const prevCount = this.clientSubscriptions.get(oandaSymbol) || 0;
+    if (prevCount === 0) {
+      // Not a client subscription — nothing to do (might be backend-only)
+      this.logger.debug(`🌊 unsubscribe(${oandaSymbol}) — not a client subscription (backend-only or not subscribed), no-op`);
       return;
     }
 
-    this.subscribedInstruments.delete(oandaSymbol);
-    this.logger.log(`🌊 Unsubscribed from ${oandaSymbol} (remaining: ${this.subscribedInstruments.size} instruments)`);
+    const newCount = prevCount - 1;
+    if (newCount > 0) {
+      this.clientSubscriptions.set(oandaSymbol, newCount);
+      this.logger.log(`🌊 Client unsubscribed from ${oandaSymbol} (refcount: ${newCount}, other browsers still subscribed)`);
+      return;
+    }
 
-    if (this.subscribedInstruments.size === 0) {
-      // No more subscriptions — close the stream
-      this._disconnect();
-    } else {
-      // Still have subscriptions — reconnect with updated instrument list
+    // refcount reached 0 — remove from clientSubscriptions
+    this.clientSubscriptions.delete(oandaSymbol);
+
+    // V-AUDIT: If still in backendSubscriptions, the stream keeps the symbol — no reconnect needed.
+    if (this.backendSubscriptions.has(oandaSymbol)) {
+      this.logger.log(`🌊 Client refcount for ${oandaSymbol} reached 0, but symbol is backend-subscribed — keeping in stream`);
+      return;
+    }
+
+    // V-AUDIT: Symbol is fully removed. Reconnect with updated instrument list
+    // (only if the stream is currently connected — otherwise _connect() will
+    // pick up the new set on its next attempt).
+    this.logger.log(`🌊 Fully unsubscribed from ${oandaSymbol} (remaining: ${this.subscribedInstruments.size} instruments)`);
+    if (this.streamReq) {
       this._reconnect();
     }
   }
@@ -540,7 +596,9 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
           const invalidMatch = body.match(/Invalid Instrument (\w+)/);
           if (invalidMatch && invalidMatch[1]) {
             const badInstrument = invalidMatch[1];
-            this.subscribedInstruments.delete(badInstrument);
+            // V-AUDIT: Remove from both tiers so neither restores it on next reconnect.
+            this.backendSubscriptions.delete(badInstrument);
+            this.clientSubscriptions.delete(badInstrument);
             this.blacklistedInstruments.add(badInstrument);
             this.logger.warn(`🌊 V367: Blacklisted invalid instrument "${badInstrument}" — removed from subscriptions. Remaining: ${this.subscribedInstruments.size}`);
 
@@ -817,8 +875,11 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     }
 
     // V368: Exponential backoff: 1s → 2s → 5s → 10s → 30s → 30s → ...
+    // V-AUDIT: Math.max(0, ...) guards against connectAttempts=0 producing
+    // delayIndex=-1 (which yielded delay=undefined → setTimeout fires in 1ms,
+    // causing a tight reconnect loop on the first failure after a success).
     const backoffDelays = [1000, 2000, 5000, 10000, 30000];
-    const delayIndex = Math.min(this.connectAttempts - 1, backoffDelays.length - 1);
+    const delayIndex = Math.min(Math.max(0, this.connectAttempts - 1), backoffDelays.length - 1);
     const delay = backoffDelays[delayIndex];
 
     this.logger.log(`🌊 V368: Scheduling reconnect in ${delay / 1000}s (attempt ${this.connectAttempts})...`);
@@ -857,8 +918,14 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       available: this.isAvailable(),
       connected: !!this.streamReq,
       isConnecting: this.isConnecting,
+      // V-AUDIT: Expose both tiers for diagnostics — proves backend subs persist
+      // even when all browsers disconnect.
       subscribedInstruments: Array.from(this.subscribedInstruments),
       instrumentCount: this.subscribedInstruments.size,
+      backendSubscriptions: Array.from(this.backendSubscriptions),
+      backendCount: this.backendSubscriptions.size,
+      clientSubscriptions: Array.from(this.clientSubscriptions.entries()).map(([sym, count]) => ({ symbol: sym, refcount: count })),
+      clientCount: this.clientSubscriptions.size,
       // V362: Diagnostic fields
       lastConnectError: this.lastConnectError,
       lastConnectAttempt: this.lastConnectAttempt?.toISOString() || null,

@@ -89,10 +89,9 @@ export function GlobalLogicEngine() {
 
       if (!hasMatchingRealPosition) return
 
-      const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-      if (now - lastSyncAt < 100) return // V-AUDIT: 500ms → 100ms throttle for 5x faster PnL updates. updatePositionPrice() early-returns when |delta| < 0.0001, so sub-100ms repeats are harmless.
-
-      lastPriceSyncRef.current[normalizedSymbol] = now
+      // V-PNL: Removed per-symbol throttle — was bottlenecking PnL to 1 update/100ms.
+      // updatePositionPrice() already early-returns when |price delta| < 0.0001,
+      // so redundant calls with the same price are O(1) no-ops. Trust that guard.
       updatePositionPrice(symbol, price)
     })
 
@@ -136,7 +135,7 @@ export function GlobalLogicEngine() {
     if (currentEquity > 0) {
       prevEquityRef.current = currentEquity
     }
-  }, 1000) // V-AUDIT: 2000ms → 1000ms backup interval — matches Socket.IO polling cadence. Faster than 1000ms would re-process the same quote (no benefit). Slower would lag PnL updates.
+  }, 200) // V-PNL: 1000ms → 200ms — PnL updates 5x more frequently. updatePositionPrice() early-returns on unchanged price, so faster polling is safe.
 
   // ── Adaptive full fetch: 5s when active, 15s when idle ──
   // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.

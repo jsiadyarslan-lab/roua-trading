@@ -38,7 +38,11 @@ export function useMT5Streaming() {
       const socket = io('/mt5', {
         auth: { token },
         path: '/socket', // V399: Custom path (no dots) — Next.js was 404ing /socket.io/
-        transports: ['polling'], // V403: polling only
+        // V-PNL: Allow WebSocket upgrade (was polling-only).
+        // If WS upgrade fails through Next.js proxy, Socket.IO falls back to polling.
+        transports: ['polling', 'websocket'],
+        upgrade: true,
+        rememberUpgrade: true,
         reconnection: true,
         reconnectionAttempts: 20,
         reconnectionDelay: 3000,

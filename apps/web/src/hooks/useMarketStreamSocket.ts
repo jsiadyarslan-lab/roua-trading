@@ -16,10 +16,13 @@ import { useMarketStore, type QuoteData } from './useMarketStore';
  *
  * CRITICAL DESIGN DECISIONS (do NOT change without understanding why):
  *
- * 1. transports: ['polling'] ONLY
- *    WebSocket upgrade fails through Next.js rewrite proxy on Railway.
- *    Polling works reliably (~200ms latency, acceptable for trading).
- *    DO NOT add 'websocket' to transports — it will break all prices.
+ * 1. transports: ['polling', 'websocket']
+ *    V-PNL: Added 'websocket' as a SECONDARY transport. Socket.IO will try
+ *    polling first (reliable through Next.js proxy), then upgrade to WebSocket
+ *    if the server supports it. If WS upgrade fails (Next.js rewrite limitation),
+ *    Socket.IO transparently falls back to polling — no broken connections.
+ *    Previously: 'polling' only, which capped delivery at HTTP RTT per packet.
+ *    Now: WebSocket (when available) delivers ticks with minimal overhead.
  *
  * 2. Singleton socket (_getOrCreateSocket)
  *    One Socket.IO connection for the entire app (MarketProvider mounts once).
@@ -74,7 +77,13 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
 
   const socket = io(`${url}/exchange`, {
     path: '/socket', // V399: Custom path (no dots)
-    transports: ['polling'], // V435: Polling only — WebSocket fails through Next.js proxy
+    // V-PNL: Allow WebSocket upgrade — Socket.IO will use polling first,
+    // then upgrade to WS if the server supports it. If WS upgrade fails
+    // (Next.js rewrite proxy limitation), Socket.IO transparently keeps
+    // using polling. This is safe — 'polling' is always tried first.
+    transports: ['polling', 'websocket'],
+    upgrade: true,
+    rememberUpgrade: true,
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 5,

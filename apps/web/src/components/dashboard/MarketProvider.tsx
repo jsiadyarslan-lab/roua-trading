@@ -7,6 +7,7 @@ import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
 import { useMarketStreamSocket } from '@/hooks/useMarketStreamSocket'
+import { usePositionPriceStream } from '@/hooks/usePositionPriceStream'
 
 /**
  * MASTER SYMBOL LIST — Single source of truth for all price subscriptions.
@@ -107,6 +108,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   // Crypto prices now flow through the same Socket.IO pipeline as forex:
   //   BinanceStreamingService (NestJS) → Socket.IO → useMarketStreamSocket → useMarketStore
   useMarketStreamSocket()
+
+  // V-PNL: Subscribe to useMarketStore quote changes and push live prices
+  // directly to usePositionsStore.updatePositionPrice() in real-time.
+  // Eliminates the 200ms-1000ms PnL lag caused by GlobalLogicEngine's polling loop.
+  usePositionPriceStream()
 
   useEffect(() => {
     // Keep the legacy dashboard pair store and the newer symbol store in sync.

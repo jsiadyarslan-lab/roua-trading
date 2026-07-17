@@ -90,7 +90,7 @@ export function GlobalLogicEngine() {
       if (!hasMatchingRealPosition) return
 
       const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-      if (now - lastSyncAt < 500) return // PERF: 500ms per-symbol throttle
+      if (now - lastSyncAt < 100) return // V-AUDIT: 500ms → 100ms throttle for 5x faster PnL updates. updatePositionPrice() early-returns when |delta| < 0.0001, so sub-100ms repeats are harmless.
 
       lastPriceSyncRef.current[normalizedSymbol] = now
       updatePositionPrice(symbol, price)
@@ -136,7 +136,7 @@ export function GlobalLogicEngine() {
     if (currentEquity > 0) {
       prevEquityRef.current = currentEquity
     }
-  }, 2000) // V225: 2000ms backup interval (Binance WS handles crypto P&L directly at ~100ms)
+  }, 1000) // V-AUDIT: 2000ms → 1000ms backup interval — matches Socket.IO polling cadence. Faster than 1000ms would re-process the same quote (no benefit). Slower would lag PnL updates.
 
   // ── Adaptive full fetch: 5s when active, 15s when idle ──
   // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.

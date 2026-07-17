@@ -344,7 +344,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pollingRef.current) clearInterval(pollingRef.current);
     setConnectionState('fallback');
 
-    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 2000;
+    // V-AUDIT: Reduced OANDA polling from 2000ms → 500ms for 4x faster chart updates.
+    // Safe because /api/exchange/candle/{symbol} reads from Redis cache (5s TTL)
+    // populated by OandaStreamingService._buildCandles() — no DB load on the backend.
+    // Backend throttle (V444: 500ms per symbol/tf Redis writes) means cache freshness
+    // is bounded at 500ms, so polling faster than 500ms would be wasted. 500ms matches
+    // the backend write cadence exactly — optimal.
+    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 500;
     fetchLatestCandle();
     pollingRef.current = setInterval(fetchLatestCandle, interval);
     // V452: Visibility handling is now global (in useEffect below)

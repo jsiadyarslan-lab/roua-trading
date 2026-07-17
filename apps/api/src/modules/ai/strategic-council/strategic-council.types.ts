@@ -84,11 +84,31 @@ export const COUNCIL_PAIRS = {
 
 /** V353: All OANDA-supported pairs (forex + metals + indices + energy).
  *  Used for paper-trading users who can trade ALL pairs (simulation).
- *  These pairs get real-time OANDA data via ExchangeService._selectAdapter(). */
-export const OANDA_SUPPORTED_PAIRS: string[] = [
+ *  These pairs get real-time OANDA data via ExchangeService._selectAdapter().
+ *
+ *  V-AUDIT: Split into PRACTICE and LIVE lists.
+ *  OANDA Practice accounts do NOT support WTI/USD or BRENT/USD (see V363 comment
+ *  in oanda-streaming.service.ts AUTO_SUBSCRIBE_PAIRS). The previous combined
+ *  list caused the Council to generate briefs for WTI/BRENT that would fail
+ *  on Practice accounts. Now Practice excludes energy pairs.
+ *  Live accounts support all pairs including energy. */
+export const OANDA_PRACTICE_PAIRS: string[] = [
   ...COUNCIL_PAIRS.FOREX,
-  ...COUNCIL_PAIRS.COMMODITIES,
+  'XAU/USD', 'XAG/USD',                          // metals (no WTI/BRENT on Practice)
   ...COUNCIL_PAIRS.INDICES,
+];
+
+export const OANDA_LIVE_PAIRS: string[] = [
+  ...COUNCIL_PAIRS.FOREX,
+  ...COUNCIL_PAIRS.COMMODITIES,                  // includes WTI/BRENT on Live
+  ...COUNCIL_PAIRS.INDICES,
+];
+
+/** Backward-compat: union of all OANDA pairs (Practice + Live).
+ *  Prefer OANDA_PRACTICE_PAIRS or OANDA_LIVE_PAIRS for exchange-specific checks. */
+export const OANDA_SUPPORTED_PAIRS: string[] = [
+  ...OANDA_PRACTICE_PAIRS,
+  'WTI/USD', 'BRENT/USD',                        // Live-only pairs appended
 ];
 
 /** Pairs supported by Binance (the exchange used by all current users).
@@ -129,6 +149,10 @@ export const ALL_COUNCIL_PAIRS: string[] = [
 
 /** Check if a symbol is supported by the given exchange.
  *  V226: Now supports MT5 with forex + commodities + crypto pairs.
+ *  V-AUDIT: Added OANDA cases (oanda, oanda_practice, oanda_live).
+ *  Previously, OANDA credentials fell into the default case, which only
+ *  allowed crypto pairs — blocking execution on XAU/USD, XAG/USD,
+ *  US30/USD, NAS100/USD, SPX500/USD, and all forex pairs.
  *  Returns true if the symbol can be executed on the exchange. */
 export function isSymbolSupportedByExchange(symbol: string, exchange: string): boolean {
   const exchangeId = exchange.toLowerCase().replace('_test', '').replace('-test', '');
@@ -141,6 +165,14 @@ export function isSymbolSupportedByExchange(symbol: string, exchange: string): b
     case 'metatrader':
       // MT5 supports forex + commodities + crypto (via CFDs)
       return MT5_SUPPORTED_PAIRS.includes(symbol);
+    case 'oanda_practice':
+    case 'oanda_demo':
+      // OANDA Practice: forex + metals + indices (NO WTI/BRENT — not supported)
+      return OANDA_PRACTICE_PAIRS.includes(symbol);
+    case 'oanda':
+    case 'oanda_live':
+      // OANDA Live: all OANDA pairs including energy (WTI/BRENT)
+      return OANDA_LIVE_PAIRS.includes(symbol);
     case 'paper':
     case 'paper-trading':
       // Paper trading supports ALL pairs (simulation)

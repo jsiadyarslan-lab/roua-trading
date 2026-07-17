@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { useAgentStore } from '@/hooks/useAgentStore'
@@ -125,7 +126,17 @@ export function AlpacaPositions() {
           to { transform: rotate(360deg); }
         }
       `)
-  const { positions, fetchPositions, fetchAccount, setPositions } = usePositionsStore()
+  // V-PNL: Use useShallow to prevent re-renders when unrelated store fields change
+  // (e.g., _ownerUserId, _cacheTimestamp, lastUpdate). Only re-render when
+  // positions array reference changes or when action functions change (which is never).
+  const { positions, fetchPositions, fetchAccount, setPositions } = usePositionsStore(
+    useShallow((state) => ({
+      positions: state.positions,
+      fetchPositions: state.fetchPositions,
+      fetchAccount: state.fetchAccount,
+      setPositions: state.setPositions,
+    }))
+  )
   const { trades: paperTrades, closeTrade: closePaperTrade, closedTrades, clearClosedTrades, clearAll: clearAllPaperTrades } = usePaperTradesStore()
   const agentPositions = useAgentStore(state => state.positions)
   const [closing, setClosing] = useState<string | null>(null)

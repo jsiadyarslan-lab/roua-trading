@@ -12,11 +12,20 @@ import { useTranslations } from 'next-intl'
 // - Crypto (BTC/USDT): 0.5 units → "0.50 lots" (contractSize=1)
 // Falls back to raw number if symbol is unknown.
 function getContractSize(symbol: string): number {
-  const s = (symbol || '').toUpperCase();
-  if (s.includes('/USDT') || s.includes('/BTC') || s.endsWith('USDT')) return 1;       // crypto
-  if (s === 'XAU/USD' || s === 'XAUUSD') return 100;                                  // gold
-  if (s === 'XAG/USD' || s === 'XAGUSD') return 5000;                                 // silver
-  if (s === 'WTI/USD' || s === 'WTIUSD' || s === 'BRENT/USD' || s === 'BRENTUSD') return 1000; // oil
+  const s = (symbol || '').toUpperCase().replace(/[/\-_]/g, '');
+  // V-PNL-FIX: Detect crypto by BASE currency, not just /USDT suffix.
+  // Previously, 'BTC/USD' (without T) fell through to forex default (100000),
+  // inflating PnL by 100000x. Now we check if the symbol starts with a known crypto base.
+  const CRYPTO_BASES = [
+    'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX',
+    'LINK', 'UNI', 'ATOM', 'LTC', 'SHIB', 'APE', 'ARB', 'OP', 'FIL', 'NEAR',
+    'FTM', 'ALGO', 'VET', 'SAND', 'MANA', 'AXS', 'CRV', 'SUI', 'APT', 'SEI',
+    'TIA', 'JUP',
+  ];
+  if (CRYPTO_BASES.some(base => s.startsWith(base))) return 1;       // crypto
+  if (s === 'XAUUSD' || s === 'XAU/USD') return 100;                                  // gold
+  if (s === 'XAGUSD' || s === 'XAG/USD') return 5000;                                 // silver
+  if (s === 'WTIUSD' || s === 'BRENTUSD' || s === 'WTI/USD' || s === 'BRENT/USD') return 1000; // oil
   if (s.startsWith('US30') || s.startsWith('NAS100') || s.startsWith('SPX500') ||
       s.startsWith('GER30') || s.startsWith('UK100')) return 1;                        // indices
   return 100000;                                                                       // forex default

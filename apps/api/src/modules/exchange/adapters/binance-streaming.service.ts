@@ -13,7 +13,7 @@ import { RedisService } from '../../../common/redis/redis.service';
  *     → Socket.IO emits to all subscribed clients
  *
  * Binance Combined Stream:
- *   wss://stream.binance.com:9443/stream?streams=btcusdt@ticker/ethusdt@ticker/...
+ *   wss://stream.binance.com:9443/stream?streams=btcusdt@bookTicker/ethusdt@bookTicker/...
  *
  * Each tick contains:
  *   {
@@ -198,7 +198,7 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
    * V430: If WebSocket is already connected, dynamically subscribe via
    * Binance's SUBSCRIBE method instead of requiring a full reconnection.
    * Binance combined streams support adding/removing individual streams
-   * via JSON messages: {"method":"SUBSCRIBE","params":["linkusdt@ticker"],"id":1}
+   * via JSON messages: {"method":"SUBSCRIBE","params":["linkusdt@bookTicker"],"id":1}
    */
   subscribe(symbol: string): void {
     const normalized = symbol.toUpperCase();
@@ -214,10 +214,10 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
       try {
         this.ws.send(JSON.stringify({
           method: 'SUBSCRIBE',
-          params: [`${binanceSymbol}@ticker`],
+          params: [`${binanceSymbol}@bookTicker`],
           id: Date.now(),
         }));
-        this.logger.log(`💱 V430: Dynamically subscribed ${binanceSymbol}@ticker on existing connection`);
+        this.logger.log(`💱 V430: Dynamically subscribed ${binanceSymbol}@bookTicker on existing connection`);
       } catch (err: any) {
         this.logger.warn(`💱 V430: Dynamic subscribe failed for ${normalized}: ${err.message} — will use next reconnection`);
       }
@@ -248,10 +248,10 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
       try {
         this.ws.send(JSON.stringify({
           method: 'UNSUBSCRIBE',
-          params: [`${binanceSymbol}@ticker`],
+          params: [`${binanceSymbol}@bookTicker`],
           id: Date.now(),
         }));
-        this.logger.log(`💱 V430: Dynamically unsubscribed ${binanceSymbol}@ticker on existing connection`);
+        this.logger.log(`💱 V430: Dynamically unsubscribed ${binanceSymbol}@bookTicker on existing connection`);
       } catch (err: any) {
         this.logger.warn(`💱 V430: Dynamic unsubscribe failed for ${normalized}: ${err.message} — will use next reconnection`);
       }
@@ -318,8 +318,16 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     const currentGen = this.connectionGeneration;
 
     // Build combined stream URL
+    // V-CRYPTO-SPEED-3: Use @bookTicker instead of @ticker for 5x faster updates.
+    // @ticker (24h rolling stats) fires ~1 Hz. @bookTicker (bid/ask) fires ~67 Hz raw,
+    // ~1.4 Hz unique mid-price changes. This brings crypto in line with OANDA tick rate.
+    // Note: @bookTicker does NOT provide open/high/low/volume/change. We synthesize them:
+    //   - price = (bid + ask) / 2 (mid price, same as OANDA)
+    //   - open/high/low = price (updated on each tick; OHLC for candles comes from
+    //     the frontend's @kline subscription, not from this stream)
+    //   - volume/change/changePercent = 0 (not available in @bookTicker)
     const streams = Array.from(this.subscribedSymbols)
-      .map(s => `${this.toBinanceSymbol(s).toLowerCase()}@ticker`)
+      .map(s => `${this.toBinanceSymbol(s).toLowerCase()}@bookTicker`)
       .join('/');
 
     const url = `${this.BINANCE_WS_URL}?streams=${streams}`;
@@ -379,7 +387,8 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
       try {
         const msg = JSON.parse(data.toString());
         if (msg.stream && msg.data) {
-          this._processTicker(msg.data);
+          // V-CRYPTO-SPEED-3: Route to _processBookTicker for @bookTicker stream.
+          this._processBookTicker(msg.data);
         }
       } catch (err: any) {
         this.logger.debug(`💱 Parse error: ${err.message}`);
@@ -430,14 +439,77 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     }, delay);
   }
 
+  /**
+   * V-CRYPTO-SPEED-3: Process @bookTicker events (bid/ask updates).
+   *
+   * Binance @bookTicker event format:
+   *   u = update orderbook id
+   *   s = symbol (BTCUSDT)
+   *   b = best bid price
+   *   B = best bid qty
+   *   a = best ask price
+   *   A = best ask qty
+   *
+   * We compute mid price = (bid + ask) / 2, same as OANDA's mid-price delivery.
+   * OHLC/volume/change are NOT available in @bookTicker — we synthesize them:
+   *   - open/high/low = mid price (frontend gets real OHLC from @kline stream)
+   *   - volume = 0 (frontend gets real volume from @kline)
+   *   - change/changePercent = 0 (not critical for live tick display)
+   *
+   * Duplicate filter: @bookTicker fires ~67 Hz but only ~1.4 Hz have actual
+   * mid-price changes. Skip if |newMid - lastMid| < 0.0001 to reduce
+   * Socket.IO broadcast pressure.
+   */
+  private lastMidPerSymbol = new Map<string, number>();
+
+  private _processBookTicker(ticker: any) {
+    if (!ticker || !ticker.s) return;
+
+    const binanceSymbol = ticker.s as string;
+    const bid = parseFloat(ticker.b);
+    const ask = parseFloat(ticker.a);
+    if (!isFinite(bid) || !isFinite(ask) || bid <= 0 || ask <= 0) return;
+
+    const price = (bid + ask) / 2;  // mid price
+    const userSymbol = this.fromBinanceSymbol(binanceSymbol);
+
+    // Duplicate filter — skip if mid-price unchanged
+    const lastMid = this.lastMidPerSymbol.get(binanceSymbol);
+    if (lastMid !== undefined && Math.abs(price - lastMid) < 0.0001) return;
+    this.lastMidPerSymbol.set(binanceSymbol, price);
+
+    const baseUpdate: BinancePriceUpdate = {
+      symbol: userSymbol,
+      binanceSymbol,
+      price,
+      open: price,        // synthesized — real OHLC comes from frontend @kline
+      high: price,
+      low: price,
+      close: price,
+      volume: 0,           // not available in @bookTicker
+      change: 0,           // not available in @bookTicker
+      changePercent: 0,    // not available in @bookTicker
+      timestamp: Date.now(),
+    };
+
+    this.emitter.emit('price', baseUpdate);
+
+    // V410: Also emit with /USD suffix for /USDT pairs (same logic as before).
+    if (userSymbol.endsWith('/USDT')) {
+      const usdSymbol = userSymbol.slice(0, -5) + '/USD';
+      const usdUpdate: BinancePriceUpdate = {
+        ...baseUpdate,
+        symbol: usdSymbol,
+      };
+      this.emitter.emit('price', usdUpdate);
+    }
+  }
+
   private _processTicker(ticker: any) {
-    // Binance 24hrTicker event format:
-    //   s = symbol (BTCUSDT)
-    //   c = last price
-    //   o = open
-    //   h = high
-    //   l = low
-    //   v = volume
+    // V-CRYPTO-SPEED-3: Kept for backward compatibility but no longer called.
+    // The stream now uses @bookTicker (handled by _processBookTicker above).
+    // This method is retained in case we need to revert to @ticker stream.
+    if (!ticker || !ticker.s) return;
     //   P = price change percent
     //   p = price change
     //   E = event time (unix ms)

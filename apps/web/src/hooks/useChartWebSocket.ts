@@ -309,30 +309,29 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       return;
     }
 
-    // Crypto pairs: use Binance REST API fallback
+    // V-CRYPTO-SPEED-3: Crypto pairs fallback — use backend /api/exchange/quote
+    // instead of direct Binance REST API. This avoids geo-blocking issues
+    // (api.binance.com is blocked in some regions) and routes through NestJS
+    // which reads from Redis cache populated by BinanceStreamingService (@bookTicker).
     try {
       if (isCryptoPair(symbol)) {
-        const binanceSymbol = normalizeBinanceSymbol(symbol);
-        const interval = BINANCE_INTERVALS[timeframe] || '1m';
-        const url = `${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
+        const apiBase = window.location.origin;
+        const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: ac.signal,
+        });
 
-        const binanceRes = await fetch(url, { signal: ac.signal });
-        if (!binanceRes.ok) return;
-
-        const data = await binanceRes.json();
-        if (data.length > 0) {
-          const k = data[data.length - 1];
-          // BUG-C04 FIX: Validate all OHLCV fields before using — NaN crashes the chart.
-          const o = parseFloat(k[1]), h = parseFloat(k[2]), l = parseFloat(k[3]),
-                c = parseFloat(k[4]), v = parseFloat(k[5]);
-          if (isFinite(o) && isFinite(h) && isFinite(l) && isFinite(c) && c > 0) {
-            const candle: CandleData = {
-              time: Math.floor(k[0] / 1000),
-              open: o, high: h, low: l, close: c,
-              volume: isFinite(v) ? v : 0,
-            };
-            onCandleUpdateRef.current(candle);
-            onPriceUpdateRef.current(candle.close);
+        if (pollGen !== connectionGenRef.current) return; // Stale — symbol changed
+        if (res.ok) {
+          const result = await res.json();
+          const data = result?.data;
+          if (data && (data.price || data.close) > 0) {
+            const price = data.price || data.close;
+            // Send price update — RouaChart's onPriceUpdate will update the last
+            // candle's close. The historical fetch fills the OHLC candle data.
+            onPriceUpdateRef.current(price);
+            return;
           }
         }
       }
@@ -348,13 +347,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pollingRef.current) clearInterval(pollingRef.current);
     setConnectionState('fallback');
 
-    // V-AUDIT: Reduced OANDA polling from 2000ms → 500ms for 4x faster chart updates.
-    // Safe because /api/exchange/candle/{symbol} reads from Redis cache (5s TTL)
-    // populated by OandaStreamingService._buildCandles() — no DB load on the backend.
-    // Backend throttle (V444: 500ms per symbol/tf Redis writes) means cache freshness
-    // is bounded at 500ms, so polling faster than 500ms would be wasted. 500ms matches
-    // the backend write cadence exactly — optimal.
-    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 500;
+    // V-CRYPTO-SPEED-3: Unified polling interval for ALL pairs (crypto + OANDA).
+    // Previously: crypto used POLLING_INTERVAL (5000ms = 5s), OANDA used 500ms.
+    // This 10x difference caused crypto charts to appear frozen when WS failed.
+    // Now: both use 500ms — backend /api/exchange/quote reads from Redis cache
+    // populated by BinanceStreamingService (@bookTicker ~1.4 Hz) or
+    // OandaStreamingService (live stream). No DB load, no geo-block issues.
+    const interval = 500;
     fetchLatestCandle();
     pollingRef.current = setInterval(fetchLatestCandle, interval);
     // V452: Visibility handling is now global (in useEffect below)

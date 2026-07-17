@@ -366,7 +366,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
     const binanceSymbol = normalizeBinanceSymbol(symbol);
     const interval = BINANCE_INTERVALS[timeframe] || '1m';
-    const wsUrl = `${BINANCE_URLS.ws}/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@ticker`;
+    // V-CRYPTO-SPEED: Use @aggTrade instead of @ticker for live price updates.
+    // @ticker (24h rolling stats) updates every ~1s on Binance.
+    // @aggTrade (aggregated trades) updates every ~200ms (5x faster).
+    // This brings crypto chart price updates in line with OANDA tick rate (~165ms).
+    // Field change: @ticker uses d.c (last price), @aggTrade uses d.p (trade price).
+    // @kline_${interval} is kept for OHLC candle data (Binance server-side aggregation).
+    const wsUrl = `${BINANCE_URLS.ws}/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@aggTrade`;
 
     // FIX: Capture current generation for stale connection detection.
     // If symbol/timeframe changes while this connection is active, the
@@ -407,11 +413,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             }
           }
 
-          if (msg.stream?.includes('@ticker')) {
+          if (msg.stream?.includes('@aggTrade')) {
             const d = msg.data;
-            if (d?.c) {
+            // V-CRYPTO-SPEED: @aggTrade uses d.p (trade price), @ticker used d.c (last price).
+            if (d?.p) {
               // BUG-C04 FIX: Validate price before propagating — NaN/Infinity crashes the chart.
-              const price = parseFloat(d.c);
+              const price = parseFloat(d.p);
               if (isFinite(price) && price > 0) {
                 bufferUpdate(null, price, false);
               }

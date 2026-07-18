@@ -91,10 +91,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // PERF: rAF batching buffer for WebSocket messages
   const rafBufferRef = useRef<WSBuffer>({ candle: null, price: null, isKlineClosed: false });
   const rafIdRef = useRef<number>(0);
-  // V-CRYPTO-SPEED-2: Track last @bookTicker mid-price to skip duplicate updates.
-  // @bookTicker fires ~67 Hz but only ~1.4 Hz have actual mid-price changes.
+  // V-CRYPTO-SPEED-2: Track last @aggTrade mid-price to skip duplicate updates.
+  // @aggTrade fires ~67 Hz but only ~1.4 Hz have actual mid-price changes.
   // Skipping duplicates reduces rAF buffer pressure and CPU usage.
-  const lastBookTickerPriceRef = useRef<number | null>(null);
   // FIX: 24-hour connection rotation — Binance disconnects after 24h.
   // We proactively reconnect 10 minutes before the 24h mark.
   const connectionStartTimeRef = useRef<number>(0);
@@ -312,7 +311,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     // V-CRYPTO-SPEED-3: Crypto pairs fallback — use backend /api/exchange/quote
     // instead of direct Binance REST API. This avoids geo-blocking issues
     // (api.binance.com is blocked in some regions) and routes through NestJS
-    // which reads from Redis cache populated by BinanceStreamingService (@bookTicker).
+    // which reads from Redis cache populated by BinanceStreamingService (@aggTrade).
     try {
       if (isCryptoPair(symbol)) {
         const apiBase = window.location.origin;
@@ -351,7 +350,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     // Previously: crypto used POLLING_INTERVAL (5000ms = 5s), OANDA used 500ms.
     // This 10x difference caused crypto charts to appear frozen when WS failed.
     // Now: both use 500ms — backend /api/exchange/quote reads from Redis cache
-    // populated by BinanceStreamingService (@bookTicker ~1.4 Hz) or
+    // populated by BinanceStreamingService (@aggTrade ~1.4 Hz) or
     // OandaStreamingService (live stream). No DB load, no geo-block issues.
     const interval = 500;
     fetchLatestCandle();
@@ -369,15 +368,15 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
     const binanceSymbol = normalizeBinanceSymbol(symbol);
     const interval = BINANCE_INTERVALS[timeframe] || '1m';
-    // V-CRYPTO-SPEED-2: Use @bookTicker instead of @aggTrade for live price updates.
+    // V-CRYPTO-SPEED-2: Use @aggTrade instead of @aggTrade for live price updates.
     // Direct measurements showed @aggTrade only fires when a trade executes (~0.8 Hz
-    // unique price changes), while @bookTicker fires on every bid/ask update (~67 Hz
+    // unique price changes), while @aggTrade fires on every bid/ask update (~67 Hz
     // raw messages, ~1.4 Hz unique mid-price changes).
     // This brings crypto chart updates closer to OANDA tick rate (~4 Hz).
-    // Field change: @aggTrade used d.p (trade price), @bookTicker uses d.b (bid) +
+    // Field change: @aggTrade used d.p (trade price), @aggTrade uses d.b (bid) +
     // d.a (ask) → mid = (bid + ask) / 2.
     // @kline_${interval} is kept for OHLC candle data (Binance server-side aggregation).
-    const wsUrl = `${BINANCE_URLS.ws}/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@bookTicker`;
+    const wsUrl = `${BINANCE_URLS.ws}/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@aggTrade`;
 
     // FIX: Capture current generation for stale connection detection.
     // If symbol/timeframe changes while this connection is active, the
@@ -418,9 +417,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             }
           }
 
-          if (msg.stream?.includes('@bookTicker')) {
+          if (msg.stream?.includes('@aggTrade')) {
             const d = msg.data;
-            // V-CRYPTO-SPEED-2: @bookTicker uses d.b (bid) + d.a (ask).
+            // V-CRYPTO-SPEED-2: @aggTrade uses d.b (bid) + d.a (ask).
             // Compute mid-price = (bid + ask) / 2 — matches OANDA's mid-price delivery.
             if (d?.b && d?.a) {
               // BUG-C04 FIX: Validate price before propagating — NaN/Infinity crashes the chart.
@@ -429,13 +428,10 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
               if (isFinite(bid) && isFinite(ask) && bid > 0 && ask > 0) {
                 const price = (bid + ask) / 2;
                 // V-CRYPTO-SPEED-2: Skip if mid-price unchanged from last update.
-                // @bookTicker fires ~67 Hz but only ~1.4 Hz have actual price changes.
+                // @aggTrade fires ~67 Hz but only ~1.4 Hz have actual price changes.
                 // Skipping duplicates reduces rAF buffer pressure and CPU usage.
-                if (lastBookTickerPriceRef.current !== null &&
-                    Math.abs(price - lastBookTickerPriceRef.current) < price * 0.000001) {
                   // No price change — skip to avoid redundant bufferUpdate call
                 } else {
-                  lastBookTickerPriceRef.current = price;
                   bufferUpdate(null, price, false);
                 }
               }

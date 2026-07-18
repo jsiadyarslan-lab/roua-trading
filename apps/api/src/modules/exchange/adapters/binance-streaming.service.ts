@@ -589,7 +589,7 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
         timestamp: new Date(update.timestamp).toISOString(),
         source: 'Binance',
       };
-      await this.redisService.set(cacheKey, JSON.stringify(quoteData), 5000);
+      await this.redisService.set(cacheKey, JSON.stringify(quoteData), 500);
       // V412: Log first write per symbol to verify Redis writes work
       if (!this._loggedSymbols.has(update.symbol)) {
         this._loggedSymbols.add(update.symbol);

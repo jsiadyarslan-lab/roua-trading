@@ -16,7 +16,7 @@ import { useMarketStore, type QuoteData } from './useMarketStore';
  *
  * CRITICAL DESIGN DECISIONS (do NOT change without understanding why):
  *
- * 1. transports: ['polling', 'websocket']
+ * 1. transports: ['polling']
  *    V-PNL: Added 'websocket' as a SECONDARY transport. Socket.IO will try
  *    polling first (reliable through Next.js proxy), then upgrade to WebSocket
  *    if the server supports it. If WS upgrade fails (Next.js rewrite limitation),
@@ -81,9 +81,9 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
     // then upgrade to WS if the server supports it. If WS upgrade fails
     // (Next.js rewrite proxy limitation), Socket.IO transparently keeps
     // using polling. This is safe — 'polling' is always tried first.
-    transports: ['polling', 'websocket'],
-    upgrade: true,
-    rememberUpgrade: true,
+    transports: ['polling'],
+    upgrade: false,  // V-SOCKET-FIX: Railway + Next.js cannot proxy WebSocket upgrades. Force polling only.
+    rememberUpgrade: false,  // V-SOCKET-FIX: Don't remember failed WebSocket attempts.
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 5,

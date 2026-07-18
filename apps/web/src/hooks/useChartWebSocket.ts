@@ -432,7 +432,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
                 // @bookTicker fires ~67 Hz but only ~1.4 Hz have actual price changes.
                 // Skipping duplicates reduces rAF buffer pressure and CPU usage.
                 if (lastBookTickerPriceRef.current !== null &&
-                    Math.abs(price - lastBookTickerPriceRef.current) < 0.0001) {
+                    Math.abs(price - lastBookTickerPriceRef.current) < price * 0.000001) {
                   // No price change — skip to avoid redundant bufferUpdate call
                 } else {
                   lastBookTickerPriceRef.current = price;

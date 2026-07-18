@@ -76,7 +76,7 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   const url = typeof window !== 'undefined' ? window.location.origin : '';
 
   const socket = io(`${url}/exchange`, {
-    path: '/socket', // V399: Custom path (no dots)
+    path: '/api/socket', // V399: Custom path (no dots)
     // V-PNL: Allow WebSocket upgrade — Socket.IO will use polling first,
     // then upgrade to WS if the server supports it. If WS upgrade fails
     // (Next.js rewrite proxy limitation), Socket.IO transparently keeps

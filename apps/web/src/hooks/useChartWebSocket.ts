@@ -421,12 +421,10 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             const d = msg.data;
             // V-CRYPTO-SPEED-2: @aggTrade uses d.b (bid) + d.a (ask).
             // Compute mid-price = (bid + ask) / 2 — matches OANDA's mid-price delivery.
-            if (d?.b && d?.a) {
+            if (d?.p) {
               // BUG-C04 FIX: Validate price before propagating — NaN/Infinity crashes the chart.
-              const bid = parseFloat(d.b);
-              const ask = parseFloat(d.a);
-              if (isFinite(bid) && isFinite(ask) && bid > 0 && ask > 0) {
-                const price = (bid + ask) / 2;
+              const price = parseFloat(d.p);
+              if (isFinite(price) && price > 0) {
                 // V-CRYPTO-SPEED-2: Skip if mid-price unchanged from last update.
                 // @aggTrade fires ~67 Hz but only ~1.4 Hz have actual price changes.
                 // Skipping duplicates reduces rAF buffer pressure and CPU usage.

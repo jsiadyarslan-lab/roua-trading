@@ -553,10 +553,27 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   }, [connect]);
 
   // ── Lifecycle ──────────────────────────────────────────
+  // V-WS-LOOP-FIX: Use refs to track symbol/timeframe changes without
+  // triggering re-connect on every render. connect() is called once on mount
+  // and only re-called when symbol/timeframe actually changes.
+  const symbolRef = useRef(symbol);
+  const timeframeRef = useRef(timeframe);
+  const enabledRef = useRef(enabled);
+
   useEffect(() => {
-    connect();
+    // Only reconnect if symbol, timeframe, or enabled actually changed
+    const symbolChanged = symbolRef.current !== symbol;
+    const timeframeChanged = timeframeRef.current !== timeframe;
+    const enabledChanged = enabledRef.current !== enabled;
+
+    if (symbolChanged || timeframeChanged || enabledChanged) {
+      symbolRef.current = symbol;
+      timeframeRef.current = timeframe;
+      enabledRef.current = enabled;
+      connect();
+    }
     return cleanup;
-  }, [symbol, timeframe, enabled]); // Reconnect on symbol/timeframe change
+  }, [symbol, timeframe, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // V452: Global visibility handler — when tab becomes visible, reconnect
   // to fill any candle gaps from when tab was hidden. This is SEPARATE from

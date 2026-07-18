@@ -419,21 +419,19 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
           if (msg.stream?.includes('@aggTrade')) {
             const d = msg.data;
-            // V-CRYPTO-SPEED-2: @aggTrade uses d.b (bid) + d.a (ask).
-            // Compute mid-price = (bid + ask) / 2 — matches OANDA's mid-price delivery.
+            // V-CRYPTO-SPEED-FINAL: @aggTrade fires on every executed trade.
+            // Field: d.p = trade price (exact executed price).
+            // Frequency: ~2-5 Hz (professional grade, same as Binance/TradingView).
             if (d?.p) {
-              // BUG-C04 FIX: Validate price before propagating — NaN/Infinity crashes the chart.
               const price = parseFloat(d.p);
+              // BUG-C04 FIX: Validate price before propagating
               if (isFinite(price) && price > 0) {
-                // V-CRYPTO-SPEED-2: Skip if mid-price unchanged from last update.
-                // @aggTrade fires ~67 Hz but only ~1.4 Hz have actual price changes.
-                // Skipping duplicates reduces rAF buffer pressure and CPU usage.
-                  // No price change — skip to avoid redundant bufferUpdate call
-                } else {
-                  bufferUpdate(null, price, false);
-                }
+                // NO duplicate filter — every trade is a real market event.
+                // rAF batching already coalesces multiple updates per frame.
+                bufferUpdate(null, price, false);
               }
             }
+          }
           }
         } catch {
           // Ignore parse errors

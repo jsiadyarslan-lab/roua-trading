@@ -89,10 +89,10 @@ class RedisIoAdapter extends IoAdapter {
     // - No /api prefix → doesn't conflict with NestJS's setGlobalPrefix('api')
     //
     // Next.js rewrites /socket* → NestJS:3001/socket*
-    // The frontend must connect with: io(url, { path: '/api/socket' })
+    // The frontend must connect with: io(url, { path: '/socket' })
     const mergedOptions = {
       ...options,
-      path: '/api/socket',
+      path: '/socket',
     };
     const server = super.createIOServer(port, mergedOptions);
     server.adapter(this.redisAdapter);

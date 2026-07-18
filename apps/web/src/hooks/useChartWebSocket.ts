@@ -87,6 +87,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const reconnectAttemptsRef = useRef(0);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isClosingRef = useRef(false);
+  const isConnectingRef = useRef(false); // V-WS-LOOP-FIX: prevent rapid re-connect loops
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'fallback'>('disconnected');
   // PERF: rAF batching buffer for WebSocket messages
   const rafBufferRef = useRef<WSBuffer>({ candle: null, price: null, isKlineClosed: false });
@@ -389,6 +390,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       wsRef.current = ws;
 
       ws.onopen = () => {
+        isConnectingRef.current = false; // V-WS-LOOP-FIX: connection established
         setConnectionState('connected');
         reconnectAttemptsRef.current = 0;
       };
@@ -442,6 +444,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       };
 
       ws.onclose = () => {
+        isConnectingRef.current = false; // V-WS-LOOP-FIX: connection closed
         setConnectionState('disconnected');
         wsRef.current = null;
 
@@ -461,7 +464,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           return;
         }
 
-        const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttemptsRef.current), MAX_DELAY);
+        const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttemptsRef.current) + 1000, MAX_DELAY); // +1s minimum
         reconnectAttemptsRef.current++;
         reconnectTimerRef.current = setTimeout(connectBinanceFallback, delay + Math.random() * 1000);
       };
@@ -522,6 +525,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // So we get near-real-time stream prices via simple REST polling.
   // The candle builder converts individual prices into proper OHLC candles.
   const connect = useCallback(() => {
+    // V-WS-LOOP-FIX: prevent rapid re-connect loops
+    if (isConnectingRef.current) return;
+    isConnectingRef.current = true;
     cleanup();
     isClosingRef.current = false;
     connectionGenRef.current++;

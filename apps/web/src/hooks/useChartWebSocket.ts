@@ -432,7 +432,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
               }
             }
           }
-          }
         } catch {
           // Ignore parse errors
         }

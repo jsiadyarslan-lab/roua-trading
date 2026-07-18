@@ -101,19 +101,6 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ── V-SOCKET-FIX: Socket.IO via /api/socket (avoids Next.js static file conflict) ──
-      {
-        source: '/api/socket',
-        destination: `${apiTarget}/api/socket/`,
-      },
-      {
-        source: '/api/socket/',
-        destination: `${apiTarget}/api/socket/`,
-      },
-      {
-        source: '/api/socket/:path*',
-        destination: `${apiTarget}/api/socket/:path*`,
-      },
 
       // ── V469-PWA: Locale-aware manifest URL ──
       // layout.tsx links to /manifest/{locale}/manifest.json but the route
